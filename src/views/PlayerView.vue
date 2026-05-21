@@ -14,11 +14,28 @@ import AppSheet from '@/components/common/AppSheet.vue';
 import AppButton from '@/components/common/AppButton.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 import Icon from '@/components/common/Icon.vue';
+import { useProgressStore } from '@/stores/progressStore';
 
 const player = usePlayerStore();
 const settings = useSettingsStore();
 const chunks = useChunkStore();
 const ui = useUiStore();
+const progress = useProgressStore();
+
+const currentTopic = computed(() =>
+  player.current ? chunks.topicById(player.current.topic) : undefined,
+);
+const currentProgress = computed(() =>
+  player.current ? progress.byId(player.current.id) : undefined,
+);
+const statusLabel = computed(() => {
+  const s = currentProgress.value?.status ?? 'new';
+  return s.charAt(0).toUpperCase() + s.slice(1);
+});
+
+function toggleStar() {
+  if (player.current) void progress.toggleStarred(player.current.id);
+}
 
 const voiceSheetOpen = ref(false);
 const scrollY = ref(0);
@@ -132,38 +149,50 @@ function playSample() {
 <template>
   <section class="player">
     <header
-      class="player__head safe-pt"
+      class="player__head"
       :class="{ 'is-compact': compact && player.current }"
     >
       <!-- Expanded -->
       <template v-if="!(compact && player.current)">
-        <p class="text-caption text-text-3">Đang phát</p>
-        <div class="player__head-row">
-          <h1 class="text-title-3">{{ player.current?.text ?? 'Chưa có chunk' }}</h1>
+        <button class="player__head-icon-btn tap" :aria-label="'Quay lại Home'">
+          <Icon name="chevron-down" :size="20" />
+        </button>
+        <div class="player__head-center">
+          <p class="player__head-eyebrow">Playing from</p>
+          <p class="player__head-topic">{{ currentTopic?.name ?? 'Library' }}</p>
         </div>
+        <button class="player__head-icon-btn tap" :aria-label="'Thêm'">
+          <Icon name="more" :size="20" />
+        </button>
       </template>
 
       <!-- Compact morph (Apple Music style) -->
       <div v-else class="player__head-compact">
         <span class="player__head-icon" :style="{ '--c': topicColor }">
-          <TopicIcon :name="player.current!.topic" :size="18" />
-        </span>
-        <span
-          v-if="player.isPlaying && !player.isPaused"
-          class="player__head-waves"
-          aria-hidden="true"
-        >
-          <span class="wave-bar" />
-          <span class="wave-bar" />
-          <span class="wave-bar" />
-          <span class="wave-bar" />
+          <span class="player__head-waves" aria-hidden="true">
+            <template v-if="player.isPlaying && !player.isPaused">
+              <span class="wave-bar" />
+              <span class="wave-bar" />
+              <span class="wave-bar" />
+              <span class="wave-bar" />
+            </template>
+            <template v-else>
+              <span class="player__head-bar-idle" />
+              <span class="player__head-bar-idle" />
+              <span class="player__head-bar-idle" />
+              <span class="player__head-bar-idle" />
+            </template>
+          </span>
         </span>
         <div class="player__head-text">
           <p class="player__head-title">{{ player.current!.text }}</p>
-          <p class="player__head-sub">{{ player.current!.meaning }}</p>
+          <p class="player__head-sub">
+            {{ currentTopic?.name ?? '' }} ·
+            <span class="mono">{{ player.queueIndex + 1 }}/{{ player.queueLength }}</span>
+          </p>
         </div>
         <button class="player__head-play tap" :aria-label="'Phát / Tạm dừng'" @click="togglePlay">
-          <Icon :name="player.isPlaying && !player.isPaused ? 'pause' : 'play'" :size="16" />
+          <Icon :name="player.isPlaying && !player.isPaused ? 'pause' : 'play'" :size="14" />
         </button>
       </div>
     </header>
@@ -174,16 +203,56 @@ function playSample() {
     </div>
 
     <template v-if="player.current">
-      <ChunkCard :chunk="player.current" :voice-name="currentVoice" :is-playing="player.isPlaying && !player.isPaused" />
+      <div class="player__card-wrap">
+        <ChunkCard
+          :chunk="player.current"
+          :voice-name="currentVoice"
+          :is-playing="player.isPlaying && !player.isPaused"
+        />
+      </div>
+
+      <!-- Status row -->
+      <div class="player__status-row">
+        <button
+          class="player__star tap"
+          :class="{ 'is-on': currentProgress?.starred }"
+          :aria-label="currentProgress?.starred ? 'Bỏ sao' : 'Đánh dấu sao'"
+          @click="toggleStar"
+        >
+          <Icon :name="currentProgress?.starred ? 'star-filled' : 'star'" :size="18" />
+        </button>
+        <div class="player__status-mid">
+          <div class="player__status-line">
+            <span>Loop <span class="mono">1/{{ player.repeatEach }}</span></span>
+            <span class="player__status-state">
+              <span class="dot" :class="`dot-${currentProgress?.status ?? 'new'}`" />
+              {{ statusLabel }}
+            </span>
+          </div>
+          <div class="player__status-bar">
+            <div
+              class="player__status-bar-fill"
+              :style="{ background: currentTopic?.color, width: '60%' }"
+            />
+          </div>
+          <div class="player__status-times mono">
+            <span>0:00</span>
+            <span>0:02</span>
+          </div>
+        </div>
+        <button class="player__more tap" :aria-label="'Thêm'" @click="player.stop">
+          <Icon name="more" :size="18" />
+        </button>
+      </div>
 
       <PlayerControls />
 
       <div class="player__sub">
         <button class="player__sub-btn tap" :aria-label="'Dừng'" @click="player.stop">
-          <Icon name="stop" :size="16" /> Dừng
+          <Icon name="stop" :size="14" /> Dừng
         </button>
         <button class="player__sub-btn tap" @click="openVoices">
-          <Icon name="voice" :size="16" />
+          <Icon name="voice" :size="14" />
           <span class="player__sub-text">{{ currentVoice }}</span>
         </button>
         <span class="player__sub-chip">{{ repeatChip }}</span>
@@ -256,29 +325,31 @@ function playSample() {
       <!-- Queue preview -->
       <section class="player__queue">
         <header class="player__queue-head">
-          <h2 class="player__queue-title">Tiếp theo</h2>
-          <p class="player__queue-meta">{{ player.queueIndex + 1 }} / {{ player.queueLength }}</p>
+          <div>
+            <h2 class="player__queue-title">Up next</h2>
+            <p class="player__queue-sub">
+              {{ Math.max(0, player.queueLength - player.queueIndex - 1) }} more in queue
+            </p>
+          </div>
         </header>
         <ol class="player__queue-list">
           <li
-            v-for="(c, idx) in player.queue"
+            v-for="(c, idx) in player.queue.slice(player.queueIndex + 1, player.queueIndex + 6)"
             :key="`${c.id}-${idx}`"
             class="player__queue-item tap"
-            :class="{ 'is-playing': idx === player.queueIndex }"
-            @click="moveQueueTo(idx)"
+            :style="{ '--c': chunks.topicById(c.topic)?.color ?? '#22D3EE' }"
+            @click="moveQueueTo(player.queueIndex + 1 + idx)"
           >
-            <span class="player__queue-index">{{ idx + 1 }}</span>
+            <span class="player__queue-icon">
+              <TopicIcon :name="c.topic" :size="14" />
+            </span>
             <div class="player__queue-text">
               <p class="player__queue-en">{{ c.text }}</p>
               <p class="player__queue-vi">{{ c.meaning }}</p>
             </div>
-            <button
-              class="player__queue-detail tap"
-              :aria-label="'Chi tiết chunk'"
-              @click.stop="openDetail(c.id)"
-            >
-              <Icon name="chevron-right" :size="16" />
-            </button>
+            <span class="player__queue-listens mono">
+              {{ progress.byId(c.id)?.listenCount ?? 0 }}×
+            </span>
           </li>
         </ol>
       </section>
@@ -324,76 +395,105 @@ function playSample() {
 
 <style scoped>
 .player {
-  padding: 12px 16px 24px;
+  padding: 0 0 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
 }
 
 .player__head {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-top: max(env(safe-area-inset-top), 12px);
   position: sticky;
   top: 0;
-  z-index: 5;
-  background: linear-gradient(180deg, var(--color-bg-0) 70%, transparent);
-  margin: -12px -16px 0;
-  padding-left: 16px;
-  padding-right: 16px;
-  padding-bottom: 10px;
-  transition: padding 0.2s ease, background 0.2s ease;
-}
-.player__head.is-compact {
-  background: color-mix(in oklch, var(--color-bg-1) 92%, transparent);
-  border-bottom: 1px solid var(--color-border-1);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  padding-bottom: 8px;
-}
-.player__head-row {
+  z-index: 20;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding: calc(56px + env(safe-area-inset-top)) 20px 14px;
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    backdrop-filter 0.2s ease;
 }
-.player__head-row h1 {
+.player__head.is-compact {
+  background: var(--color-bg-1);
+  border-bottom-color: var(--color-border-1);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+.player__head-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--color-surface-2);
+  color: var(--color-text-2);
+  flex-shrink: 0;
+}
+.player__head-center {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+.player__head-eyebrow {
+  margin: 0;
+  font-size: 10px;
+  color: var(--color-text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+.player__head-topic {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
+  color: var(--color-text-1);
 }
 
 .player__head-compact {
-  display: grid;
-  grid-template-columns: 36px auto 1fr 40px;
+  display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
 }
 .player__head-icon {
   width: 36px;
   height: 36px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: linear-gradient(
     135deg,
     color-mix(in oklch, var(--c) 40%, transparent),
     color-mix(in oklch, var(--c) 16%, transparent)
   );
-  color: color-mix(in oklch, var(--c) 90%, white);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  color: var(--c);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
 }
 .player__head-waves {
-  color: var(--color-cyan);
   display: inline-flex;
   align-items: center;
+  gap: 2px;
+  height: 14px;
+}
+.player__head-bar-idle {
+  display: inline-block;
+  width: 3px;
+  height: 6.3px;
+  background: currentColor;
+  border-radius: 2px;
+  opacity: 0.4;
 }
 .player__head-text {
+  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0;
 }
 .player__head-title {
   margin: 0;
@@ -408,20 +508,20 @@ function playSample() {
   margin: 0;
   font-size: 11px;
   color: var(--color-text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .player__head-play {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   background: var(--grad-primary);
-  color: white;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 20px -8px rgba(34, 211, 238, 0.5);
+  color: #0b0f22;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 8px 30px rgba(34, 211, 238, 0.4);
+}
+.player__head-play :deep(svg) {
+  margin-left: 1px;
 }
 
 .player__warn {
@@ -429,11 +529,86 @@ function playSample() {
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
+  margin: 12px 20px 0;
   border-radius: 14px;
   background: color-mix(in oklch, var(--color-amber) 18%, transparent);
   border: 1px solid color-mix(in oklch, var(--color-amber) 35%, transparent);
   color: color-mix(in oklch, var(--color-amber) 80%, white);
   font-size: 13px;
+}
+
+.player__card-wrap {
+  padding: 20px 20px 0;
+}
+
+/* Status row */
+.player__status-row {
+  padding: 16px 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.player__star {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--color-text-3);
+  background: transparent;
+}
+.player__star.is-on {
+  color: #fcd34d;
+}
+.player__status-mid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.player__status-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--color-text-3);
+  font-weight: 600;
+}
+.player__status-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: capitalize;
+}
+.player__status-bar {
+  height: 4px;
+  background: var(--color-surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.player__status-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+.player__status-times {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--color-text-3);
+}
+.player__more {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--color-surface-2);
+  color: var(--color-text-2);
+  display: grid;
+  place-items: center;
+}
+
+/* Transport */
+:deep(.controls) {
+  padding: 24px 20px 0;
 }
 
 /* Secondary controls */
@@ -442,6 +617,7 @@ function playSample() {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  padding: 16px 20px 0;
 }
 .player__sub-btn {
   display: inline-flex;
@@ -477,7 +653,8 @@ function playSample() {
 
 /* Lab controls */
 .lab {
-  padding: 14px;
+  padding: 16px;
+  margin: 24px 20px 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -600,88 +777,81 @@ function playSample() {
 }
 
 /* Queue */
+.player__queue {
+  margin-top: 24px;
+}
 .player__queue-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
+  padding: 0 20px;
+  margin-bottom: 12px;
 }
 .player__queue-title {
   margin: 0;
-  font-size: 13px;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-3);
+  letter-spacing: -0.01em;
+  color: var(--color-text-1);
 }
-.player__queue-meta {
-  margin: 0;
-  font-family: var(--font-mono);
+.player__queue-sub {
+  margin: 2px 0 0;
   font-size: 12px;
   color: var(--color-text-3);
 }
 .player__queue-list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 20px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 .player__queue-item {
   display: grid;
-  grid-template-columns: 28px 1fr 36px;
+  grid-template-columns: 32px 1fr auto;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
   border-radius: 14px;
-  background: var(--color-surface-1);
+  background: transparent;
   border: 1px solid var(--color-border-1);
   cursor: pointer;
+  text-align: left;
 }
-.player__queue-item.is-playing {
-  background: color-mix(in oklch, var(--color-cyan) 14%, transparent);
-  border-color: color-mix(in oklch, var(--color-cyan) 40%, transparent);
-}
-.player__queue-index {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-text-3);
+.player__queue-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--c) 22%, transparent);
+  color: var(--c);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
 }
 .player__queue-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
   min-width: 0;
 }
 .player__queue-en {
   margin: 0;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-text-1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .player__queue-vi {
-  margin: 0;
-  font-size: 12px;
+  margin: 1px 0 0;
+  font-size: 11px;
   color: var(--color-text-3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.player__queue-detail {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
+.player__queue-listens {
+  font-family: var(--font-mono);
+  font-size: 10px;
   color: var(--color-text-3);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
 /* Voices sheet */

@@ -31,88 +31,93 @@ function togglePlay() {
 <template>
   <div class="controls">
     <button
-      class="controls__btn tap"
+      class="controls__icon tap"
       :class="{ 'is-active': player.shuffle }"
       :aria-label="player.shuffle ? 'Tắt shuffle' : 'Bật shuffle'"
       @click="player.toggleShuffle"
     >
-      <Icon name="shuffle" :size="18" />
+      <Icon name="shuffle" :size="20" />
     </button>
 
     <button
-      class="controls__btn tap"
+      class="controls__step tap"
       :aria-label="'Chunk trước'"
       :disabled="!player.hasPrev && player.queueLength <= 1"
       @click="player.prev"
     >
-      <Icon name="prev" :size="22" />
+      <Icon name="prev" :size="26" />
     </button>
 
     <button class="controls__primary tap" :aria-label="playLabel" @click="togglePlay">
       <Icon
         :name="player.isPlaying && !player.isPaused ? 'pause' : 'play'"
-        :size="26"
+        :size="30"
       />
     </button>
 
     <button
-      class="controls__btn tap"
+      class="controls__step tap"
       :aria-label="'Chunk sau'"
       :disabled="!player.hasNext && player.queueLength <= 1"
       @click="player.next"
     >
-      <Icon name="next" :size="22" />
+      <Icon name="next" :size="26" />
     </button>
 
     <button
-      class="controls__btn tap"
+      class="controls__icon tap"
       :class="{ 'is-active': player.repeatMode !== 'none' }"
       :aria-label="repeatLabel"
       @click="player.cycleRepeat"
     >
-      <Icon :name="repeatIcon" :size="18" />
+      <Icon :name="repeatIcon" :size="20" />
     </button>
   </div>
 </template>
 
 <style scoped>
 .controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0;
+}
+.controls__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  align-items: center;
-  justify-items: center;
-  gap: 8px;
-}
-.controls__btn {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  place-items: center;
   color: var(--color-text-2);
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
+  background: transparent;
 }
-.controls__btn.is-active {
+.controls__icon.is-active {
   color: var(--color-cyan);
-  background: color-mix(in oklch, var(--color-cyan) 18%, transparent);
-  border-color: color-mix(in oklch, var(--color-cyan) 35%, transparent);
+  background: var(--color-surface-3);
 }
-.controls__btn:disabled {
+.controls__step {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--color-text-1);
+  background: transparent;
+}
+.controls__step:disabled {
   opacity: 0.35;
 }
 .controls__primary {
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: var(--grad-primary);
-  color: white;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   box-shadow:
-    0 10px 30px -10px rgba(34, 211, 238, 0.6),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+    0 8px 30px rgba(34, 211, 238, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+.controls__primary :deep(svg) {
+  margin-left: 2px;
 }
 </style>
