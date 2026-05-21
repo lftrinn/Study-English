@@ -5,6 +5,7 @@
  * queue, all with inline-style :style bindings copied from the JSX.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -27,6 +28,7 @@ const settings = useSettingsStore();
 const chunks = useChunkStore();
 const progress = useProgressStore();
 const ui = useUiStore();
+const router = useRouter();
 
 const scrollY = ref(0);
 const queueOpen = ref(false);
@@ -105,6 +107,25 @@ function changeGap(deltaMs: number) {
 function openCurrentDetail() {
   if (current.value) ui.openChunkDetail(current.value.id);
 }
+function dismissPlayer() {
+  if (window.history.length > 1) router.back();
+  else void router.push({ name: 'home' });
+}
+function openHeaderMenu() {
+  if (current.value) ui.openChunkDetail(current.value.id);
+}
+function formatMs(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(s / 60);
+  return `${m}:${(s % 60).toString().padStart(2, '0')}`;
+}
+const progressPct = computed(() => {
+  const d = player.currentDurationMs;
+  if (!d) return 0;
+  return Math.max(0, Math.min(100, (player.currentElapsedMs / d) * 100));
+});
+const elapsedLabel = computed(() => formatMs(player.currentElapsedMs));
+const durationLabel = computed(() => formatMs(player.currentDurationMs));
 function changeRepeat(delta: number) {
   player.setRepeatEach(player.repeatEach + delta);
   settings.defaultRepeatEach = player.repeatEach;
@@ -200,6 +221,8 @@ const upNext = computed(() =>
               color: 'var(--color-text-1)',
               flexShrink: 0,
             }"
+            :aria-label="'Đóng player'"
+            @click="dismissPlayer"
           >
             <Icon name="chevron-down" :size="20" />
           </button>
@@ -219,6 +242,8 @@ const upNext = computed(() =>
               color: 'var(--color-text-1)',
               flexShrink: 0,
             }"
+            :aria-label="'Tuỳ chọn'"
+            @click="openHeaderMenu"
           >
             <Icon name="more" :size="20" />
           </button>
@@ -340,10 +365,10 @@ const upNext = computed(() =>
             <span>Loop <span class="mono">1/{{ player.repeatEach }}</span></span>
             <StatusDot :status="currentProgress?.status ?? 'new'" with-label />
           </div>
-          <ProgressBar :value="60" :height="4" :color="accent" />
+          <ProgressBar :value="progressPct" :height="4" :color="accent" />
           <div :style="{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--color-text-3)' }">
-            <span class="mono">0:00</span>
-            <span class="mono">0:02</span>
+            <span class="mono">{{ elapsedLabel }}</span>
+            <span class="mono">{{ durationLabel }}</span>
           </div>
         </div>
         <button
