@@ -2,6 +2,7 @@
 import { computed, watchEffect } from 'vue';
 import { useRoute } from 'vue-router';
 import BottomNav from './BottomNav.vue';
+import ChunkDetailSheet from '@/components/chunk/ChunkDetailSheet.vue';
 import { useSettingsStore } from '@/stores/settingsStore';
 
 const route = useRoute();
@@ -27,6 +28,7 @@ watchEffect(() => {
       <div v-if="!hideChrome" class="tabbar-spacer" aria-hidden="true" />
     </main>
     <BottomNav v-if="!hideChrome" />
+    <ChunkDetailSheet />
   </div>
 </template>
 
