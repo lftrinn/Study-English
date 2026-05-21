@@ -1,0 +1,110 @@
+[
+  {
+    "id": "ng-001",
+    "text": "I'll add a unit test for this case.",
+    "meaning": "Tôi sẽ thêm unit test cho trường hợp này.",
+    "topic": "angular",
+    "level": "A2",
+    "source": "angular",
+    "tags": ["testing"]
+  },
+  {
+    "id": "ng-002",
+    "text": "We can wrap this in a shared component.",
+    "meaning": "Chúng ta có thể bọc nó trong một component dùng chung.",
+    "topic": "angular",
+    "level": "B1",
+    "source": "angular",
+    "tags": ["component"]
+  },
+  {
+    "id": "ng-003",
+    "text": "The change detection runs too often here.",
+    "meaning": "Change detection chạy quá nhiều lần ở đây.",
+    "topic": "angular",
+    "level": "B1",
+    "source": "angular",
+    "tags": ["performance"]
+  },
+  {
+    "id": "ng-004",
+    "text": "Let's switch this to OnPush.",
+    "meaning": "Chuyển cái này sang OnPush đi.",
+    "topic": "angular",
+    "level": "B1",
+    "source": "angular",
+    "tags": ["performance"]
+  },
+  {
+    "id": "ng-005",
+    "text": "I'll move this logic into a service.",
+    "meaning": "Tôi sẽ chuyển logic này vào một service.",
+    "topic": "angular",
+    "level": "B1",
+    "source": "angular",
+    "tags": ["architecture"]
+  },
+  {
+    "id": "ng-006",
+    "text": "The observable does not complete here.",
+    "meaning": "Observable không complete ở đây.",
+    "topic": "angular",
+    "level": "B1",
+    "source": "angular",
+    "tags": ["rxjs"]
+  },
+  {
+    "id": "ng-007",
+    "text": "We should unsubscribe when the component is destroyed.",
+    "meaning": "Chúng ta nên unsubscribe khi component bị huỷ.",
+    "topic": "angular",
+    "level": "B1",
+    "source": "angular",
+    "tags": ["rxjs", "memory"]
+  },
+  {
+    "id": "ng-008",
+    "text": "Try using takeUntilDestroyed instead.",
+    "meaning": "Thử dùng takeUntilDestroyed đi.",
+    "topic": "angular",
+    "level": "B1",
+    "source": "angular",
+    "tags": ["rxjs"]
+  },
+  {
+    "id": "ng-009",
+    "text": "Could you review my pull request?",
+    "meaning": "Bạn có thể review pull request của tôi không?",
+    "topic": "angular",
+    "level": "A2",
+    "source": "angular",
+    "tags": ["review"]
+  },
+  {
+    "id": "ng-010",
+    "text": "I'll convert this to a standalone component.",
+    "meaning": "Tôi sẽ chuyển cái này thành standalone component.",
+    "topic": "angular",
+    "level": "B1",
+    "source": "angular",
+    "tags": ["refactor"]
+  },
+  {
+    "id": "ng-011",
+    "text": "The injector context is wrong here.",
+    "meaning": "Ngữ cảnh injector ở đây bị sai.",
+    "topic": "angular",
+    "level": "B1",
+    "source": "angular",
+    "tags": ["di"]
+  },
+  {
+    "id": "ng-012",
+    "text": "We can use signals for derived state.",
+    "meaning": "Chúng ta có thể dùng signals cho state phái sinh.",
+    "topic": "angular",
+    "level": "B1",
+    "source": "angular",
+    "tags": ["signals"]
+  }
+]

@@ -1,0 +1,137 @@
+[
+  {
+    "id": "te-001",
+    "text": "What time would work for you?",
+    "meaning": "Mấy giờ thì tiện cho bạn?",
+    "topic": "toeic",
+    "level": "A2",
+    "source": "toeic",
+    "tags": ["scheduling"]
+  },
+  {
+    "id": "te-002",
+    "text": "Please find the attached file.",
+    "meaning": "Vui lòng xem tệp đính kèm.",
+    "topic": "toeic",
+    "level": "A2",
+    "source": "toeic",
+    "tags": ["email"]
+  },
+  {
+    "id": "te-003",
+    "text": "I'd like to reschedule our meeting.",
+    "meaning": "Tôi muốn dời lại cuộc họp của chúng ta.",
+    "topic": "toeic",
+    "level": "B1",
+    "source": "toeic",
+    "tags": ["scheduling"]
+  },
+  {
+    "id": "te-004",
+    "text": "The order will be shipped tomorrow.",
+    "meaning": "Đơn hàng sẽ được giao vào ngày mai.",
+    "topic": "toeic",
+    "level": "A2",
+    "source": "toeic",
+    "tags": ["business"]
+  },
+  {
+    "id": "te-005",
+    "text": "We are pleased to announce a new product.",
+    "meaning": "Chúng tôi vui mừng giới thiệu sản phẩm mới.",
+    "topic": "toeic",
+    "level": "B1",
+    "source": "toeic",
+    "tags": ["announcement"]
+  },
+  {
+    "id": "te-006",
+    "text": "Please confirm your attendance by Friday.",
+    "meaning": "Vui lòng xác nhận tham dự trước thứ Sáu.",
+    "topic": "toeic",
+    "level": "B1",
+    "source": "toeic",
+    "tags": ["email"]
+  },
+  {
+    "id": "te-007",
+    "text": "The training will start at nine sharp.",
+    "meaning": "Buổi đào tạo sẽ bắt đầu đúng 9 giờ.",
+    "topic": "toeic",
+    "level": "A2",
+    "source": "toeic",
+    "tags": ["schedule"]
+  },
+  {
+    "id": "te-008",
+    "text": "We apologize for the inconvenience.",
+    "meaning": "Chúng tôi xin lỗi vì sự bất tiện này.",
+    "topic": "toeic",
+    "level": "B1",
+    "source": "toeic",
+    "tags": ["polite"]
+  },
+  {
+    "id": "te-009",
+    "text": "Could you forward this email to your manager?",
+    "meaning": "Bạn có thể chuyển tiếp email này tới quản lý không?",
+    "topic": "toeic",
+    "level": "B1",
+    "source": "toeic",
+    "tags": ["email"]
+  },
+  {
+    "id": "te-010",
+    "text": "The meeting has been postponed.",
+    "meaning": "Cuộc họp đã bị hoãn lại.",
+    "topic": "toeic",
+    "level": "B1",
+    "source": "toeic",
+    "tags": ["schedule"]
+  },
+  {
+    "id": "te-011",
+    "text": "I'll get back to you shortly.",
+    "meaning": "Tôi sẽ phản hồi bạn sớm.",
+    "topic": "toeic",
+    "level": "A2",
+    "source": "toeic",
+    "tags": ["polite"]
+  },
+  {
+    "id": "te-012",
+    "text": "Thank you for reaching out.",
+    "meaning": "Cảm ơn bạn đã liên hệ.",
+    "topic": "toeic",
+    "level": "A2",
+    "source": "toeic",
+    "tags": ["polite", "email"]
+  },
+  {
+    "id": "te-013",
+    "text": "Could you give me a hand?",
+    "meaning": "Bạn có thể giúp tôi một tay không?",
+    "topic": "toeic",
+    "level": "A2",
+    "source": "toeic",
+    "tags": ["request"]
+  },
+  {
+    "id": "te-014",
+    "text": "I'll keep you posted.",
+    "meaning": "Tôi sẽ cập nhật cho bạn.",
+    "topic": "toeic",
+    "level": "A2",
+    "source": "toeic",
+    "tags": ["polite"]
+  },
+  {
+    "id": "te-015",
+    "text": "Let me know if you have any questions.",
+    "meaning": "Cho tôi biết nếu bạn có câu hỏi nào.",
+    "topic": "toeic",
+    "level": "A2",
+    "source": "toeic",
+    "tags": ["polite"]
+  }
+]

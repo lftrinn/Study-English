@@ -1,0 +1,218 @@
+[
+  {
+    "id": "fe-001",
+    "text": "I'm working on this ticket.",
+    "meaning": "Tôi đang làm vé này.",
+    "topic": "tickets",
+    "level": "A2",
+    "source": "frontend",
+    "tags": ["standup", "progress"]
+  },
+  {
+    "id": "fe-002",
+    "text": "It is about 50% complete.",
+    "meaning": "Nó hoàn thành khoảng 50%.",
+    "topic": "standup",
+    "level": "A2",
+    "source": "frontend",
+    "tags": ["progress"]
+  },
+  {
+    "id": "fe-003",
+    "text": "I will finish it today.",
+    "meaning": "Tôi sẽ hoàn thành nó hôm nay.",
+    "topic": "standup",
+    "level": "A1",
+    "source": "frontend",
+    "tags": ["commitment"]
+  },
+  {
+    "id": "fe-004",
+    "text": "I need to check the API response.",
+    "meaning": "Tôi cần kiểm tra phản hồi API.",
+    "topic": "api",
+    "level": "A2",
+    "source": "frontend",
+    "tags": ["debug"]
+  },
+  {
+    "id": "fe-005",
+    "text": "The issue happens when the user clicks Save.",
+    "meaning": "Lỗi xảy ra khi người dùng nhấn Save.",
+    "topic": "bugs",
+    "level": "B1",
+    "source": "frontend",
+    "tags": ["repro"]
+  },
+  {
+    "id": "fe-006",
+    "text": "I need to confirm the expected behavior.",
+    "meaning": "Tôi cần xác nhận hành vi mong đợi.",
+    "topic": "bugs",
+    "level": "B1",
+    "source": "frontend",
+    "tags": ["clarify"]
+  },
+  {
+    "id": "fe-007",
+    "text": "Could you repeat that, please?",
+    "meaning": "Bạn có thể nhắc lại được không?",
+    "topic": "client",
+    "level": "A1",
+    "source": "frontend",
+    "tags": ["polite"]
+  },
+  {
+    "id": "fe-008",
+    "text": "Let me confirm my understanding.",
+    "meaning": "Để tôi xác nhận lại sự hiểu của mình.",
+    "topic": "client",
+    "level": "B1",
+    "source": "frontend",
+    "tags": ["polite"]
+  },
+  {
+    "id": "fe-009",
+    "text": "I'll push the fix to staging.",
+    "meaning": "Tôi sẽ đẩy bản sửa lên staging.",
+    "topic": "tickets",
+    "level": "B1",
+    "source": "frontend",
+    "tags": ["deploy"]
+  },
+  {
+    "id": "fe-010",
+    "text": "Can we sync on this after the meeting?",
+    "meaning": "Chúng ta đồng bộ sau cuộc họp được không?",
+    "topic": "standup",
+    "level": "B1",
+    "source": "frontend",
+    "tags": ["coordination"]
+  },
+  {
+    "id": "fe-011",
+    "text": "I'd like to walk you through the change.",
+    "meaning": "Tôi muốn giải thích cho bạn về thay đổi.",
+    "topic": "client",
+    "level": "B1",
+    "source": "frontend",
+    "tags": ["presentation"]
+  },
+  {
+    "id": "fe-012",
+    "text": "The endpoint returns a 401 sometimes.",
+    "meaning": "Endpoint đôi khi trả về 401.",
+    "topic": "api",
+    "level": "B1",
+    "source": "frontend",
+    "tags": ["error"]
+  },
+  {
+    "id": "fe-013",
+    "text": "I'm blocked on the patient data flow.",
+    "meaning": "Tôi đang bị chặn ở luồng dữ liệu bệnh nhân.",
+    "topic": "healthcare",
+    "level": "B1",
+    "source": "frontend",
+    "tags": ["blocker"]
+  },
+  {
+    "id": "fe-014",
+    "text": "Let me share my screen.",
+    "meaning": "Để tôi chia sẻ màn hình.",
+    "topic": "standup",
+    "level": "A1",
+    "source": "frontend",
+    "tags": ["meeting"]
+  },
+  {
+    "id": "fe-015",
+    "text": "Sorry, my internet was lagging.",
+    "meaning": "Xin lỗi, internet của tôi bị lag.",
+    "topic": "client",
+    "level": "A2",
+    "source": "frontend",
+    "tags": ["casual"]
+  },
+  {
+    "id": "fe-016",
+    "text": "I picked up this ticket yesterday.",
+    "meaning": "Tôi đã nhận vé này hôm qua.",
+    "topic": "tickets",
+    "level": "A2",
+    "source": "frontend",
+    "tags": ["progress"]
+  },
+  {
+    "id": "fe-017",
+    "text": "I'm waiting for the design from the UI team.",
+    "meaning": "Tôi đang đợi thiết kế từ team UI.",
+    "topic": "standup",
+    "level": "B1",
+    "source": "frontend",
+    "tags": ["blocker"]
+  },
+  {
+    "id": "fe-018",
+    "text": "I'll raise a PR by end of day.",
+    "meaning": "Tôi sẽ tạo PR trước cuối ngày.",
+    "topic": "tickets",
+    "level": "B1",
+    "source": "frontend",
+    "tags": ["commitment", "review"]
+  },
+  {
+    "id": "fe-019",
+    "text": "Could you elaborate on this requirement?",
+    "meaning": "Bạn có thể giải thích thêm về yêu cầu này được không?",
+    "topic": "client",
+    "level": "B1",
+    "source": "frontend",
+    "tags": ["clarify"]
+  },
+  {
+    "id": "fe-020",
+    "text": "I can reproduce the bug on staging.",
+    "meaning": "Tôi có thể tái hiện lỗi trên staging.",
+    "topic": "bugs",
+    "level": "B1",
+    "source": "frontend",
+    "tags": ["repro"]
+  },
+  {
+    "id": "fe-021",
+    "text": "The payload looks correct on my side.",
+    "meaning": "Payload trông đúng ở phía tôi.",
+    "topic": "api",
+    "level": "B1",
+    "source": "frontend",
+    "tags": ["debug"]
+  },
+  {
+    "id": "fe-022",
+    "text": "Let me double-check the network tab.",
+    "meaning": "Để tôi kiểm tra lại tab network.",
+    "topic": "bugs",
+    "level": "B1",
+    "source": "frontend",
+    "tags": ["debug"]
+  },
+  {
+    "id": "fe-023",
+    "text": "I'll roll back the change.",
+    "meaning": "Tôi sẽ rollback thay đổi.",
+    "topic": "tickets",
+    "level": "B1",
+    "source": "frontend",
+    "tags": ["deploy"]
+  },
+  {
+    "id": "fe-024",
+    "text": "I need a quick clarification on the spec.",
+    "meaning": "Tôi cần làm rõ nhanh về spec.",
+    "topic": "client",
+    "level": "B1",
+    "source": "frontend",
+    "tags": ["clarify"]
+  }
+]

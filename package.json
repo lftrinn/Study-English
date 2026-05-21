@@ -1,0 +1,30 @@
+{
+  "name": "chunk-listening-lab",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Mobile-first PWA dạy English chunks cho frontend dev Việt — Spotify-style listening + Quizlet-inspired study modes.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@vueuse/core": "^12.5.0",
+    "idb": "^8.0.2",
+    "pinia": "^3.0.1",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.6",
+    "@types/node": "^22.13.1",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "tailwindcss": "^4.0.6",
+    "typescript": "~5.7.3",
+    "vite": "^6.1.0",
+    "vite-plugin-pwa": "^0.21.1",
+    "vue-tsc": "^2.2.0"
+  }
+}

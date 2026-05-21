@@ -1,0 +1,92 @@
+[
+  {
+    "id": "ts-001",
+    "text": "Let me narrow the type here.",
+    "meaning": "Để tôi thu hẹp kiểu ở đây.",
+    "topic": "typescript",
+    "level": "B1",
+    "source": "typescript",
+    "tags": ["narrowing"]
+  },
+  {
+    "id": "ts-002",
+    "text": "We can extract this into a type alias.",
+    "meaning": "Chúng ta có thể trích cái này thành một type alias.",
+    "topic": "typescript",
+    "level": "B1",
+    "source": "typescript",
+    "tags": ["refactor"]
+  },
+  {
+    "id": "ts-003",
+    "text": "The generic parameter is inferred.",
+    "meaning": "Tham số generic được suy ra.",
+    "topic": "typescript",
+    "level": "B1",
+    "source": "typescript",
+    "tags": ["generics"]
+  },
+  {
+    "id": "ts-004",
+    "text": "This value could be undefined.",
+    "meaning": "Giá trị này có thể là undefined.",
+    "topic": "typescript",
+    "level": "A2",
+    "source": "typescript",
+    "tags": ["nullable"]
+  },
+  {
+    "id": "ts-005",
+    "text": "Use a discriminated union for this case.",
+    "meaning": "Dùng discriminated union cho trường hợp này.",
+    "topic": "typescript",
+    "level": "B1",
+    "source": "typescript",
+    "tags": ["union"]
+  },
+  {
+    "id": "ts-006",
+    "text": "Avoid using any in this function.",
+    "meaning": "Tránh dùng any trong hàm này.",
+    "topic": "typescript",
+    "level": "A2",
+    "source": "typescript",
+    "tags": ["best-practice"]
+  },
+  {
+    "id": "ts-007",
+    "text": "The return type can be inferred automatically.",
+    "meaning": "Kiểu trả về có thể được suy ra tự động.",
+    "topic": "typescript",
+    "level": "B1",
+    "source": "typescript",
+    "tags": ["inference"]
+  },
+  {
+    "id": "ts-008",
+    "text": "Mark this field as readonly.",
+    "meaning": "Đánh dấu trường này là readonly.",
+    "topic": "typescript",
+    "level": "A2",
+    "source": "typescript",
+    "tags": ["modifiers"]
+  },
+  {
+    "id": "ts-009",
+    "text": "Let's tighten the type signature.",
+    "meaning": "Hãy thắt chặt chữ ký kiểu lại.",
+    "topic": "typescript",
+    "level": "B1",
+    "source": "typescript",
+    "tags": ["refactor"]
+  },
+  {
+    "id": "ts-010",
+    "text": "We should not cast with the as keyword here.",
+    "meaning": "Chúng ta không nên cast bằng as ở đây.",
+    "topic": "typescript",
+    "level": "B1",
+    "source": "typescript",
+    "tags": ["best-practice"]
+  }
+]

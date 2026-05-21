@@ -1,0 +1,137 @@
+[
+  {
+    "id": "iv-001",
+    "text": "I have experience with Angular and TypeScript.",
+    "meaning": "Tôi có kinh nghiệm với Angular và TypeScript.",
+    "topic": "interview",
+    "level": "A2",
+    "source": "interview",
+    "tags": ["skills"]
+  },
+  {
+    "id": "iv-002",
+    "text": "I was responsible for developing UI components.",
+    "meaning": "Tôi phụ trách phát triển các thành phần UI.",
+    "topic": "interview",
+    "level": "B1",
+    "source": "interview",
+    "tags": ["experience"]
+  },
+  {
+    "id": "iv-003",
+    "text": "I tend to focus on clean and reusable code.",
+    "meaning": "Tôi tập trung vào code sạch và tái sử dụng.",
+    "topic": "interview",
+    "level": "B1",
+    "source": "interview",
+    "tags": ["values"]
+  },
+  {
+    "id": "iv-004",
+    "text": "My strength is breaking down complex requirements.",
+    "meaning": "Điểm mạnh của tôi là phân tích yêu cầu phức tạp.",
+    "topic": "interview",
+    "level": "B1",
+    "source": "interview",
+    "tags": ["strength"]
+  },
+  {
+    "id": "iv-005",
+    "text": "I usually start by clarifying the user flow.",
+    "meaning": "Tôi thường bắt đầu bằng việc làm rõ luồng người dùng.",
+    "topic": "interview",
+    "level": "B1",
+    "source": "interview",
+    "tags": ["approach"]
+  },
+  {
+    "id": "iv-006",
+    "text": "I worked on a healthcare project for two years.",
+    "meaning": "Tôi đã làm dự án healthcare trong hai năm.",
+    "topic": "interview",
+    "level": "A2",
+    "source": "interview",
+    "tags": ["experience"]
+  },
+  {
+    "id": "iv-007",
+    "text": "I learn quickly from code reviews.",
+    "meaning": "Tôi học nhanh từ các buổi review code.",
+    "topic": "interview",
+    "level": "A2",
+    "source": "interview",
+    "tags": ["growth"]
+  },
+  {
+    "id": "iv-008",
+    "text": "I enjoy mentoring junior teammates.",
+    "meaning": "Tôi thích hướng dẫn các bạn junior.",
+    "topic": "interview",
+    "level": "B1",
+    "source": "interview",
+    "tags": ["soft-skill"]
+  },
+  {
+    "id": "iv-009",
+    "text": "I try to ship small and test often.",
+    "meaning": "Tôi cố gắng release nhỏ và test thường xuyên.",
+    "topic": "interview",
+    "level": "B1",
+    "source": "interview",
+    "tags": ["values"]
+  },
+  {
+    "id": "iv-010",
+    "text": "I'd describe myself as detail-oriented.",
+    "meaning": "Tôi tự mô tả mình là người chú ý đến chi tiết.",
+    "topic": "interview",
+    "level": "B1",
+    "source": "interview",
+    "tags": ["self-description"]
+  },
+  {
+    "id": "iv-011",
+    "text": "I usually pair with the backend developer first.",
+    "meaning": "Tôi thường làm chung với dev backend trước.",
+    "topic": "interview",
+    "level": "B1",
+    "source": "interview",
+    "tags": ["collaboration"]
+  },
+  {
+    "id": "iv-012",
+    "text": "I once led a small refactor sprint.",
+    "meaning": "Tôi đã từng dẫn dắt một sprint refactor nhỏ.",
+    "topic": "interview",
+    "level": "B1",
+    "source": "interview",
+    "tags": ["leadership"]
+  },
+  {
+    "id": "iv-013",
+    "text": "I'm comfortable working in cross-functional teams.",
+    "meaning": "Tôi thoải mái khi làm việc trong các team đa chức năng.",
+    "topic": "interview",
+    "level": "B1",
+    "source": "interview",
+    "tags": ["teamwork"]
+  },
+  {
+    "id": "iv-014",
+    "text": "I look for impact rather than line count.",
+    "meaning": "Tôi nhìn vào tác động chứ không phải số dòng code.",
+    "topic": "interview",
+    "level": "B1",
+    "source": "interview",
+    "tags": ["values"]
+  },
+  {
+    "id": "iv-015",
+    "text": "I'd love to work on accessibility next.",
+    "meaning": "Tôi rất muốn làm về accessibility tiếp theo.",
+    "topic": "interview",
+    "level": "B1",
+    "source": "interview",
+    "tags": ["goal"]
+  }
+]

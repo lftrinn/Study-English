@@ -1,0 +1,92 @@
+[
+  {
+    "id": "js-001",
+    "text": "This function returns a promise.",
+    "meaning": "Hàm này trả về một promise.",
+    "topic": "javascript",
+    "level": "A2",
+    "source": "javascript",
+    "tags": ["async"]
+  },
+  {
+    "id": "js-002",
+    "text": "We need to await the response.",
+    "meaning": "Chúng ta cần await response.",
+    "topic": "javascript",
+    "level": "A2",
+    "source": "javascript",
+    "tags": ["async"]
+  },
+  {
+    "id": "js-003",
+    "text": "The array is mutated in place.",
+    "meaning": "Mảng bị thay đổi trực tiếp.",
+    "topic": "javascript",
+    "level": "B1",
+    "source": "javascript",
+    "tags": ["mutation"]
+  },
+  {
+    "id": "js-004",
+    "text": "Let's destructure the props.",
+    "meaning": "Hãy destructure props nào.",
+    "topic": "javascript",
+    "level": "A2",
+    "source": "javascript",
+    "tags": ["syntax"]
+  },
+  {
+    "id": "js-005",
+    "text": "This is a side effect.",
+    "meaning": "Đây là một side effect.",
+    "topic": "javascript",
+    "level": "A2",
+    "source": "javascript",
+    "tags": ["fp"]
+  },
+  {
+    "id": "js-006",
+    "text": "The variable is not defined yet.",
+    "meaning": "Biến này chưa được định nghĩa.",
+    "topic": "javascript",
+    "level": "A2",
+    "source": "javascript",
+    "tags": ["error"]
+  },
+  {
+    "id": "js-007",
+    "text": "This callback is invoked asynchronously.",
+    "meaning": "Callback này được gọi bất đồng bộ.",
+    "topic": "javascript",
+    "level": "B1",
+    "source": "javascript",
+    "tags": ["async"]
+  },
+  {
+    "id": "js-008",
+    "text": "We should debounce the search input.",
+    "meaning": "Chúng ta nên debounce ô search.",
+    "topic": "javascript",
+    "level": "B1",
+    "source": "javascript",
+    "tags": ["performance"]
+  },
+  {
+    "id": "js-009",
+    "text": "The closure captures this variable.",
+    "meaning": "Closure giữ lại biến này.",
+    "topic": "javascript",
+    "level": "B1",
+    "source": "javascript",
+    "tags": ["scope"]
+  },
+  {
+    "id": "js-010",
+    "text": "This array method does not mutate the original.",
+    "meaning": "Phương thức mảng này không thay đổi mảng gốc.",
+    "topic": "javascript",
+    "level": "B1",
+    "source": "javascript",
+    "tags": ["array"]
+  }
+]

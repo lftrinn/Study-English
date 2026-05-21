@@ -1,0 +1,92 @@
+[
+  {
+    "id": "pf-001",
+    "text": "My name is Trinh and I'm a frontend developer.",
+    "meaning": "Tên tôi là Trinh và tôi là một frontend developer.",
+    "topic": "profile",
+    "level": "A1",
+    "source": "profile",
+    "tags": ["self-intro"]
+  },
+  {
+    "id": "pf-002",
+    "text": "I have around four years of experience in web development.",
+    "meaning": "Tôi có khoảng bốn năm kinh nghiệm trong phát triển web.",
+    "topic": "profile",
+    "level": "B1",
+    "source": "profile",
+    "tags": ["self-intro"]
+  },
+  {
+    "id": "pf-003",
+    "text": "I mostly work with Angular and TypeScript.",
+    "meaning": "Tôi chủ yếu làm việc với Angular và TypeScript.",
+    "topic": "profile",
+    "level": "A2",
+    "source": "profile",
+    "tags": ["skills"]
+  },
+  {
+    "id": "pf-004",
+    "text": "I'm based in Vietnam and I work remotely.",
+    "meaning": "Tôi ở Việt Nam và làm việc từ xa.",
+    "topic": "profile",
+    "level": "A2",
+    "source": "profile",
+    "tags": ["self-intro"]
+  },
+  {
+    "id": "pf-005",
+    "text": "I've been working on healthcare software recently.",
+    "meaning": "Gần đây tôi đang làm phần mềm healthcare.",
+    "topic": "profile",
+    "level": "B1",
+    "source": "profile",
+    "tags": ["experience"]
+  },
+  {
+    "id": "pf-006",
+    "text": "Outside of work, I enjoy reading technical books.",
+    "meaning": "Ngoài công việc, tôi thích đọc sách kỹ thuật.",
+    "topic": "profile",
+    "level": "B1",
+    "source": "profile",
+    "tags": ["hobby"]
+  },
+  {
+    "id": "pf-007",
+    "text": "I am currently learning English for interviews.",
+    "meaning": "Tôi đang học English để chuẩn bị phỏng vấn.",
+    "topic": "profile",
+    "level": "A2",
+    "source": "profile",
+    "tags": ["goal"]
+  },
+  {
+    "id": "pf-008",
+    "text": "Nice to meet you. How is your day going?",
+    "meaning": "Rất vui được gặp bạn. Hôm nay của bạn thế nào?",
+    "topic": "profile",
+    "level": "A1",
+    "source": "profile",
+    "tags": ["greeting"]
+  },
+  {
+    "id": "pf-009",
+    "text": "I'd love to learn more about your team.",
+    "meaning": "Tôi rất muốn tìm hiểu thêm về team của bạn.",
+    "topic": "profile",
+    "level": "B1",
+    "source": "profile",
+    "tags": ["small-talk"]
+  },
+  {
+    "id": "pf-010",
+    "text": "Thanks for taking the time to meet me.",
+    "meaning": "Cảm ơn bạn đã dành thời gian gặp tôi.",
+    "topic": "profile",
+    "level": "A2",
+    "source": "profile",
+    "tags": ["polite"]
+  }
+]

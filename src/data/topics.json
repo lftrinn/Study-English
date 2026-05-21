@@ -1,0 +1,14 @@
+[
+  { "id": "standup", "name": "Daily Standup", "color": "#E5A765", "emoji": "☕" },
+  { "id": "tickets", "name": "Tickets & Tasks", "color": "#9B8AE6", "emoji": "🎫" },
+  { "id": "api", "name": "API & Backend", "color": "#5DD0DE", "emoji": "🔌" },
+  { "id": "bugs", "name": "Bug Fixing", "color": "#E47D6A", "emoji": "🪲" },
+  { "id": "interview", "name": "Interview Answers", "color": "#D4A06B", "emoji": "💼" },
+  { "id": "client", "name": "Client Communication", "color": "#7DA8EC", "emoji": "🤝" },
+  { "id": "angular", "name": "Angular & TS", "color": "#8B7DE8", "emoji": "⚡" },
+  { "id": "healthcare", "name": "Healthcare Domain", "color": "#5FCFA5", "emoji": "🩺" },
+  { "id": "toeic", "name": "TOEIC 450–550", "color": "#B097E0", "emoji": "📘" },
+  { "id": "javascript", "name": "JavaScript", "color": "#F7DF1E", "emoji": "📜" },
+  { "id": "typescript", "name": "TypeScript", "color": "#3178C6", "emoji": "🧩" },
+  { "id": "profile", "name": "Profile & Self-intro", "color": "#F472B6", "emoji": "🪪" }
+]
