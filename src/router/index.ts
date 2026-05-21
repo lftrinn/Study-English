@@ -39,6 +39,24 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Flashcards', tab: null, hideChrome: true },
   },
   {
+    path: '/study/write',
+    name: 'write',
+    component: () => import('@/views/WriteView.vue'),
+    meta: { title: 'Write', tab: null, hideChrome: true },
+  },
+  {
+    path: '/study/dictation',
+    name: 'dictation',
+    component: () => import('@/views/DictationView.vue'),
+    meta: { title: 'Dictation', tab: null, hideChrome: true },
+  },
+  {
+    path: '/study/learn',
+    name: 'learn',
+    component: () => import('@/views/LearnView.vue'),
+    meta: { title: 'Learn', tab: null, hideChrome: true },
+  },
+  {
     path: '/onboarding',
     name: 'onboarding',
     component: () => import('@/views/OnboardingView.vue'),
