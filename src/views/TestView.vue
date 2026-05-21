@@ -6,18 +6,17 @@ import { useChunkStore } from '@/stores/chunkStore';
 import { useProgressStore } from '@/stores/progressStore';
 import { usePracticeStore } from '@/stores/practiceStore';
 import { usePlayerStore } from '@/stores/playerStore';
-import type { Chunk, ChunkLevel, ChunkSource } from '@/types/chunk';
+import type { Chunk } from '@/types/chunk';
 import type { PracticeMode } from '@/types/practice';
 
 import QuizQuestion, {
   type LearnQuestionType,
 } from '@/components/practice/QuizQuestion.vue';
-import AppCard from '@/components/common/AppCard.vue';
-import AppButton from '@/components/common/AppButton.vue';
+import ModeShell from '@/components/layout/ModeShell.vue';
 import ProgressRing from '@/components/common/ProgressRing.vue';
+import ResultStat from '@/components/common/ResultStat.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 import Icon from '@/components/common/Icon.vue';
-import TopicChip from '@/components/chunk/TopicChip.vue';
 import TopicIcon from '@/components/chunk/TopicIcon.vue';
 
 const router = useRouter();
@@ -26,69 +25,78 @@ const progress = useProgressStore();
 const practice = usePracticeStore();
 const player = usePlayerStore();
 
-type Difficulty = 'easy' | 'mix' | 'hard';
 type Phase = 'setup' | 'running' | 'result';
-
 const phase = ref<Phase>('setup');
 
-const count = ref<5 | 10 | 15 | 20>(10);
+type QTypeKey = 'meaning' | 'english' | 'listen' | 'type' | 'speaking';
+type PoolKey = 'weak' | 'starred' | 'due' | 'all';
+
+const COUNT_OPTIONS = [5, 10, 15, 20] as const;
+const count = ref<(typeof COUNT_OPTIONS)[number]>(10);
 const topicId = ref<string | 'all'>('all');
-const level = ref<ChunkLevel | 'all'>('all');
-const source = ref<ChunkSource | 'all'>('all');
-const difficulty = ref<Difficulty>('mix');
-const onlyStarred = ref(false);
-const onlyWeak = ref(false);
-const onlyDue = ref(false);
+const pool = ref<PoolKey[]>(['weak', 'starred']);
+const qTypes = ref<QTypeKey[]>(['meaning', 'listen']);
 
 const questionTypes = ref<LearnQuestionType[]>([]);
 const startedAt = ref(0);
 const elapsedSec = ref(0);
 let elapsedTimer: number | null = null;
 
-const DIFFICULTY_TYPES: Record<Difficulty, LearnQuestionType[]> = {
-  easy: ['mc-meaning', 'mc-text', 'listen-mc-meaning'],
-  mix: ['mc-meaning', 'mc-text', 'type-text', 'listen-mc-meaning'],
-  hard: ['mc-meaning', 'mc-text', 'type-text', 'listen-mc-meaning', 'listen-type'],
+const QTYPE_DEFS: Array<{ key: QTypeKey; label: string; icon: string }> = [
+  { key: 'meaning', label: 'Choose the meaning', icon: 'brain' },
+  { key: 'english', label: 'Choose the English', icon: 'cards' },
+  { key: 'listen', label: 'Listen and choose', icon: 'headphones' },
+  { key: 'type', label: 'Type from Vietnamese', icon: 'edit' },
+  { key: 'speaking', label: 'Repeat speaking', icon: 'mic' },
+];
+
+const POOL_DEFS: Array<{ key: PoolKey; label: string; icon: string }> = [
+  { key: 'weak', label: 'Weak chunks', icon: 'wave' },
+  { key: 'starred', label: 'Starred only', icon: 'star' },
+  { key: 'due', label: 'Due for review', icon: 'clock' },
+  { key: 'all', label: 'All chunks', icon: 'library' },
+];
+
+// Maps the design's question-type selection to the LearnQuestionType
+// pool used by QuizQuestion. 'speaking' falls back to listen-type — full
+// speaking inside test would need a different surface.
+const QTYPE_TO_LEARN: Record<QTypeKey, LearnQuestionType[]> = {
+  meaning: ['mc-meaning'],
+  english: ['mc-text'],
+  listen: ['listen-mc-meaning'],
+  type: ['type-text'],
+  speaking: ['listen-type'],
 };
 
-const sources: Array<{ key: ChunkSource | 'all'; label: string }> = [
-  { key: 'all', label: 'Tất cả pack' },
-  { key: 'frontend', label: 'Frontend' },
-  { key: 'interview', label: 'Interview' },
-  { key: 'toeic', label: 'TOEIC' },
-  { key: 'angular', label: 'Angular' },
-  { key: 'javascript', label: 'JavaScript' },
-  { key: 'typescript', label: 'TypeScript' },
-  { key: 'profile', label: 'Profile' },
-];
-
-const levels: Array<{ key: ChunkLevel | 'all'; label: string }> = [
-  { key: 'all', label: 'Mọi cấp' },
-  { key: 'A1', label: 'A1' },
-  { key: 'A2', label: 'A2' },
-  { key: 'B1', label: 'B1' },
-];
+function toggle<T>(list: T[], v: T): T[] {
+  return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
+}
+function isQTypeOn(k: QTypeKey) {
+  return qTypes.value.includes(k);
+}
+function isPoolOn(k: PoolKey) {
+  return pool.value.includes(k);
+}
 
 const eligibleChunks = computed<Chunk[]>(() => {
+  const useAll = isPoolOn('all') || pool.value.length === 0;
   return chunks.chunks.filter((c) => {
     if (topicId.value !== 'all' && c.topic !== topicId.value) return false;
-    if (level.value !== 'all' && c.level !== level.value) return false;
-    if (source.value !== 'all' && c.source !== source.value) return false;
+    if (useAll) return true;
     const p = progress.byId(c.id);
-    if (onlyStarred.value && !p?.starred) return false;
-    if (onlyWeak.value) {
-      if (!p || p.wrongCount === 0 || p.wrongCount < p.correctCount) return false;
-    }
-    if (onlyDue.value) {
+    let ok = false;
+    if (isPoolOn('starred') && p?.starred) ok = true;
+    if (isPoolOn('weak') && p && p.wrongCount > 0 && p.wrongCount >= p.correctCount) ok = true;
+    if (isPoolOn('due')) {
       const now = new Date().toISOString();
-      if (!p?.nextReviewAt || p.nextReviewAt > now) return false;
+      if (p?.nextReviewAt && p.nextReviewAt <= now) ok = true;
     }
-    return true;
+    return ok;
   });
 });
 
 const eligibleCount = computed(() => eligibleChunks.value.length);
-const canStart = computed(() => eligibleCount.value >= 2);
+const canStart = computed(() => eligibleCount.value >= 2 && qTypes.value.length > 0);
 
 const current = computed<Chunk | undefined>(() => practice.current);
 const currentType = computed<LearnQuestionType>(
@@ -115,9 +123,18 @@ const elapsedLabel = computed(() => {
   return `${mm}:${ss}`;
 });
 
-function pickType(_chunk: Chunk): LearnQuestionType {
-  const pool = DIFFICULTY_TYPES[difficulty.value];
-  return pool[Math.floor(Math.random() * pool.length)];
+const headerSubtitle = computed(() => {
+  if (phase.value === 'setup') return 'Build your test';
+  if (phase.value === 'running') {
+    return `${Math.min(practice.index + 1, practice.total)} / ${practice.total}`;
+  }
+  return elapsedLabel.value;
+});
+
+function pickType(): LearnQuestionType {
+  const learnPool: LearnQuestionType[] = qTypes.value.flatMap((k) => QTYPE_TO_LEARN[k]);
+  const finalPool = learnPool.length > 0 ? learnPool : (['mc-meaning'] as LearnQuestionType[]);
+  return finalPool[Math.floor(Math.random() * finalPool.length)];
 }
 
 function startTimer() {
@@ -127,7 +144,6 @@ function startTimer() {
     elapsedSec.value = Math.floor((Date.now() - startedAt.value) / 1000);
   }, 1000) as unknown as number;
 }
-
 function stopTimer() {
   if (elapsedTimer !== null) {
     window.clearInterval(elapsedTimer);
@@ -137,13 +153,13 @@ function stopTimer() {
 
 function start() {
   if (!canStart.value) return;
-  const pool = [...eligibleChunks.value];
-  for (let i = pool.length - 1; i > 0; i -= 1) {
+  const arr = [...eligibleChunks.value];
+  for (let i = arr.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
-  const list = pool.slice(0, count.value);
-  questionTypes.value = list.map((c) => pickType(c));
+  const list = arr.slice(0, count.value);
+  questionTypes.value = list.map(() => pickType());
   practice.start({ mode: 'test', chunks: list });
   phase.value = 'running';
   startTimer();
@@ -180,7 +196,8 @@ function onNext() {
 function exit() {
   stopTimer();
   practice.reset();
-  router.replace('/');
+  if (window.history.length > 1) router.back();
+  else router.replace('/');
 }
 
 function newTest() {
@@ -203,148 +220,112 @@ function playMistakes() {
 </script>
 
 <template>
-  <section class="tv">
-    <header class="tv__head safe-pt">
-      <button class="tv__icon tap" :aria-label="'Quay lại'" @click="exit">
-        <Icon name="chevron-left" :size="20" />
-      </button>
-      <div class="tv__head-info">
-        <p class="text-caption text-text-3">Mini Test</p>
-        <p v-if="phase === 'running'" class="tv__counter">
-          {{ Math.min(practice.index + 1, practice.total) }} / {{ practice.total }}
-        </p>
-        <p v-else-if="phase === 'result'" class="tv__counter">{{ elapsedLabel }}</p>
-      </div>
-      <span class="tv__icon tv__icon--ghost" aria-hidden="true">
-        <Icon name="trophy" :size="18" />
-      </span>
-    </header>
-
+  <ModeShell title="Mini Test" :subtitle="headerSubtitle" :on-close="exit">
     <!-- Setup -->
     <template v-if="phase === 'setup'">
-      <AppCard variant="glass-strong" padding="lg" class="tv__section">
-        <p class="tv__section-label">Số câu</p>
-        <div class="tv__chips">
-          <button
-            v-for="n in ([5, 10, 15, 20] as const)"
-            :key="n"
-            class="tv__chip tap"
-            :class="{ 'is-active': count === n }"
-            @click="count = n"
-          >
-            {{ n }}
-          </button>
-        </div>
-      </AppCard>
+      <div class="tv__scroll">
+        <!-- Count -->
+        <section class="tv__block">
+          <p class="tv__block-label">Number of questions</p>
+          <div class="tv__count-row">
+            <button
+              v-for="n in COUNT_OPTIONS"
+              :key="n"
+              class="tv__count-btn tap mono"
+              :class="{ 'is-active': count === n }"
+              @click="count = n"
+            >{{ n }}</button>
+          </div>
+        </section>
 
-      <AppCard variant="glass-strong" padding="lg" class="tv__section">
-        <p class="tv__section-label">Độ khó</p>
-        <div class="tv__chips">
-          <button
-            class="tv__chip tap"
-            :class="{ 'is-active': difficulty === 'easy' }"
-            @click="difficulty = 'easy'"
-          >
-            Nhẹ <span class="tv__chip-sub">MC</span>
-          </button>
-          <button
-            class="tv__chip tap"
-            :class="{ 'is-active': difficulty === 'mix' }"
-            @click="difficulty = 'mix'"
-          >
-            Hỗn hợp <span class="tv__chip-sub">MC + type</span>
-          </button>
-          <button
-            class="tv__chip tap"
-            :class="{ 'is-active': difficulty === 'hard' }"
-            @click="difficulty = 'hard'"
-          >
-            Khó <span class="tv__chip-sub">+ listen</span>
-          </button>
-        </div>
-      </AppCard>
+        <!-- Topic -->
+        <section class="tv__block">
+          <p class="tv__block-label">Topic</p>
+          <div class="tv__chip-strip no-scrollbar">
+            <button
+              class="tv__topic-chip tap"
+              :class="{ 'is-active': topicId === 'all' }"
+              :style="{ '--c': '#22D3EE' }"
+              @click="topicId = 'all'"
+            >
+              All topics
+            </button>
+            <button
+              v-for="t in chunks.topicWithCounts"
+              :key="t.id"
+              class="tv__topic-chip tap"
+              :class="{ 'is-active': topicId === t.id }"
+              :style="{ '--c': t.color }"
+              @click="topicId = t.id"
+            >
+              <TopicIcon :name="t.id" :size="13" />
+              <span>{{ t.name }}</span>
+            </button>
+          </div>
+        </section>
 
-      <AppCard variant="glass" padding="lg" class="tv__section">
-        <p class="tv__section-label">Chủ đề</p>
-        <div class="tv__chips tv__chips--scroll no-scrollbar">
-          <button
-            class="tv__topic-chip tap"
-            :class="{ 'is-active': topicId === 'all' }"
-            @click="topicId = 'all'"
-          >
-            Mọi chủ đề
-          </button>
-          <button
-            v-for="t in chunks.topicWithCounts"
-            :key="t.id"
-            class="tv__topic-chip tap"
-            :class="{ 'is-active': topicId === t.id }"
-            :style="{ '--c': t.color }"
-            @click="topicId = t.id"
-          >
-            <TopicIcon :name="t.id" :size="14" />
-            <span>{{ t.name }}</span>
-          </button>
-        </div>
-      </AppCard>
+        <!-- Chunk pool -->
+        <section class="tv__block">
+          <p class="tv__block-label">Chunk pool</p>
+          <div class="tv__pool-grid">
+            <button
+              v-for="p in POOL_DEFS"
+              :key="p.key"
+              class="tv__pool-btn tap"
+              :class="{ 'is-active': isPoolOn(p.key) }"
+              @click="pool = toggle(pool, p.key)"
+            >
+              <Icon :name="p.icon" :size="16" />
+              <span>{{ p.label }}</span>
+            </button>
+          </div>
+        </section>
 
-      <AppCard variant="glass" padding="lg" class="tv__section">
-        <p class="tv__section-label">Bộ lọc</p>
-        <div class="tv__chips">
-          <button
-            v-for="l in levels"
-            :key="l.key"
-            class="tv__chip tap"
-            :class="{ 'is-active': level === l.key }"
-            @click="level = l.key as ChunkLevel | 'all'"
-          >
-            {{ l.label }}
-          </button>
-        </div>
-        <div class="tv__chips tv__chips--margin-top">
-          <button
-            v-for="s in sources"
-            :key="s.key"
-            class="tv__chip tap"
-            :class="{ 'is-active': source === s.key }"
-            @click="source = s.key as ChunkSource | 'all'"
-          >
-            {{ s.label }}
-          </button>
-        </div>
-        <div class="tv__chips tv__chips--margin-top">
-          <button
-            class="tv__chip tap"
-            :class="{ 'is-active': onlyStarred }"
-            @click="onlyStarred = !onlyStarred"
-          >
-            <Icon name="star" :size="12" /> Chỉ starred
-          </button>
-          <button
-            class="tv__chip tap"
-            :class="{ 'is-active': onlyWeak }"
-            @click="onlyWeak = !onlyWeak"
-          >
-            <Icon name="flame" :size="12" /> Chỉ chunk yếu
-          </button>
-          <button
-            class="tv__chip tap"
-            :class="{ 'is-active': onlyDue }"
-            @click="onlyDue = !onlyDue"
-          >
-            <Icon name="clock" :size="12" /> Chỉ đến hạn
-          </button>
-        </div>
-      </AppCard>
+        <!-- Question types -->
+        <section class="tv__block">
+          <p class="tv__block-label">Question types</p>
+          <div class="tv__qtype-list">
+            <button
+              v-for="q in QTYPE_DEFS"
+              :key="q.key"
+              class="tv__qtype-btn tap"
+              :class="{ 'is-active': isQTypeOn(q.key) }"
+              @click="qTypes = toggle(qTypes, q.key)"
+            >
+              <Icon :name="q.icon" :size="16" />
+              <span class="tv__qtype-label">{{ q.label }}</span>
+              <Icon
+                v-if="isQTypeOn(q.key)"
+                name="check"
+                :size="16"
+                class="tv__qtype-check"
+              />
+            </button>
+          </div>
+        </section>
 
-      <p class="tv__count-hint">
-        <strong>{{ eligibleCount }}</strong> chunk hợp lệ — sẽ random {{ count }} câu
-      </p>
+        <p class="tv__pool-hint">
+          <strong class="mono">{{ eligibleCount }}</strong> chunk hợp lệ —
+          sẽ random {{ Math.min(count, eligibleCount || count) }} câu
+        </p>
+      </div>
 
-      <AppButton variant="primary" size="lg" block :disabled="!canStart" @click="start">
-        <Icon name="play" :size="14" />
-        Bắt đầu test
-      </AppButton>
+      <div class="tv__sticky">
+        <button
+          class="tv__cta tap"
+          :disabled="!canStart"
+          @click="start"
+        >
+          Start test · {{ count }} questions →
+        </button>
+      </div>
+
+      <EmptyState
+        v-if="eligibleCount === 0"
+        icon="trophy"
+        title="Chưa có chunk hợp lệ"
+        hint="Nới lỏng Chunk pool hoặc đổi chủ đề rồi thử lại."
+      />
     </template>
 
     <!-- Running -->
@@ -361,257 +342,273 @@ function playMistakes() {
         </span>
         <span class="tv__meta-pill mono">{{ elapsedLabel }}</span>
       </div>
-      <QuizQuestion
-        v-if="current"
-        :key="`${current.id}-${currentType}`"
-        :chunk="current"
-        :type="currentType"
-        :pool="chunks.chunks"
-        @submit="onSubmit"
-        @next="onNext"
-      />
+      <div :style="{ padding: '0 20px 20px' }">
+        <QuizQuestion
+          v-if="current"
+          :key="`${current.id}-${currentType}`"
+          :chunk="current"
+          :type="currentType"
+          :pool="chunks.chunks"
+          @submit="onSubmit"
+          @next="onNext"
+        />
+      </div>
     </template>
 
     <!-- Result -->
     <template v-else>
-      <!-- Emerald hero card -->
-      <div
-        class="glass-strong tv__result-hero"
-        :style="{
-          background: 'linear-gradient(160deg, rgba(52,211,153,0.18), rgba(34,211,238,0.06)), var(--color-surface-2)',
-          border: '1px solid color-mix(in oklch, var(--color-emerald) 30%, transparent)',
-        }"
-      >
-        <div class="tv__ring">
-          <ProgressRing :value="accuracy / 100" :size="140" :stroke="10" :color="'#34D399'" :show-label="false" />
-          <div class="tv__ring-inner">
-            <span class="tv__ring-pct mono">{{ accuracy }}<span class="tv__ring-pct-unit">%</span></span>
-            <span class="tv__ring-label">accuracy</span>
+      <div class="tv__result-scroll">
+        <div class="tv__result-hero">
+          <div class="tv__ring">
+            <ProgressRing
+              :value="accuracy / 100"
+              :size="140"
+              :stroke="10"
+              :color="'#34D399'"
+              :show-label="false"
+            />
+            <div class="tv__ring-inner">
+              <span class="tv__ring-pct mono">
+                {{ accuracy }}<span class="tv__ring-pct-unit">%</span>
+              </span>
+              <span class="tv__ring-label">accuracy</span>
+            </div>
+          </div>
+          <div class="tv__result-headline">
+            <span class="grad-text">
+              {{ accuracy >= 80 ? 'Strong work!' : accuracy >= 60 ? 'Solid effort' : 'Keep going' }}
+            </span>
+          </div>
+          <div class="tv__result-sub">
+            <span class="mono" :style="{ color: '#34D399' }">{{ practice.correctCount }}</span>
+            correct ·
+            <span class="mono" :style="{ color: '#FB7185' }">{{ practice.wrongCount }}</span>
+            to revisit
           </div>
         </div>
-        <div class="tv__result-headline">
-          <span class="grad-text">{{ accuracy >= 80 ? 'Strong work!' : accuracy >= 60 ? 'Solid effort' : 'Keep going' }}</span>
+
+        <div class="tv__stats-grid">
+          <ResultStat label="Correct" :value="practice.correctCount" color="#34D399" />
+          <ResultStat label="Wrong" :value="practice.wrongCount" color="#FB7185" />
+          <ResultStat label="Time" :value="elapsedLabel" color="#22D3EE" mono />
         </div>
-        <div class="tv__result-sub">
-          <span class="mono" :style="{ color: 'var(--color-emerald)' }">{{ practice.correctCount }}</span> correct ·
-          <span class="mono" :style="{ color: 'var(--color-rose)' }">{{ practice.wrongCount }}</span> to revisit
+
+        <div v-if="wrongChunks.length > 0" class="tv__mistakes">
+          <header class="tv__mistakes-head">
+            <h3 class="tv__mistakes-title">Chunks to revisit</h3>
+            <p class="tv__mistakes-count mono">{{ wrongChunks.length }}</p>
+          </header>
+          <article
+            v-for="c in wrongChunks"
+            :key="c.id"
+            class="tv__mistake glass"
+          >
+            <div
+              class="tv__mistake-icon"
+              :style="{
+                background: `color-mix(in oklch, ${chunks.topicById(c.topic)?.color ?? '#22D3EE'} 22%, transparent)`,
+                color: chunks.topicById(c.topic)?.color ?? '#22D3EE',
+              }"
+            >
+              <TopicIcon :name="c.topic" :size="16" />
+            </div>
+            <div class="tv__mistake-text">
+              <p class="tv__mistake-en">{{ c.text }}</p>
+              <p class="tv__mistake-vi">{{ c.meaning }}</p>
+            </div>
+            <button
+              class="tv__mistake-play tap"
+              :aria-label="'Phát chunk'"
+              @click="player.setQueue([c], { mode: 'review' }); void player.play(); router.push('/player')"
+            >
+              <Icon name="play" :size="12" :style="{ color: 'var(--color-cyan)' }" />
+            </button>
+          </article>
         </div>
+
+        <EmptyState
+          v-else
+          icon="trophy"
+          title="Hoàn hảo!"
+          hint="Bạn đã đúng tất cả các câu."
+        />
       </div>
 
-      <!-- 3-up stats grid -->
-      <div class="tv__stats-grid">
-        <div class="tv__stat-tile glass">
-          <div class="tv__stat-tile-value" :style="{ color: '#34D399' }">{{ practice.correctCount }}</div>
-          <div class="tv__stat-tile-label">Đúng</div>
-        </div>
-        <div class="tv__stat-tile glass">
-          <div class="tv__stat-tile-value" :style="{ color: '#FB7185' }">{{ practice.wrongCount }}</div>
-          <div class="tv__stat-tile-label">Sai</div>
-        </div>
-        <div class="tv__stat-tile glass">
-          <div class="tv__stat-tile-value mono" :style="{ color: '#22D3EE' }">{{ elapsedLabel }}</div>
-          <div class="tv__stat-tile-label">Thời gian</div>
-        </div>
-      </div>
-
-      <div v-if="wrongChunks.length > 0" class="tv__mistakes">
-        <header class="tv__mistakes-head">
-          <h3 class="tv__mistakes-title">Chunks to revisit</h3>
-          <p class="tv__mistakes-count">{{ wrongChunks.length }}</p>
-        </header>
-        <article
-          v-for="c in wrongChunks"
-          :key="c.id"
-          class="tv__mistake glass"
-        >
-          <div
-            class="tv__mistake-icon"
-            :style="{
-              background: `color-mix(in oklch, ${chunks.topicById(c.topic)?.color ?? '#22D3EE'} 22%, transparent)`,
-              color: chunks.topicById(c.topic)?.color ?? '#22D3EE',
-            }"
-          >
-            <TopicIcon :name="c.topic" :size="16" />
-          </div>
-          <div class="tv__mistake-text">
-            <p class="tv__mistake-en">{{ c.text }}</p>
-            <p class="tv__mistake-vi">{{ c.meaning }}</p>
-          </div>
-          <button
-            class="btn tap tv__mistake-play"
-            :aria-label="'Phát chunk'"
-            @click="player.setQueue([c], { mode: 'review' }); void player.play(); router.push('/player')"
-          >
-            <Icon name="play" :size="12" :style="{ color: 'var(--color-cyan)' }" />
+      <div class="tv__sticky tv__sticky--stack">
+        <button class="tv__cta tap" @click="reviewMistakes" :disabled="wrongChunks.length === 0">
+          <Icon name="refresh" :size="16" /> Review mistakes
+        </button>
+        <button class="tv__cta-secondary tap" @click="playMistakes" :disabled="wrongChunks.length === 0">
+          <Icon name="play" :size="14" /> Play mistake playlist
+        </button>
+        <div class="tv__final-actions">
+          <button class="tv__cta-secondary tap" @click="newTest">
+            <Icon name="shuffle" :size="14" /> Test mới
           </button>
-        </article>
-
-        <button
-          class="btn tap tv__cta-primary"
-          @click="reviewMistakes"
-        >
-          <Icon name="refresh" :size="16" />
-          Review mistakes
-        </button>
-        <button
-          class="btn tap glass tv__cta-secondary"
-          @click="playMistakes"
-        >
-          <Icon name="play" :size="14" />
-          Play mistake playlist
-        </button>
-      </div>
-
-      <EmptyState
-        v-else
-        icon="trophy"
-        title="Hoàn hảo!"
-        hint="Bạn đã đúng tất cả các câu."
-      />
-
-      <div class="tv__final-actions">
-        <AppButton variant="glass" size="md" block @click="newTest">
-          <Icon name="shuffle" :size="14" />
-          Test mới
-        </AppButton>
-        <AppButton variant="primary" size="md" block @click="exit">
-          <Icon name="check" :size="14" />
-          Xong
-        </AppButton>
+          <button class="tv__cta tap" @click="exit">
+            <Icon name="check" :size="14" /> Xong
+          </button>
+        </div>
       </div>
     </template>
-  </section>
+  </ModeShell>
 </template>
 
 <style scoped>
-.tv {
-  padding: 12px 16px 32px;
+.tv__scroll {
+  flex: 1;
+  padding: 0 20px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-height: 100vh;
-  min-height: 100dvh;
+  gap: 4px;
 }
-.tv__head {
-  display: grid;
-  grid-template-columns: 40px 1fr 40px;
-  align-items: center;
-  gap: 10px;
-  padding-top: max(env(safe-area-inset-top), 8px);
-}
-.tv__icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-1);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.tv__icon--ghost {
-  color: var(--color-text-3);
-}
-.tv__head-info {
+.tv__result-scroll {
+  flex: 1;
+  padding: 0 20px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  align-items: center;
-}
-.tv__counter {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 700;
+  gap: 14px;
 }
 
-.tv__section {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+/* Block */
+.tv__block {
+  margin-top: 18px;
 }
-.tv__section-label {
-  margin: 0;
+.tv__block-label {
+  margin: 0 0 10px;
   font-size: 11px;
-  letter-spacing: 0.06em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--color-text-3);
-  font-weight: 700;
 }
-.tv__chips {
-  display: flex;
-  flex-wrap: wrap;
+
+/* Count */
+.tv__count-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
 }
-.tv__chips--scroll {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.tv__chips--margin-top {
-  margin-top: 4px;
-}
-.tv__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: 999px;
+.tv__count-btn {
+  padding: 12px 0;
+  border-radius: 12px;
   background: var(--color-surface-1);
   border: 1px solid var(--color-border-1);
   color: var(--color-text-2);
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
 }
-.tv__chip-sub {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--color-text-3);
-}
-.tv__chip.is-active {
-  background: color-mix(in oklch, var(--color-cyan) 18%, transparent);
-  border-color: color-mix(in oklch, var(--color-cyan) 40%, transparent);
+.tv__count-btn.is-active {
+  background: var(--color-surface-3);
+  border-color: var(--color-cyan);
   color: var(--color-cyan);
 }
-.tv__chip.is-active .tv__chip-sub {
-  color: color-mix(in oklch, var(--color-cyan) 80%, white);
+
+/* Topic chip strip */
+.tv__chip-strip {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
 }
+.tv__chip-strip::-webkit-scrollbar { display: none; }
 .tv__topic-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   padding: 8px 12px;
   border-radius: 999px;
-  background: var(--color-surface-1);
+  background: var(--color-surface-2);
   border: 1px solid var(--color-border-1);
   color: var(--color-text-2);
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .tv__topic-chip.is-active {
-  background: color-mix(in oklch, var(--c, var(--color-cyan)) 18%, transparent);
-  border-color: color-mix(in oklch, var(--c, var(--color-cyan)) 40%, transparent);
-  color: color-mix(in oklch, var(--c, var(--color-cyan)) 90%, white);
+  background: color-mix(in oklch, var(--c, var(--color-cyan)) 28%, transparent);
+  border-color: var(--c, var(--color-cyan));
+  color: var(--c, var(--color-cyan));
 }
-.tv__count-hint {
-  margin: 4px 0 0;
+
+/* Pool grid */
+.tv__pool-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.tv__pool-btn {
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border-1);
+  color: var(--color-text-2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+.tv__pool-btn.is-active {
+  background: var(--color-surface-3);
+  border-color: var(--color-violet);
+  color: var(--color-violet);
+}
+
+/* Question type list */
+.tv__qtype-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tv__qtype-btn {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-1);
+  color: var(--color-text-2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+}
+.tv__qtype-btn.is-active {
+  background: rgba(34, 211, 238, 0.1);
+  border-color: var(--color-cyan);
+  color: var(--color-cyan);
+}
+.tv__qtype-label {
+  flex: 1;
+}
+.tv__qtype-check {
+  color: var(--color-cyan);
+}
+
+.tv__pool-hint {
+  margin: 18px 0 24px;
   font-size: 13px;
   color: var(--color-text-3);
   text-align: center;
 }
-.tv__count-hint strong {
+.tv__pool-hint strong {
   color: var(--color-text-1);
-  font-family: var(--font-mono);
 }
 
 /* Running */
 .tv__bar {
-  height: 6px;
+  height: 4px;
   background: var(--color-surface-1);
   border-radius: 999px;
   overflow: hidden;
-  margin-top: 2px;
+  margin: 0 20px;
 }
 .tv__bar-fill {
   height: 100%;
@@ -622,6 +619,7 @@ function playMistakes() {
   display: flex;
   gap: 8px;
   align-items: center;
+  padding: 10px 20px 0;
 }
 .tv__meta-pill {
   display: inline-flex;
@@ -644,19 +642,23 @@ function playMistakes() {
   background: var(--color-surface-1);
   border-color: var(--color-border-1);
   color: var(--color-text-2);
-  font-family: var(--font-mono);
   margin-left: auto;
 }
 
-/* Result */
+/* Result hero */
 .tv__result-hero {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  align-items: center;
-  text-align: center;
   padding: 24px;
   border-radius: 28px;
+  text-align: center;
+  background:
+    linear-gradient(160deg, rgba(52, 211, 153, 0.18), rgba(34, 211, 238, 0.06)),
+    var(--color-surface-2);
+  border: 1px solid color-mix(in oklch, var(--color-emerald) 30%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-top: 4px;
 }
 .tv__ring {
   position: relative;
@@ -675,8 +677,8 @@ function playMistakes() {
 .tv__ring-pct {
   font-size: 36px;
   font-weight: 700;
-  letter-spacing: -0.02em;
   color: var(--color-text-1);
+  letter-spacing: -0.02em;
 }
 .tv__ring-pct-unit {
   font-size: 16px;
@@ -704,73 +706,44 @@ function playMistakes() {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
-  margin-top: 14px;
-}
-.tv__stat-tile {
-  padding: 12px 0;
-  text-align: center;
-  border-radius: 14px;
-}
-.tv__stat-tile-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--color-text-1);
-}
-.tv__stat-tile-label {
-  font-size: 10px;
-  color: var(--color-text-3);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-top: 2px;
 }
 
+/* Mistakes */
 .tv__mistakes {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 4px;
 }
 .tv__mistakes-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 4px;
+  margin: 4px 0;
 }
 .tv__mistakes-title {
   margin: 0;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--color-text-3);
 }
 .tv__mistakes-count {
   margin: 0;
-  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--color-text-3);
 }
 .tv__mistake {
+  padding: 12px;
+  border-left: 3px solid var(--color-rose);
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-left: 3px solid var(--color-rose);
+  gap: 10px;
 }
 .tv__mistake-icon {
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-.tv__mistake-play {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: var(--color-surface-3);
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -781,31 +754,51 @@ function playMistakes() {
 }
 .tv__mistake-en {
   margin: 0;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--color-text-1);
 }
 .tv__mistake-vi {
   margin: 2px 0 0;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--color-text-3);
 }
-.tv__actions {
+.tv__mistake-play {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--color-surface-3);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+/* Sticky */
+.tv__sticky {
+  padding: 14px 20px calc(20px + env(safe-area-inset-bottom));
+  flex-shrink: 0;
+}
+.tv__sticky--stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tv__final-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
-.tv__cta-primary {
-  margin-top: 8px;
-  padding: 14px;
+.tv__cta {
+  width: 100%;
+  padding: 16px;
   border-radius: 16px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   background: var(--grad-primary);
   color: #fff;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
@@ -815,22 +808,26 @@ function playMistakes() {
     0 1px 0 rgba(255, 255, 255, 0.35) inset,
     0 -1px 0 rgba(0, 0, 0, 0.18) inset;
 }
+.tv__cta:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .tv__cta-secondary {
+  width: 100%;
   padding: 14px;
-  border-radius: 16px;
-  font-size: 14px;
+  border-radius: 14px;
+  font-size: 13px;
   font-weight: 700;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-1);
   color: var(--color-text-1);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
-
-.tv__final-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 8px;
+.tv__cta-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>
