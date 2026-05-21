@@ -1,93 +1,63 @@
 <script setup lang="ts">
+/**
+ * Literal port of onboarding.jsx OnboardingFlow + 5 step components.
+ * All inline styles preserved through :style binding.
+ */
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useChunkStore } from '@/stores/chunkStore';
 import { speechService } from '@/services/speechService';
-
-import AppButton from '@/components/common/AppButton.vue';
-import Icon from '@/components/common/Icon.vue';
-import TopicIcon from '@/components/chunk/TopicIcon.vue';
 import type { ChunkLevel } from '@/types/chunk';
+
+import TopicIcon from '@/components/chunk/TopicIcon.vue';
+import LevelPill from '@/components/chunk/LevelPill.vue';
+import Icon from '@/components/common/Icon.vue';
 
 const router = useRouter();
 const settings = useSettingsStore();
 const chunks = useChunkStore();
 
-const TOTAL_STEPS = 5;
+const TOTAL = 5;
 const step = ref(0);
 
-const goalLocal = ref(settings.dailyGoal);
+const goal = ref(settings.dailyGoal || 30);
 const levelLocal = ref<ChunkLevel>(settings.level);
-const topicsLocal = ref<string[]>([...settings.selectedTopics]);
-const voiceLocal = ref<string | null>(settings.selectedVoiceName);
-const mixVoiceLocal = ref<boolean>(settings.mixVoice);
+const picks = ref<string[]>(settings.selectedTopics.length > 0 ? [...settings.selectedTopics] : ['interview', 'standup', 'angular']);
+const voice = ref<string | null>(settings.selectedVoiceName);
+const mix = ref<boolean>(settings.mixVoice);
 
 const englishVoices = ref<SpeechSynthesisVoice[]>([]);
 
-const features = [
-  { num: '01', title: 'Spotify-style listening', hint: 'Phát playlist chunks rảnh rỗi, shuffle / repeat / mix voice.' },
-  { num: '02', title: 'Quizlet-inspired study', hint: 'Flashcard / Learn / Write / Dictation / Speaking — đủ kiểu.' },
-  { num: '03', title: 'Local-first, offline', hint: 'Không tài khoản, không backend. Dữ liệu lưu ngay trên máy.' },
-];
-
-const goalPresets = [
-  { value: 15, label: 'Gentle', sub: '~5 phút/ngày' },
-  { value: 30, label: 'Steady', sub: '~10 phút' },
-  { value: 50, label: 'Intense', sub: '~18 phút' },
-];
-
-const levels: Array<{ id: ChunkLevel; label: string; hint: string }> = [
-  { id: 'A1', label: 'A1 · Beginner', hint: 'Câu đơn, từ vựng cơ bản' },
-  { id: 'A2', label: 'A2 · Elementary', hint: 'Giao tiếp công việc đơn giản' },
-  { id: 'B1', label: 'B1 · Intermediate', hint: 'Standup, interview, client' },
-];
-
-const progressPct = computed(() => ((step.value + 1) / TOTAL_STEPS) * 100);
-
-const canContinue = computed(() => {
-  if (step.value === 3) return topicsLocal.value.length > 0;
-  return true;
-});
-
-function toggleTopic(id: string) {
-  const idx = topicsLocal.value.indexOf(id);
-  if (idx >= 0) topicsLocal.value.splice(idx, 1);
-  else topicsLocal.value.push(id);
-}
-
-function pickPreset(v: number) {
-  goalLocal.value = v;
-}
+const canAdvance = computed(() => step.value !== 3 || picks.value.length > 0);
+const isFinal = computed(() => step.value === TOTAL - 1);
 
 function back() {
   if (step.value > 0) step.value -= 1;
 }
-
 function next() {
-  if (!canContinue.value) return;
-  if (step.value < TOTAL_STEPS - 1) {
+  if (!canAdvance.value) return;
+  if (step.value < TOTAL - 1) {
     step.value += 1;
   } else {
     finish();
   }
 }
-
-function skip() {
-  finish();
-}
-
 function finish() {
-  settings.dailyGoal = goalLocal.value;
+  settings.dailyGoal = goal.value;
   settings.level = levelLocal.value;
-  settings.selectedTopics = [...topicsLocal.value];
-  settings.selectedVoiceName = voiceLocal.value;
-  settings.mixVoice = mixVoiceLocal.value;
+  settings.selectedTopics = [...picks.value];
+  settings.selectedVoiceName = voice.value;
+  settings.mixVoice = mix.value;
   settings.completeOnboarding();
   router.replace('/');
 }
-
+function togglePick(id: string) {
+  const idx = picks.value.indexOf(id);
+  if (idx >= 0) picks.value.splice(idx, 1);
+  else picks.value.push(id);
+}
 async function previewVoice(name: string, e: Event) {
   e.stopPropagation();
   try {
@@ -97,696 +67,539 @@ async function previewVoice(name: string, e: Event) {
       rate: 1,
     });
   } catch {
-    // ignore
+    /* ignore */
   }
 }
 
-watch(
-  step,
-  async (s) => {
-    if (s === 4 && englishVoices.value.length === 0) {
-      await speechService.ensureVoicesLoaded();
-      englishVoices.value = speechService.getEnglishVoices();
-      if (!voiceLocal.value && englishVoices.value[0]) {
-        voiceLocal.value = englishVoices.value[0].name;
-      }
-    }
-  },
-);
-
-onMounted(() => {
-  // Default selected topics: pick a sensible starter set
-  if (topicsLocal.value.length === 0) {
-    topicsLocal.value = ['standup', 'interview', 'angular'];
+watch(step, async (s) => {
+  if (s === 4 && englishVoices.value.length === 0) {
+    await speechService.ensureVoicesLoaded();
+    englishVoices.value = speechService.getEnglishVoices();
+    if (!voice.value && englishVoices.value[0]) voice.value = englishVoices.value[0].name;
   }
 });
+
+onMounted(async () => {
+  await speechService.ensureVoicesLoaded();
+  englishVoices.value = speechService.getEnglishVoices();
+});
+
+const features = [
+  ['Listen many times', 'cho đến khi chunk thành phản xạ tự nhiên'],
+  ['Practice actively', 'flashcards · dictation · matches'],
+  ['Track your streak', 'thắng nhỏ mỗi ngày → tiến bộ lớn cả năm'],
+];
+
+const levelOpts: Array<{ k: ChunkLevel; name: string; hint: string }> = [
+  { k: 'A1', name: 'Mới bắt đầu', hint: 'Chunk ngắn, đơn giản · "What time is it?"' },
+  { k: 'A2', name: 'Xây căn bản', hint: 'Chunk công việc hằng ngày · "I will check the bug."' },
+  { k: 'B1', name: 'Khá tự tin', hint: 'Chunk dài hơn · "I was responsible for…"' },
+];
+
+const presets = [
+  { v: 15, l: 'Gentle' },
+  { v: 30, l: 'Steady' },
+  { v: 50, l: 'Intense' },
+];
 </script>
 
 <template>
-  <section class="ob night-bg">
-    <header class="ob__head safe-pt">
-      <button
-        class="ob__icon-btn tap"
-        :class="{ 'is-hidden': step === 0 }"
-        :aria-label="'Quay lại'"
-        @click="back"
+  <div
+    :style="{
+      position: 'absolute',
+      inset: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      background: 'var(--color-bg-0)',
+      zIndex: 95,
+    }"
+  >
+    <!-- Top bar -->
+    <div
+      :style="{
+        padding: '54px 20px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+      }"
+    >
+      <div :style="{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }">
+        <button
+          class="btn tap"
+          :disabled="step === 0"
+          :style="{
+            width: '36px',
+            height: '36px',
+            borderRadius: '12px',
+            display: 'grid',
+            placeItems: 'center',
+            background: 'var(--color-surface-2)',
+            opacity: step === 0 ? 0 : 1,
+            color: 'var(--color-text-1)',
+          }"
+          @click="back"
+        >
+          <Icon name="chevron-left" :size="18" />
+        </button>
+        <div
+          :style="{
+            fontSize: '11px',
+            fontWeight: 700,
+            color: 'var(--color-text-3)',
+            letterSpacing: '.06em',
+            textTransform: 'uppercase',
+          }"
+        >
+          Step <span class="mono" :style="{ color: 'var(--color-text-1)' }">{{ step + 1 }}</span> of <span class="mono">{{ TOTAL }}</span>
+        </div>
+        <button
+          class="btn tap"
+          :style="{ padding: '8px 12px', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-3)' }"
+          @click="finish"
+        >Skip</button>
+      </div>
+      <div :style="{ display: 'flex', gap: '4px' }">
+        <div
+          v-for="i in TOTAL"
+          :key="i"
+          :style="{
+            flex: 1,
+            height: '3px',
+            borderRadius: '2px',
+            background: i - 1 <= step ? 'var(--grad-primary)' : 'var(--color-surface-2)',
+            transition: 'background .3s',
+          }"
+        />
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div :style="{ flex: 1, overflowY: 'auto' }">
+      <!-- Step 0: Welcome -->
+      <div
+        v-if="step === 0"
+        :style="{ padding: '20px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '14px' }"
       >
-        <Icon name="chevron-left" :size="20" />
-      </button>
-      <div class="ob__head-info">
-        <p class="ob__counter mono">{{ step + 1 }} / {{ TOTAL_STEPS }}</p>
-        <div class="ob__progress">
+        <div :style="{ position: 'relative', width: '140px', height: '140px', marginTop: '30px' }">
+          <div :style="{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'radial-gradient(circle, rgba(34,211,238,0.4), transparent 60%)', filter: 'blur(20px)' }" />
           <div
-            v-for="i in TOTAL_STEPS"
-            :key="`seg-${i}`"
-            class="ob__seg"
-            :class="{ 'is-filled': i <= step + 1 }"
-          />
+            :style="{
+              position: 'absolute',
+              inset: '12px',
+              borderRadius: '50%',
+              background: 'var(--grad-primary)',
+              display: 'grid',
+              placeItems: 'center',
+              color: '#0B0F22',
+              boxShadow: '0 20px 60px rgba(34,211,238,0.4)',
+            }"
+          >
+            <Icon name="headphones" :size="56" />
+          </div>
+        </div>
+        <h1 :style="{ margin: '20px 0 0', fontSize: '30px', fontWeight: 700, letterSpacing: '-0.02em' }">
+          Chào — chào mừng đến <span class="grad-text">Chunk Lab</span>
+        </h1>
+        <div :style="{ fontSize: '14px', color: 'var(--color-text-2)', lineHeight: 1.5, maxWidth: '300px' }">
+          Bạn sẽ học English bằng các <b :style="{ color: 'var(--color-text-1)' }">chunk</b> — câu/cụm tái sử dụng để dùng ở standup, phỏng vấn, và làm việc với client.
+        </div>
+        <div :style="{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px', width: '100%' }">
+          <div
+            v-for="(f, i) in features"
+            :key="i"
+            :style="{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '12px',
+              borderRadius: '14px',
+              background: 'var(--color-surface-1)',
+              border: '1px solid var(--color-border-1)',
+            }"
+          >
+            <div
+              :style="{
+                width: '28px',
+                height: '28px',
+                borderRadius: '9px',
+                background: 'var(--color-surface-3)',
+                display: 'grid',
+                placeItems: 'center',
+                flexShrink: 0,
+                color: 'var(--color-cyan)',
+                fontWeight: 700,
+                fontSize: '12px',
+                fontFamily: 'var(--font-mono)',
+              }"
+            >{{ i + 1 }}</div>
+            <div :style="{ textAlign: 'left' }">
+              <div :style="{ fontSize: '13px', fontWeight: 600 }">{{ f[0] }}</div>
+              <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">{{ f[1] }}</div>
+            </div>
+          </div>
         </div>
       </div>
-      <button class="ob__skip tap" :aria-label="'Bỏ qua'" @click="skip">Skip</button>
-    </header>
 
-    <div class="ob__body no-scrollbar">
-      <!-- Step 0: Welcome -->
-      <template v-if="step === 0">
-        <div class="ob__hero">
-          <div class="ob__hero-circle">
-            <Icon name="ear" :size="48" />
+      <!-- Step 1: Goal -->
+      <div
+        v-else-if="step === 1"
+        :style="{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }"
+      >
+        <div>
+          <h2 :style="{ margin: 0, fontSize: '24px', fontWeight: 700, letterSpacing: '-0.015em' }">Mỗi ngày nghe bao nhiêu chunk?</h2>
+          <div :style="{ fontSize: '13px', color: 'var(--color-text-3)', marginTop: '6px', lineHeight: 1.5 }">
+            Có thể đổi bất cứ lúc nào. Đa số học viên chọn 20–40.
           </div>
-          <h1 class="ob__title grad-text">Chunk Listening Lab</h1>
-          <p class="ob__lead">
-            Học English bằng cụm từ tái sử dụng. Nghe — ghi nhớ — luyện nói trong vài phút mỗi ngày.
-          </p>
         </div>
 
-        <div class="ob__features">
-          <article v-for="f in features" :key="f.num" class="ob__feat glass">
-            <span class="ob__feat-num">{{ f.num }}</span>
-            <div>
-              <p class="ob__feat-title">{{ f.title }}</p>
-              <p class="ob__feat-hint">{{ f.hint }}</p>
-            </div>
-          </article>
+        <div
+          class="glass-strong"
+          :style="{
+            padding: '32px 20px',
+            textAlign: 'center',
+            position: 'relative',
+            overflow: 'hidden',
+            background: 'linear-gradient(160deg, rgba(34,211,238,0.16), rgba(167,139,250,0.06)), var(--color-surface-2)',
+          }"
+        >
+          <div :style="{ position: 'absolute', inset: 0, background: 'radial-gradient(50% 60% at 50% 10%, rgba(34,211,238,0.25), transparent)' }" />
+          <div :style="{ position: 'relative', display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '6px' }">
+            <span class="mono" :style="{ fontSize: '64px', fontWeight: 700, letterSpacing: '-0.02em' }">{{ goal }}</span>
+            <span :style="{ fontSize: '14px', color: 'var(--color-text-3)', fontWeight: 600 }">chunks/ngày</span>
+          </div>
+          <div :style="{ position: 'relative', fontSize: '12px', color: 'var(--color-text-3)', marginTop: '6px' }">
+            ≈ <span class="mono" :style="{ color: 'var(--color-cyan)' }">{{ Math.round(goal * 0.65) }}</span> phút nghe
+          </div>
         </div>
-      </template>
 
-      <!-- Step 1: Daily goal -->
-      <template v-else-if="step === 1">
-        <h2 class="ob__step-title">Mục tiêu mỗi ngày</h2>
-        <p class="ob__step-hint">Bao nhiêu chunk bạn muốn nghe mỗi ngày?</p>
-
-        <div class="ob__goal">
-          <span class="ob__goal-num mono">{{ goalLocal }}</span>
-          <span class="ob__goal-sub">chunks/ngày</span>
+        <div>
+          <input
+            type="range"
+            min="10"
+            max="80"
+            step="5"
+            :value="goal"
+            :style="{ width: '100%', accentColor: '#22D3EE' }"
+            @input="goal = Number(($event.target as HTMLInputElement).value)"
+          />
+          <div :style="{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '11px', color: 'var(--color-text-4)', fontFamily: 'var(--font-mono)' }">
+            <span>10</span><span>40</span><span>80</span>
+          </div>
         </div>
 
-        <input
-          v-model.number="goalLocal"
-          type="range"
-          min="10"
-          max="80"
-          step="5"
-          class="ob__slider"
-          :aria-label="'Mục tiêu hàng ngày'"
-        />
-
-        <div class="ob__presets">
+        <div :style="{ display: 'flex', gap: '8px' }">
           <button
-            v-for="p in goalPresets"
-            :key="p.value"
-            class="ob__preset tap"
-            :class="{ 'is-active': goalLocal === p.value }"
-            @click="pickPreset(p.value)"
+            v-for="p in presets"
+            :key="p.v"
+            class="btn tap"
+            :style="{
+              flex: 1,
+              padding: '12px 0',
+              borderRadius: '12px',
+              fontSize: '13px',
+              fontWeight: 600,
+              background: goal === p.v ? 'var(--color-surface-3)' : 'var(--color-surface-1)',
+              border: goal === p.v ? '1px solid var(--color-cyan)' : '1px solid var(--color-border-1)',
+              color: goal === p.v ? 'var(--color-cyan)' : 'var(--color-text-2)',
+            }"
+            @click="goal = p.v"
           >
-            <span class="ob__preset-label">{{ p.label }}</span>
-            <span class="ob__preset-num">{{ p.value }}</span>
-            <span class="ob__preset-sub">{{ p.sub }}</span>
+            <div class="mono" :style="{ fontWeight: 700, fontSize: '16px' }">{{ p.v }}</div>
+            <div :style="{ fontSize: '10px', fontWeight: 600, marginTop: '2px' }">{{ p.l }}</div>
           </button>
         </div>
-      </template>
+      </div>
 
       <!-- Step 2: Level -->
-      <template v-else-if="step === 2">
-        <h2 class="ob__step-title">Trình độ hiện tại</h2>
-        <p class="ob__step-hint">Để app gợi ý chunk phù hợp.</p>
-
-        <div class="ob__levels">
+      <div
+        v-else-if="step === 2"
+        :style="{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }"
+      >
+        <div>
+          <h2 :style="{ margin: 0, fontSize: '24px', fontWeight: 700, letterSpacing: '-0.015em' }">Trình độ hiện tại?</h2>
+          <div :style="{ fontSize: '13px', color: 'var(--color-text-3)', marginTop: '6px', lineHeight: 1.5 }">
+            App sẽ mix nhiều level — nhưng bắt đầu nơi bạn thoải mái.
+          </div>
+        </div>
+        <div :style="{ display: 'flex', flexDirection: 'column', gap: '10px' }">
           <button
-            v-for="l in levels"
-            :key="l.id"
-            class="ob__level tap"
-            :class="{ 'is-active': levelLocal === l.id }"
-            @click="levelLocal = l.id"
+            v-for="o in levelOpts"
+            :key="o.k"
+            class="btn tap"
+            :style="{
+              padding: '16px',
+              borderRadius: '16px',
+              textAlign: 'left',
+              background: levelLocal === o.k
+                ? 'linear-gradient(135deg, rgba(167,139,250,0.18), rgba(167,139,250,0.04))'
+                : 'var(--color-surface-2)',
+              border: levelLocal === o.k ? '1px solid var(--color-violet)' : '1px solid var(--color-border-1)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+            }"
+            @click="levelLocal = o.k"
           >
-            <span class="ob__level-radio">
-              <span v-if="levelLocal === l.id" class="ob__level-dot"><Icon name="check" :size="14" /></span>
-            </span>
-            <div>
-              <p class="ob__level-label">{{ l.label }}</p>
-              <p class="ob__level-hint">{{ l.hint }}</p>
+            <LevelPill :level="o.k" />
+            <div :style="{ flex: 1 }">
+              <div :style="{ fontSize: '14px', fontWeight: 700 }">{{ o.name }}</div>
+              <div :style="{ fontSize: '12px', color: 'var(--color-text-3)', marginTop: '2px' }">{{ o.hint }}</div>
+            </div>
+            <div
+              v-if="levelLocal === o.k"
+              :style="{
+                width: '22px',
+                height: '22px',
+                borderRadius: '11px',
+                background: 'var(--color-violet)',
+                display: 'grid',
+                placeItems: 'center',
+                color: '#0B0F22',
+              }"
+            >
+              <Icon name="check" :size="14" />
             </div>
           </button>
         </div>
-      </template>
+        <div
+          :style="{
+            marginTop: '4px',
+            padding: '12px',
+            borderRadius: '12px',
+            background: 'var(--color-surface-1)',
+            border: '1px dashed var(--color-border-2)',
+            display: 'flex',
+            gap: '10px',
+            fontSize: '12px',
+            color: 'var(--color-text-3)',
+          }"
+        >
+          <Icon name="sparkles" :size="14" :style="{ color: 'var(--color-cyan)', marginTop: '1px', flexShrink: 0 }" />
+          <span>Không cần lo — mọi chunk đều được tag, Smart Review sẽ tự surface độ khó phù hợp.</span>
+        </div>
+      </div>
 
       <!-- Step 3: Topics -->
-      <template v-else-if="step === 3">
-        <h2 class="ob__step-title">Chủ đề bạn quan tâm</h2>
-        <p class="ob__step-hint">Chọn ≥ 1 chủ đề. Có thể đổi sau trong Library.</p>
-
-        <div class="ob__topics">
+      <div
+        v-else-if="step === 3"
+        :style="{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }"
+      >
+        <div>
+          <h2 :style="{ margin: 0, fontSize: '24px', fontWeight: 700, letterSpacing: '-0.015em' }">Chọn chủ đề</h2>
+          <div :style="{ fontSize: '13px', color: 'var(--color-text-3)', marginTop: '6px', lineHeight: 1.5 }">
+            Library sẽ seed theo đây. Chọn ít nhất 1 —
+            <span class="mono" :style="{ color: picks.length >= 3 ? 'var(--color-emerald)' : 'var(--color-text-2)' }">{{ picks.length }}</span>
+            đã chọn.
+          </div>
+        </div>
+        <div :style="{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }">
           <button
             v-for="t in chunks.topics"
             :key="t.id"
-            class="ob__topic tap glass"
-            :class="{ 'is-active': topicsLocal.includes(t.id) }"
-            :style="{ '--c': t.color }"
-            @click="toggleTopic(t.id)"
+            class="btn tap"
+            :style="{
+              padding: '14px',
+              borderRadius: '16px',
+              textAlign: 'left',
+              background: picks.includes(t.id)
+                ? `linear-gradient(135deg, color-mix(in oklch, ${t.color} 22%, transparent), color-mix(in oklch, ${t.color} 6%, transparent)), var(--color-surface-2)`
+                : 'var(--color-surface-2)',
+              border: picks.includes(t.id)
+                ? `1px solid color-mix(in oklch, ${t.color} 50%, transparent)`
+                : '1px solid var(--color-border-1)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              position: 'relative',
+            }"
+            @click="togglePick(t.id)"
           >
-            <span class="ob__topic-icon"><TopicIcon :name="t.id" :size="20" /></span>
-            <span class="ob__topic-name">{{ t.name }}</span>
-            <span v-if="topicsLocal.includes(t.id)" class="ob__topic-check">
-              <Icon name="check" :size="12" />
-            </span>
+            <div :style="{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }">
+              <div
+                :style="{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '11px',
+                  background: `color-mix(in oklch, ${t.color} ${picks.includes(t.id) ? 28 : 16}%, transparent)`,
+                  border: `1px solid color-mix(in oklch, ${t.color} ${picks.includes(t.id) ? 40 : 20}%, transparent)`,
+                  display: 'grid',
+                  placeItems: 'center',
+                  color: t.color,
+                }"
+              >
+                <TopicIcon :name="t.id" :size="18" />
+              </div>
+              <div
+                v-if="picks.includes(t.id)"
+                :style="{
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '9px',
+                  background: t.color,
+                  display: 'grid',
+                  placeItems: 'center',
+                  color: '#0B0F22',
+                }"
+              >
+                <Icon name="check" :size="12" />
+              </div>
+            </div>
+            <div>
+              <div :style="{ fontSize: '12px', fontWeight: 700 }">{{ t.name }}</div>
+              <div class="mono" :style="{ fontSize: '10px', color: 'var(--color-text-3)', marginTop: '2px' }">
+                ~{{ t.count }} chunks
+              </div>
+            </div>
           </button>
         </div>
-      </template>
+      </div>
 
       <!-- Step 4: Voice -->
-      <template v-else>
-        <h2 class="ob__step-title">Chọn giọng đọc</h2>
-        <p class="ob__step-hint">Pick một giọng quen, hoặc bật mix để đổi mỗi chunk.</p>
+      <div
+        v-else
+        :style="{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }"
+      >
+        <div>
+          <h2 :style="{ margin: 0, fontSize: '24px', fontWeight: 700, letterSpacing: '-0.015em' }">Chọn giọng đọc mặc định</h2>
+          <div :style="{ fontSize: '13px', color: 'var(--color-text-3)', marginTop: '6px', lineHeight: 1.5 }">
+            Tap để nghe thử. Bạn có thể mix nhiều giọng để đỡ ngán.
+          </div>
+        </div>
 
-        <div class="ob__voices">
-          <p v-if="englishVoices.length === 0" class="ob__voices-empty">
-            Không tìm thấy giọng tiếng Anh trên thiết bị này. Bạn vẫn dùng được mặc định.
-          </p>
-          <button
+        <div :style="{ display: 'flex', flexDirection: 'column', gap: '8px' }">
+          <p
+            v-if="englishVoices.length === 0"
+            :style="{ fontSize: '13px', color: 'var(--color-text-3)' }"
+          >Không tìm thấy giọng English trên thiết bị này — bạn vẫn dùng được mặc định.</p>
+          <div
             v-for="v in englishVoices"
             :key="v.name"
-            class="ob__voice tap"
-            :class="{ 'is-active': voiceLocal === v.name }"
-            @click="voiceLocal = v.name"
+            role="button"
+            class="tap"
+            :style="{
+              padding: '14px 16px',
+              borderRadius: '14px',
+              textAlign: 'left',
+              cursor: 'pointer',
+              background: voice === v.name ? 'var(--color-surface-3)' : 'var(--color-surface-2)',
+              border: voice === v.name ? '1px solid var(--color-cyan)' : '1px solid var(--color-border-1)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+            }"
+            @click="voice = v.name"
           >
-            <span class="ob__voice-circle"><Icon name="voice" :size="16" /></span>
-            <span class="ob__voice-info">
-              <span class="ob__voice-name">{{ v.name }}</span>
-              <span class="ob__voice-lang mono">{{ v.lang }}</span>
-            </span>
-            <button class="ob__voice-play tap" :aria-label="'Nghe thử'" @click="(e) => previewVoice(v.name, e)">
-              <Icon name="play" :size="12" />
+            <div
+              :style="{
+                width: '44px',
+                height: '44px',
+                borderRadius: '14px',
+                background: voice === v.name ? 'var(--grad-primary)' : 'var(--color-surface-3)',
+                display: 'grid',
+                placeItems: 'center',
+                color: voice === v.name ? '#0B0F22' : 'var(--color-text-1)',
+              }"
+            >
+              <Icon name="mic" :size="20" />
+            </div>
+            <div :style="{ flex: 1, minWidth: 0 }">
+              <div :style="{ fontSize: '14px', fontWeight: 700 }">{{ v.name }}</div>
+              <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">
+                {{ v.lang }}{{ v.localService ? ' · local' : ' · cloud' }}
+              </div>
+            </div>
+            <button
+              class="btn tap"
+              :style="{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                background: 'var(--color-surface-3)',
+                display: 'grid',
+                placeItems: 'center',
+                flexShrink: 0,
+                color: 'var(--color-text-1)',
+              }"
+              @click="(e) => previewVoice(v.name, e)"
+            >
+              <Icon name="play" :size="12" :style="{ marginLeft: '1px' }" />
             </button>
+          </div>
+        </div>
+
+        <div
+          class="glass"
+          :style="{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '12px' }"
+        >
+          <div
+            :style="{
+              width: '32px',
+              height: '32px',
+              borderRadius: '9px',
+              background: 'color-mix(in oklch, var(--color-violet) 22%, transparent)',
+              display: 'grid',
+              placeItems: 'center',
+              flexShrink: 0,
+              color: 'var(--color-violet)',
+            }"
+          >
+            <Icon name="speaker" :size="16" />
+          </div>
+          <div :style="{ flex: 1 }">
+            <div :style="{ fontSize: '13px', fontWeight: 700 }">Mix voices mỗi chunk</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">
+              Đổi giọng — dễ chịu hơn khi nghe lâu
+            </div>
+          </div>
+          <button
+            class="btn tap"
+            :style="{
+              width: '42px',
+              height: '26px',
+              borderRadius: '99px',
+              position: 'relative',
+              flexShrink: 0,
+              background: mix ? 'var(--color-cyan)' : 'var(--color-surface-3)',
+              transition: 'background .15s',
+            }"
+            @click="mix = !mix"
+          >
+            <span
+              :style="{
+                position: 'absolute',
+                top: '3px',
+                left: mix ? '19px' : '3px',
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                background: '#fff',
+                transition: 'left .15s',
+                boxShadow: '0 2px 4px rgba(0,0,0,.2)',
+              }"
+            />
           </button>
         </div>
-
-        <div class="ob__mix">
-          <div>
-            <p class="ob__mix-label">Mix voice mỗi chunk</p>
-            <p class="ob__mix-hint">Random giọng để quen nhiều accent.</p>
-          </div>
-          <label class="ob__switch">
-            <input type="checkbox" v-model="mixVoiceLocal" />
-            <span class="ob__switch-track" :class="{ 'is-on': mixVoiceLocal }">
-              <span class="ob__switch-thumb" />
-            </span>
-          </label>
-        </div>
-      </template>
+      </div>
     </div>
 
-    <div class="ob__footer">
-      <AppButton
-        variant="primary"
-        size="lg"
-        block
-        :disabled="!canContinue"
+    <!-- Continue button -->
+    <div :style="{ padding: '12px 20px 28px' }">
+      <button
+        class="btn tap"
+        :disabled="!canAdvance"
+        :style="{
+          width: '100%',
+          padding: '16px',
+          borderRadius: '16px',
+          fontSize: '15px',
+          fontWeight: 700,
+          background: canAdvance ? 'var(--grad-primary)' : 'var(--color-surface-2)',
+          color: canAdvance ? '#0B0F22' : 'var(--color-text-3)',
+          opacity: canAdvance ? 1 : 0.6,
+          boxShadow: canAdvance ? '0 12px 30px rgba(34,211,238,0.25)' : 'none',
+        }"
         @click="next"
-      >
-        {{ step === TOTAL_STEPS - 1 ? 'Bắt đầu' : 'Tiếp tục' }}
-        <Icon name="arrow-right" :size="14" />
-      </AppButton>
+      >{{ isFinal ? "I'm ready · bắt đầu" : 'Continue →' }}</button>
     </div>
-  </section>
+  </div>
 </template>
-
-<style scoped>
-.ob {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
-  padding: 0;
-}
-
-.ob__head {
-  display: grid;
-  grid-template-columns: 44px 1fr 44px;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  padding-top: max(env(safe-area-inset-top), 12px);
-}
-.ob__icon-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-1);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.ob__icon-btn.is-hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-.ob__head-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-.ob__counter {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--color-text-3);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-.ob__progress {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 4px;
-  width: 160px;
-  height: 4px;
-}
-.ob__seg {
-  background: var(--color-surface-2);
-  border-radius: 999px;
-}
-.ob__seg.is-filled {
-  background: var(--grad-primary);
-}
-.ob__skip {
-  font-size: 12px;
-  color: var(--color-text-3);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  padding: 6px 8px;
-}
-
-.ob__body {
-  flex: 1;
-  overflow-y: auto;
-  scrollbar-width: none;
-  padding: 12px 20px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* Welcome */
-.ob__hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 16px;
-  margin-top: 8px;
-  padding-top: 12px;
-}
-.ob__hero-circle {
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  background:
-    radial-gradient(120% 70% at 30% 30%, rgba(34, 211, 238, 0.36), transparent 60%),
-    var(--color-surface-2);
-  border: 1px solid var(--color-border-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-cyan);
-  position: relative;
-}
-.ob__hero-circle::after {
-  content: '';
-  position: absolute;
-  inset: -10px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(34, 211, 238, 0.18), transparent 60%);
-  z-index: -1;
-}
-.ob__title {
-  margin: 0;
-  font-family: var(--font-ui);
-  font-size: 30px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-}
-.ob__lead {
-  margin: 0;
-  font-size: 14px;
-  color: var(--color-text-2);
-  max-width: 320px;
-}
-.ob__features {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.ob__feat {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px;
-}
-.ob__feat-num {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: color-mix(in oklch, var(--color-cyan) 18%, transparent);
-  border: 1px solid color-mix(in oklch, var(--color-cyan) 35%, transparent);
-  color: var(--color-cyan);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 12px;
-  flex-shrink: 0;
-}
-.ob__feat-title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-1);
-}
-.ob__feat-hint {
-  margin: 2px 0 0;
-  font-size: 12px;
-  color: var(--color-text-3);
-  line-height: 1.4;
-}
-
-/* Step titles */
-.ob__step-title {
-  margin: 8px 0 0;
-  font-family: var(--font-ui);
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--color-text-1);
-}
-.ob__step-hint {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-text-3);
-}
-
-/* Goal */
-.ob__goal {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 18px 0;
-}
-.ob__goal-num {
-  font-family: var(--font-mono);
-  font-size: 64px;
-  font-weight: 800;
-  line-height: 0.95;
-  color: var(--color-text-1);
-  letter-spacing: -0.02em;
-}
-.ob__goal-sub {
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-3);
-  font-weight: 700;
-}
-.ob__slider {
-  appearance: none;
-  width: 100%;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--color-surface-2);
-  accent-color: var(--color-cyan);
-  outline: none;
-}
-.ob__presets {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-.ob__preset {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 12px 8px;
-  border-radius: 16px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-2);
-}
-.ob__preset.is-active {
-  background: color-mix(in oklch, var(--color-cyan) 18%, transparent);
-  border-color: color-mix(in oklch, var(--color-cyan) 40%, transparent);
-  color: var(--color-cyan);
-}
-.ob__preset-label {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.ob__preset-num {
-  font-family: var(--font-mono);
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--color-text-1);
-}
-.ob__preset.is-active .ob__preset-num {
-  color: var(--color-cyan);
-}
-.ob__preset-sub {
-  font-size: 10px;
-  color: var(--color-text-3);
-}
-
-/* Level */
-.ob__levels {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.ob__level {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 16px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-1);
-  text-align: left;
-}
-.ob__level.is-active {
-  background:
-    radial-gradient(120% 70% at 0% 0%, rgba(167, 139, 250, 0.22), transparent 55%),
-    var(--color-surface-2);
-  border-color: color-mix(in oklch, var(--color-violet) 45%, transparent);
-}
-.ob__level-radio {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 2px solid var(--color-border-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.ob__level.is-active .ob__level-radio {
-  border-color: var(--color-violet);
-  background: var(--color-violet);
-  color: white;
-}
-.ob__level-label {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-1);
-}
-.ob__level-hint {
-  margin: 2px 0 0;
-  font-size: 12px;
-  color: var(--color-text-3);
-}
-
-/* Topics */
-.ob__topics {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-.ob__topic {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 14px;
-  border-color: color-mix(in oklch, var(--c) 24%, transparent);
-}
-.ob__topic.is-active {
-  background:
-    radial-gradient(120% 70% at 0% 0%, color-mix(in oklch, var(--c) 28%, transparent), transparent 55%),
-    var(--color-surface-2);
-  border-color: color-mix(in oklch, var(--c) 55%, transparent);
-}
-.ob__topic-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: color-mix(in oklch, var(--c) 20%, transparent);
-  color: var(--c);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.ob__topic-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text-1);
-}
-.ob__topic-check {
-  position: absolute;
-  right: 10px;
-  top: 10px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--c);
-  color: var(--color-bg-1);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Voice */
-.ob__voices {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.ob__voices-empty {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-text-3);
-  padding: 10px;
-  border-radius: 12px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
-}
-.ob__voice {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-1);
-}
-.ob__voice.is-active {
-  background: color-mix(in oklch, var(--color-cyan) 14%, transparent);
-  border-color: color-mix(in oklch, var(--color-cyan) 40%, transparent);
-}
-.ob__voice-circle {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--color-surface-2);
-  color: var(--color-cyan);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.ob__voice-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-.ob__voice-name {
-  font-size: 14px;
-  font-weight: 700;
-}
-.ob__voice-lang {
-  font-size: 11px;
-  color: var(--color-text-3);
-}
-.ob__voice-play {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ob__mix {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px;
-  border-radius: 16px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
-}
-.ob__mix-label {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-1);
-}
-.ob__mix-hint {
-  margin: 2px 0 0;
-  font-size: 12px;
-  color: var(--color-text-3);
-}
-.ob__switch {
-  position: relative;
-  display: inline-block;
-}
-.ob__switch input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  margin: 0;
-}
-.ob__switch-track {
-  display: inline-block;
-  width: 44px;
-  height: 26px;
-  border-radius: 999px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  position: relative;
-  transition: background 0.18s ease;
-}
-.ob__switch-track.is-on {
-  background: var(--color-cyan);
-  border-color: var(--color-cyan);
-}
-.ob__switch-thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: white;
-  transition: transform 0.18s var(--ease-out-soft, cubic-bezier(0.2, 0.8, 0.2, 1));
-}
-.ob__switch-track.is-on .ob__switch-thumb {
-  transform: translateX(18px);
-}
-
-/* Footer */
-.ob__footer {
-  padding: 16px 20px;
-  padding-bottom: calc(16px + env(safe-area-inset-bottom));
-}
-</style>

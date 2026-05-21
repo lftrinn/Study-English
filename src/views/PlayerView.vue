@@ -1,134 +1,104 @@
 <script setup lang="ts">
+/**
+ * Literal port of screens-player.jsx PlayerScreen (lines 7-196).
+ * Sticky header morph + chunk-card 1:1 + transport + lab controls +
+ * queue, all with inline-style :style bindings copied from the JSX.
+ */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import { usePlayerStore } from '@/stores/playerStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useChunkStore } from '@/stores/chunkStore';
+import { useProgressStore } from '@/stores/progressStore';
 import { useUiStore } from '@/stores/uiStore';
 import { speechService } from '@/services/speechService';
 
-import ChunkCard from '@/components/chunk/ChunkCard.vue';
 import TopicIcon from '@/components/chunk/TopicIcon.vue';
-import PlayerControls from '@/components/player/PlayerControls.vue';
+import LevelPill from '@/components/chunk/LevelPill.vue';
 import AppSheet from '@/components/common/AppSheet.vue';
-import AppButton from '@/components/common/AppButton.vue';
-import EmptyState from '@/components/common/EmptyState.vue';
 import Icon from '@/components/common/Icon.vue';
-import { useProgressStore } from '@/stores/progressStore';
 
 const player = usePlayerStore();
 const settings = useSettingsStore();
 const chunks = useChunkStore();
-const ui = useUiStore();
 const progress = useProgressStore();
+const ui = useUiStore();
 
-const currentTopic = computed(() =>
-  player.current ? chunks.topicById(player.current.topic) : undefined,
+const scrollY = ref(0);
+const queueOpen = ref(false);
+const voiceSheetOpen = ref(false);
+let scrollEl: HTMLElement | null = null;
+
+const compact = computed(() => scrollY.value > 100);
+
+const current = computed(() => player.current);
+const topic = computed(() =>
+  current.value ? chunks.topicById(current.value.topic) : undefined,
 );
+const accent = computed(() => topic.value?.color ?? '#22D3EE');
 const currentProgress = computed(() =>
-  player.current ? progress.byId(player.current.id) : undefined,
+  current.value ? progress.byId(current.value.id) : undefined,
 );
 const statusLabel = computed(() => {
   const s = currentProgress.value?.status ?? 'new';
   return s.charAt(0).toUpperCase() + s.slice(1);
 });
-
-function toggleStar() {
-  if (player.current) void progress.toggleStarred(player.current.id);
-}
-
-const voiceSheetOpen = ref(false);
-const scrollY = ref(0);
-const compact = computed(() => scrollY.value > 100);
-const topicColor = computed(() => chunks.topicById(player.current?.topic ?? '')?.color ?? '#22D3EE');
-function togglePlay() {
-  if (player.isPlaying && !player.isPaused) player.pause();
-  else void player.play();
-}
+const isPlaying = computed(() => player.isPlaying && !player.isPaused);
 
 const englishVoices = ref<SpeechSynthesisVoice[]>([]);
+const currentVoiceLabel = computed(
+  () => player.selectedVoiceName ?? settings.selectedVoiceName ?? 'Aria · US',
+);
 
-const currentVoice = computed(() => player.selectedVoiceName ?? settings.selectedVoiceName ?? 'Default voice');
-
-const repeatChip = computed(() => {
-  switch (player.repeatMode) {
-    case 'one':
-      return 'Lặp 1';
-    case 'all':
-      return 'Lặp hết';
-    case 'none':
-    default:
-      return 'Không lặp';
-  }
-});
+const repeatIconName = computed(() => (player.repeatMode === 'one' ? 'repeat-one' : 'repeat'));
 
 function onScroll(e: Event) {
   const target = e.target as HTMLElement;
   scrollY.value = target.scrollTop;
 }
-
-let scrollEl: HTMLElement | null = null;
-
-onMounted(async () => {
-  player.syncFromSettings();
-  scrollEl = document.querySelector('.app-main');
-  scrollEl?.addEventListener('scroll', onScroll, { passive: true });
-
-  await speechService.ensureVoicesLoaded();
-  englishVoices.value = speechService.getEnglishVoices();
-  if (!player.selectedVoiceName && englishVoices.value[0]) {
-    player.setVoiceName(englishVoices.value[0].name);
-    settings.selectedVoiceName = englishVoices.value[0].name;
-  }
-});
-
-onBeforeUnmount(() => {
-  scrollEl?.removeEventListener('scroll', onScroll);
-});
-
-function openVoices() {
-  voiceSheetOpen.value = true;
+function togglePlay() {
+  if (isPlaying.value) player.pause();
+  else void player.play();
 }
-
 function pickVoice(name: string) {
   player.setVoiceName(name);
   settings.selectedVoiceName = name;
+  voiceSheetOpen.value = false;
 }
-
-async function previewVoice(name: string) {
+async function previewVoice(name: string, e: Event) {
+  e.stopPropagation();
   try {
     await speechService.speak({
-      text: 'Hello, this is a chunk listening lab voice preview.',
+      text: current.value?.text ?? 'Hello',
       voiceName: name,
       rate: player.speed,
     });
   } catch {
-    // ignore preview failures
+    /* ignore */
   }
 }
-
 function moveQueueTo(idx: number) {
   player.moveTo(idx);
-  if (player.isPlaying) {
+  if (isPlaying.value) {
     player.stop();
     void player.play();
   }
 }
-
-function openDetail(chunkId: string) {
-  ui.openChunkDetail(chunkId);
+function openDetail(id: string) {
+  ui.openChunkDetail(id);
 }
-
+function toggleStar() {
+  if (current.value) void progress.toggleStarred(current.value.id);
+}
 function changeSpeed(delta: number) {
-  const v = Math.round((player.speed + delta) * 10) / 10;
-  player.setSpeed(v);
+  player.setSpeed(Math.round((player.speed + delta) * 100) / 100);
   settings.defaultSpeed = player.speed;
 }
 function changeGap(delta: number) {
   player.setGap(player.gap + delta);
   settings.defaultGap = player.gap;
 }
-function changeRepeatEach(delta: number) {
+function changeRepeat(delta: number) {
   player.setRepeatEach(player.repeatEach + delta);
   settings.defaultRepeatEach = player.repeatEach;
 }
@@ -137,767 +107,660 @@ function toggleMixVoice() {
   settings.mixVoice = player.mixVoice;
 }
 
+onMounted(async () => {
+  player.syncFromSettings();
+  scrollEl = document.querySelector('.scrollarea');
+  scrollEl?.addEventListener('scroll', onScroll, { passive: true });
+  await speechService.ensureVoicesLoaded();
+  englishVoices.value = speechService.getEnglishVoices();
+  if (!player.selectedVoiceName && englishVoices.value[0]) {
+    player.setVoiceName(englishVoices.value[0].name);
+    settings.selectedVoiceName = englishVoices.value[0].name;
+  }
+});
+onBeforeUnmount(() => {
+  scrollEl?.removeEventListener('scroll', onScroll);
+});
+
 const speechSupported = computed(() => speechService.support().synthesis);
 
-function playSample() {
+function playSamplePlaylist() {
   if (chunks.chunks.length === 0) return;
   player.setQueue(chunks.chunks.slice(0, 12), { mode: 'normal' });
   void player.play();
 }
+
+const upNext = computed(() =>
+  current.value ? player.queue.slice(player.queueIndex + 1, player.queueIndex + 6) : [],
+);
 </script>
 
 <template>
-  <section class="player">
-    <header
-      class="player__head"
-      :class="{ 'is-compact': compact && player.current }"
+  <div class="scrollarea" :style="{ position: 'relative' }">
+    <!-- Sticky header -->
+    <div
+      :style="{
+        position: 'sticky',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 20,
+        background: compact ? 'var(--color-bg-1)' : 'transparent',
+        borderBottom: compact ? '1px solid var(--color-border-1)' : '1px solid transparent',
+        backdropFilter: compact ? 'blur(20px) saturate(180%)' : 'none',
+        WebkitBackdropFilter: compact ? 'blur(20px) saturate(180%)' : 'none',
+        transition: 'background .2s, border-color .2s, backdrop-filter .2s',
+        padding: '56px 20px 14px',
+      }"
     >
-      <!-- Expanded -->
-      <template v-if="!(compact && player.current)">
-        <button class="player__head-icon-btn tap" :aria-label="'Quay lại Home'">
-          <Icon name="chevron-down" :size="20" />
-        </button>
-        <div class="player__head-center">
-          <p class="player__head-eyebrow">Playing from</p>
-          <p class="player__head-topic">{{ currentTopic?.name ?? 'Library' }}</p>
-        </div>
-        <button class="player__head-icon-btn tap" :aria-label="'Thêm'">
-          <Icon name="more" :size="20" />
-        </button>
-      </template>
-
-      <!-- Compact morph (Apple Music style) -->
-      <div v-else class="player__head-compact">
-        <span class="player__head-icon" :style="{ '--c': topicColor }">
-          <span class="player__head-waves" aria-hidden="true">
-            <template v-if="player.isPlaying && !player.isPaused">
-              <span class="wave-bar" />
-              <span class="wave-bar" />
-              <span class="wave-bar" />
-              <span class="wave-bar" />
-            </template>
-            <template v-else>
-              <span class="player__head-bar-idle" />
-              <span class="player__head-bar-idle" />
-              <span class="player__head-bar-idle" />
-              <span class="player__head-bar-idle" />
-            </template>
-          </span>
-        </span>
-        <div class="player__head-text">
-          <p class="player__head-title">{{ player.current!.text }}</p>
-          <p class="player__head-sub">
-            {{ currentTopic?.name ?? '' }} ·
-            <span class="mono">{{ player.queueIndex + 1 }}/{{ player.queueLength }}</span>
-          </p>
-        </div>
-        <button class="player__head-play tap" :aria-label="'Phát / Tạm dừng'" @click="togglePlay">
-          <Icon :name="player.isPlaying && !player.isPaused ? 'pause' : 'play'" :size="14" />
-        </button>
+      <div :style="{ display: 'flex', alignItems: 'center', gap: '12px' }">
+        <template v-if="compact && current">
+          <div :style="{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }">
+            <div
+              :style="{
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                background: `linear-gradient(135deg, color-mix(in oklch, ${accent} 40%, transparent), color-mix(in oklch, ${accent} 16%, transparent))`,
+                display: 'grid',
+                placeItems: 'center',
+                flexShrink: 0,
+                color: accent,
+              }"
+            >
+              <span
+                v-if="isPlaying"
+                :style="{ display: 'inline-flex', alignItems: 'center', height: '14px' }"
+              >
+                <span class="wave-bar" :style="{ height: '14px' }" />
+                <span class="wave-bar" :style="{ height: '14px' }" />
+                <span class="wave-bar" :style="{ height: '14px' }" />
+                <span class="wave-bar" :style="{ height: '14px' }" />
+              </span>
+              <TopicIcon v-else :name="current.topic" :size="16" />
+            </div>
+            <div :style="{ flex: 1, minWidth: 0 }">
+              <div :style="{ fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }">{{ current.text }}</div>
+              <div :style="{ fontSize: '11px', color: 'var(--color-text-3)' }">
+                {{ topic?.name }} · <span class="mono">{{ player.queueIndex + 1 }}/{{ player.queueLength }}</span>
+              </div>
+            </div>
+          </div>
+          <button
+            class="btn tap"
+            :style="{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              background: 'var(--grad-primary)',
+              color: '#0B0F22',
+              display: 'grid',
+              placeItems: 'center',
+              boxShadow: '0 8px 30px rgba(34,211,238,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset',
+            }"
+            @click="togglePlay"
+          >
+            <Icon :name="isPlaying ? 'pause' : 'play'" :size="16" :style="{ marginLeft: isPlaying ? '0' : '1px' }" />
+          </button>
+        </template>
+        <template v-else>
+          <button
+            class="btn tap"
+            :style="{
+              width: '40px',
+              height: '40px',
+              borderRadius: '12px',
+              display: 'grid',
+              placeItems: 'center',
+              background: 'var(--color-surface-2)',
+              color: 'var(--color-text-1)',
+              flexShrink: 0,
+            }"
+          >
+            <Icon name="chevron-down" :size="20" />
+          </button>
+          <div :style="{ flex: 1, minWidth: 0, textAlign: 'center' }">
+            <div :style="{ fontSize: '10px', color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }">Playing from</div>
+            <div :style="{ fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px' }">{{ topic?.name ?? 'Library' }}</div>
+          </div>
+          <button
+            class="btn tap"
+            :style="{
+              width: '40px',
+              height: '40px',
+              borderRadius: '12px',
+              display: 'grid',
+              placeItems: 'center',
+              background: 'var(--color-surface-2)',
+              color: 'var(--color-text-1)',
+              flexShrink: 0,
+            }"
+          >
+            <Icon name="more" :size="20" />
+          </button>
+        </template>
       </div>
-    </header>
-
-    <div v-if="!speechSupported" class="player__warn">
-      <Icon name="lightning" :size="18" />
-      <p>Trình duyệt không hỗ trợ SpeechSynthesis. Vui lòng dùng Chrome / Edge / Safari mới.</p>
     </div>
 
-    <template v-if="player.current">
-      <div class="player__card-wrap">
-        <ChunkCard
-          :chunk="player.current"
-          :voice-name="currentVoice"
-          :is-playing="player.isPlaying && !player.isPaused"
-        />
+    <!-- No speech support warn -->
+    <div
+      v-if="!speechSupported"
+      :style="{
+        margin: '12px 20px 0',
+        padding: '10px 14px',
+        borderRadius: '12px',
+        fontSize: '13px',
+        background: 'color-mix(in oklch, var(--color-amber) 14%, transparent)',
+        border: '1px solid color-mix(in oklch, var(--color-amber) 35%, transparent)',
+        color: 'color-mix(in oklch, var(--color-amber) 80%, white)',
+      }"
+    >Trình duyệt không hỗ trợ SpeechSynthesis. Vui lòng dùng Chrome / Edge / Safari mới.</div>
+
+    <template v-if="current">
+      <!-- Album-art equivalent chunk card -->
+      <div :style="{ padding: '20px 20px 0' }">
+        <div
+          :style="{
+            aspectRatio: '1 / 1',
+            borderRadius: '28px',
+            background: `linear-gradient(160deg, color-mix(in oklch, ${accent} 45%, transparent), color-mix(in oklch, ${accent} 10%, transparent)), radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,0.18), transparent)`,
+            border: `1px solid color-mix(in oklch, ${accent} 24%, transparent)`,
+            padding: '26px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            position: 'relative',
+            overflow: 'hidden',
+          }"
+        >
+          <div
+            :class="isPlaying ? 'pulse-cyan' : ''"
+            :style="{
+              position: 'absolute',
+              top: '26px',
+              right: '26px',
+              width: '14px',
+              height: '14px',
+              borderRadius: '50%',
+              background: accent,
+            }"
+          />
+          <div>
+            <div
+              :style="{
+                fontSize: '12px',
+                color: 'var(--color-text-2)',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }"
+            >
+              <TopicIcon :name="current.topic" :size="14" />
+              {{ topic?.name }}
+              <span :style="{ width: '4px', height: '4px', borderRadius: '4px', background: 'var(--color-text-4)' }" />
+              <LevelPill :level="current.level" />
+            </div>
+            <div
+              :style="{
+                fontSize: '26px',
+                fontWeight: 700,
+                lineHeight: 1.2,
+                letterSpacing: '-0.015em',
+                marginTop: '16px',
+              }"
+            >{{ current.text }}</div>
+          </div>
+          <div>
+            <div :style="{ height: '1px', background: 'var(--color-border-1)', margin: '14px 0' }" />
+            <div :style="{ fontSize: '14px', color: 'var(--color-text-2)', lineHeight: 1.4 }">{{ current.meaning }}</div>
+            <div :style="{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px' }">
+              <div :style="{ display: 'flex', alignItems: 'center', gap: '8px' }">
+                <div :style="{ width: '26px', height: '26px', borderRadius: '50%', background: 'var(--color-surface-3)', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }">
+                  <Icon name="mic" :size="12" />
+                </div>
+                <div>
+                  <div :style="{ fontSize: '11px', fontWeight: 600 }">{{ currentVoiceLabel }}</div>
+                  <div :style="{ fontSize: '10px', color: 'var(--color-text-3)' }">{{ player.mixVoice ? 'Mix voices' : 'Single voice' }}</div>
+                </div>
+              </div>
+              <div :style="{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11px', color: 'var(--color-text-3)' }">
+                <Icon name="headphones" :size="12" />
+                <span class="mono">{{ currentProgress?.listenCount ?? 0 }}× heard</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Status row -->
-      <div class="player__status-row">
+      <div :style="{ padding: '16px 20px 0', display: 'flex', alignItems: 'center', gap: '10px' }">
         <button
-          class="player__star tap"
-          :class="{ 'is-on': currentProgress?.starred }"
-          :aria-label="currentProgress?.starred ? 'Bỏ sao' : 'Đánh dấu sao'"
+          class="btn tap"
+          :style="{
+            width: '36px',
+            height: '36px',
+            display: 'grid',
+            placeItems: 'center',
+            borderRadius: '12px',
+            color: currentProgress?.starred ? '#FCD34D' : 'var(--color-text-3)',
+          }"
           @click="toggleStar"
         >
           <Icon :name="currentProgress?.starred ? 'star-filled' : 'star'" :size="18" />
         </button>
-        <div class="player__status-mid">
-          <div class="player__status-line">
+        <div :style="{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }">
+          <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', fontWeight: 600, display: 'flex', justifyContent: 'space-between' }">
             <span>Loop <span class="mono">1/{{ player.repeatEach }}</span></span>
-            <span class="player__status-state">
+            <span :style="{ display: 'inline-flex', alignItems: 'center', gap: '6px' }">
               <span class="dot" :class="`dot-${currentProgress?.status ?? 'new'}`" />
               {{ statusLabel }}
             </span>
           </div>
-          <div class="player__status-bar">
-            <div
-              class="player__status-bar-fill"
-              :style="{ background: currentTopic?.color, width: '60%' }"
-            />
+          <div :style="{ width: '100%', height: '4px', background: 'var(--color-surface-2)', borderRadius: '999px', overflow: 'hidden' }">
+            <div :style="{ width: '60%', height: '100%', background: accent, borderRadius: '999px', transition: 'width .35s ease' }" />
           </div>
-          <div class="player__status-times mono">
-            <span>0:00</span>
-            <span>0:02</span>
+          <div :style="{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--color-text-3)' }">
+            <span class="mono">0:00</span>
+            <span class="mono">0:02</span>
           </div>
         </div>
-        <button class="player__more tap" :aria-label="'Thêm'" @click="player.stop">
+        <button
+          class="btn tap"
+          :style="{
+            width: '36px',
+            height: '36px',
+            borderRadius: '12px',
+            display: 'grid',
+            placeItems: 'center',
+            background: 'var(--color-surface-2)',
+            color: 'var(--color-text-2)',
+          }"
+          @click="player.stop"
+        >
           <Icon name="more" :size="18" />
         </button>
       </div>
 
-      <PlayerControls />
-
-      <div class="player__sub">
-        <button class="player__sub-btn tap" :aria-label="'Dừng'" @click="player.stop">
-          <Icon name="stop" :size="14" /> Dừng
+      <!-- Transport -->
+      <div
+        :style="{
+          padding: '24px 20px 0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }"
+      >
+        <button
+          class="btn tap"
+          :style="{
+            width: '44px',
+            height: '44px',
+            borderRadius: '12px',
+            display: 'grid',
+            placeItems: 'center',
+            background: player.shuffle ? 'var(--color-surface-3)' : 'transparent',
+            color: player.shuffle ? 'var(--color-cyan)' : 'var(--color-text-2)',
+          }"
+          @click="player.toggleShuffle"
+        >
+          <Icon name="shuffle" :size="20" />
         </button>
-        <button class="player__sub-btn tap" @click="openVoices">
-          <Icon name="voice" :size="14" />
-          <span class="player__sub-text">{{ currentVoice }}</span>
+        <button
+          class="btn tap"
+          :style="{
+            width: '56px',
+            height: '56px',
+            display: 'grid',
+            placeItems: 'center',
+            borderRadius: '50%',
+            color: 'var(--color-text-1)',
+          }"
+          @click="player.prev"
+        >
+          <Icon name="prev" :size="26" />
         </button>
-        <span class="player__sub-chip">{{ repeatChip }}</span>
+        <button
+          class="btn tap"
+          :style="{
+            width: '72px',
+            height: '72px',
+            borderRadius: '50%',
+            display: 'grid',
+            placeItems: 'center',
+            color: '#0B0F22',
+            background: 'var(--grad-primary)',
+            boxShadow: '0 8px 30px rgba(34,211,238,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset',
+          }"
+          @click="togglePlay"
+        >
+          <Icon :name="isPlaying ? 'pause' : 'play'" :size="30" :style="{ marginLeft: isPlaying ? '0' : '2px' }" />
+        </button>
+        <button
+          class="btn tap"
+          :style="{
+            width: '56px',
+            height: '56px',
+            display: 'grid',
+            placeItems: 'center',
+            borderRadius: '50%',
+            color: 'var(--color-text-1)',
+          }"
+          @click="player.next"
+        >
+          <Icon name="next" :size="26" />
+        </button>
+        <button
+          class="btn tap"
+          :style="{
+            width: '44px',
+            height: '44px',
+            borderRadius: '12px',
+            display: 'grid',
+            placeItems: 'center',
+            background: player.repeatMode !== 'none' ? 'var(--color-surface-3)' : 'transparent',
+            color: player.repeatMode !== 'none' ? 'var(--color-cyan)' : 'var(--color-text-2)',
+          }"
+          @click="player.cycleRepeat"
+        >
+          <Icon :name="repeatIconName" :size="20" />
+        </button>
       </div>
 
-      <!-- Lab controls -->
-      <section class="lab glass">
-        <header class="lab__head">
-          <span class="lab__head-icon"><Icon name="sparkles" :size="12" /></span>
-          <p class="lab__head-title">Lab controls</p>
-        </header>
-
-        <div class="lab__grid">
-          <div class="step">
-            <p class="step__label">Speed</p>
-            <div class="step__row">
-              <button class="step__btn tap" :aria-label="'Giảm speed'" @click="changeSpeed(-0.1)">
+      <!-- Listening lab -->
+      <div class="glass" :style="{ margin: '24px 20px 0', padding: '16px' }">
+        <div
+          :style="{
+            fontSize: '11px',
+            fontWeight: 700,
+            color: 'var(--color-text-3)',
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            marginBottom: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }"
+        >
+          <Icon name="sparkles" :size="12" :style="{ color: 'var(--color-cyan)' }" /> Listening lab
+        </div>
+        <div :style="{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }">
+          <!-- Repeat -->
+          <div :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', fontWeight: 600 }">Repeat each</div>
+            <div
+              :style="{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'var(--color-surface-1)',
+                border: '1px solid var(--color-border-1)',
+                borderRadius: '12px',
+                padding: '4px',
+              }"
+            >
+              <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeRepeat(-1)">
                 <Icon name="minus" :size="14" />
               </button>
-              <span class="step__value mono">{{ player.speed.toFixed(1) }}×</span>
-              <button class="step__btn tap" :aria-label="'Tăng speed'" @click="changeSpeed(0.1)">
+              <span class="mono" :style="{ fontSize: '14px', fontWeight: 700 }">{{ player.repeatEach }}×</span>
+              <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeRepeat(1)">
                 <Icon name="plus" :size="14" />
               </button>
             </div>
           </div>
-
-          <div class="step">
-            <p class="step__label">Gap</p>
-            <div class="step__row">
-              <button class="step__btn tap" :aria-label="'Giảm gap'" @click="changeGap(-100)">
+          <!-- Gap -->
+          <div :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', fontWeight: 600 }">Gap</div>
+            <div
+              :style="{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'var(--color-surface-1)',
+                border: '1px solid var(--color-border-1)',
+                borderRadius: '12px',
+                padding: '4px',
+              }"
+            >
+              <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeGap(-100)">
                 <Icon name="minus" :size="14" />
               </button>
-              <span class="step__value mono">{{ player.gap }}ms</span>
-              <button class="step__btn tap" :aria-label="'Tăng gap'" @click="changeGap(100)">
+              <span class="mono" :style="{ fontSize: '14px', fontWeight: 700 }">{{ (player.gap / 1000).toFixed(1) }}s</span>
+              <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeGap(100)">
                 <Icon name="plus" :size="14" />
               </button>
             </div>
           </div>
-
-          <div class="step">
-            <p class="step__label">Lặp mỗi chunk</p>
-            <div class="step__row">
-              <button class="step__btn tap" :aria-label="'Giảm lặp'" @click="changeRepeatEach(-1)">
+          <!-- Speed -->
+          <div :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', fontWeight: 600 }">Speed</div>
+            <div
+              :style="{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'var(--color-surface-1)',
+                border: '1px solid var(--color-border-1)',
+                borderRadius: '12px',
+                padding: '4px',
+              }"
+            >
+              <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeSpeed(-0.05)">
                 <Icon name="minus" :size="14" />
               </button>
-              <span class="step__value mono">×{{ player.repeatEach }}</span>
-              <button class="step__btn tap" :aria-label="'Tăng lặp'" @click="changeRepeatEach(1)">
+              <span class="mono" :style="{ fontSize: '14px', fontWeight: 700 }">{{ player.speed.toFixed(2) }}×</span>
+              <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeSpeed(0.05)">
                 <Icon name="plus" :size="14" />
               </button>
             </div>
           </div>
-
-          <div class="toggle">
-            <p class="toggle__label">Mix voice</p>
+          <!-- Mix voices toggle -->
+          <div :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', fontWeight: 600 }">Mix voices</div>
             <button
-              class="toggle__btn tap"
-              :class="{ 'is-on': player.mixVoice }"
-              :aria-pressed="player.mixVoice"
+              class="btn tap"
+              :style="{
+                height: '36px',
+                borderRadius: '12px',
+                padding: '0 6px',
+                background: player.mixVoice ? 'var(--color-surface-3)' : 'var(--color-surface-1)',
+                border: player.mixVoice ? '1px solid var(--color-cyan)' : '1px solid var(--color-border-1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }"
               @click="toggleMixVoice"
             >
-              <span class="toggle__track">
-                <span class="toggle__thumb" />
+              <span
+                :style="{
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  paddingLeft: '6px',
+                  color: player.mixVoice ? 'var(--color-cyan)' : 'var(--color-text-2)',
+                }"
+              >{{ player.mixVoice ? 'On' : 'Off' }}</span>
+              <span
+                :style="{
+                  width: '28px',
+                  height: '16px',
+                  borderRadius: '99px',
+                  background: player.mixVoice ? 'var(--color-cyan)' : 'var(--color-surface-3)',
+                  position: 'relative',
+                }"
+              >
+                <span
+                  :style="{
+                    position: 'absolute',
+                    top: '1px',
+                    left: player.mixVoice ? '13px' : '1px',
+                    width: '14px',
+                    height: '14px',
+                    borderRadius: '50%',
+                    background: '#fff',
+                    transition: 'left .15s ease',
+                  }"
+                />
               </span>
-              <span class="toggle__caption">{{ player.mixVoice ? 'On' : 'Off' }}</span>
             </button>
           </div>
         </div>
-      </section>
+      </div>
 
-      <!-- Queue preview -->
-      <section class="player__queue">
-        <header class="player__queue-head">
+      <!-- Up next -->
+      <div :style="{ marginTop: '24px' }">
+        <div :style="{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '0 20px', marginBottom: '12px' }">
           <div>
-            <h2 class="player__queue-title">Up next</h2>
-            <p class="player__queue-sub">
+            <h2 :style="{ margin: 0, fontSize: '18px', fontWeight: 700, letterSpacing: '-0.01em' }">Up next</h2>
+            <div :style="{ fontSize: '12px', color: 'var(--color-text-3)', marginTop: '2px' }">
               {{ Math.max(0, player.queueLength - player.queueIndex - 1) }} more in queue
-            </p>
+            </div>
           </div>
-        </header>
-        <ol class="player__queue-list">
-          <li
-            v-for="(c, idx) in player.queue.slice(player.queueIndex + 1, player.queueIndex + 6)"
-            :key="`${c.id}-${idx}`"
-            class="player__queue-item tap"
-            :style="{ '--c': chunks.topicById(c.topic)?.color ?? '#22D3EE' }"
+          <button
+            class="btn tap"
+            :style="{
+              fontSize: '12px',
+              color: 'var(--color-cyan)',
+              fontWeight: 700,
+              padding: '6px 10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }"
+            @click="queueOpen = true"
+          >
+            <Icon name="list" :size="14" />Queue
+          </button>
+        </div>
+        <div :style="{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: '6px' }">
+          <button
+            v-for="(c, idx) in upNext"
+            :key="c.id"
+            class="btn tap"
+            :style="{
+              textAlign: 'left',
+              padding: '10px 12px',
+              borderRadius: '14px',
+              background: 'transparent',
+              border: '1px solid var(--color-border-1)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              width: '100%',
+            }"
             @click="moveQueueTo(player.queueIndex + 1 + idx)"
           >
-            <span class="player__queue-icon">
+            <div
+              :style="{
+                width: '32px',
+                height: '32px',
+                borderRadius: '10px',
+                background: `color-mix(in oklch, ${chunks.topicById(c.topic)?.color ?? '#22D3EE'} 22%, transparent)`,
+                display: 'grid',
+                placeItems: 'center',
+                flexShrink: 0,
+                color: chunks.topicById(c.topic)?.color ?? '#22D3EE',
+              }"
+            >
               <TopicIcon :name="c.topic" :size="14" />
-            </span>
-            <div class="player__queue-text">
-              <p class="player__queue-en">{{ c.text }}</p>
-              <p class="player__queue-vi">{{ c.meaning }}</p>
             </div>
-            <span class="player__queue-listens mono">
+            <div :style="{ flex: 1, minWidth: 0 }">
+              <div :style="{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--color-text-1)' }">{{ c.text }}</div>
+              <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '1px' }">{{ c.meaning }}</div>
+            </div>
+            <span class="mono" :style="{ fontSize: '10px', color: 'var(--color-text-3)' }">
               {{ progress.byId(c.id)?.listenCount ?? 0 }}×
             </span>
-          </li>
-        </ol>
-      </section>
+          </button>
+        </div>
+      </div>
     </template>
 
-    <EmptyState
+    <!-- Empty state -->
+    <div
       v-else
-      icon="queue"
-      title="Queue đang trống"
-      hint="Chọn chunk từ Library hoặc bấm bên dưới để nghe thử một playlist mẫu."
+      :style="{ padding: '36px 24px', textAlign: 'center', color: 'var(--color-text-3)' }"
     >
-      <AppButton variant="primary" size="md" @click="playSample">
-        <Icon name="play" :size="14" />
-        Phát playlist mẫu
-      </AppButton>
-    </EmptyState>
+      <div :style="{ fontSize: '14px', marginBottom: '12px' }">Queue đang trống.</div>
+      <button
+        class="btn tap"
+        :style="{
+          padding: '12px 24px',
+          borderRadius: '16px',
+          background: 'var(--grad-primary)',
+          color: '#0B0F22',
+          fontSize: '13px',
+          fontWeight: 700,
+        }"
+        @click="playSamplePlaylist"
+      >Phát playlist mẫu</button>
+    </div>
 
-    <!-- Voice selector sheet -->
-    <AppSheet :open="voiceSheetOpen" title="Chọn giọng đọc" @close="voiceSheetOpen = false">
-      <div class="voices">
-        <p v-if="englishVoices.length === 0" class="text-body text-text-3">
-          Không tìm thấy giọng tiếng Anh nào trên thiết bị này.
-        </p>
+    <div class="tabbar-spacer" />
+
+    <!-- Full queue sheet -->
+    <AppSheet :open="queueOpen" :title="`Queue · ${player.queueLength} chunks`" @close="queueOpen = false">
+      <div :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
         <button
-          v-for="v in englishVoices"
-          :key="v.name"
-          class="voices__row tap"
-          :class="{ 'is-active': player.selectedVoiceName === v.name }"
-          @click="pickVoice(v.name)"
+          v-for="(c, i) in player.queue"
+          :key="`${c.id}-${i}`"
+          class="btn tap"
+          :style="{
+            textAlign: 'left',
+            padding: '10px 12px',
+            borderRadius: '14px',
+            background: i === player.queueIndex ? 'var(--color-surface-3)' : 'transparent',
+            border: i === player.queueIndex ? '1px solid var(--color-cyan)' : '1px solid var(--color-border-1)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            width: '100%',
+          }"
+          @click="moveQueueTo(i); queueOpen = false"
         >
-          <span class="voices__main">
-            <span class="voices__name">{{ v.name }}</span>
-            <span class="voices__lang">{{ v.lang }}</span>
-          </span>
-          <button class="voices__preview tap" :aria-label="'Nghe thử'" @click.stop="previewVoice(v.name)">
-            <Icon name="play" :size="14" />
+          <div
+            :style="{
+              width: '32px',
+              height: '32px',
+              borderRadius: '10px',
+              background: `color-mix(in oklch, ${chunks.topicById(c.topic)?.color ?? '#22D3EE'} 22%, transparent)`,
+              display: 'grid',
+              placeItems: 'center',
+              flexShrink: 0,
+              color: chunks.topicById(c.topic)?.color ?? '#22D3EE',
+            }"
+          >
+            <TopicIcon :name="c.topic" :size="14" />
+          </div>
+          <div :style="{ flex: 1, minWidth: 0 }">
+            <div :style="{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: i === player.queueIndex ? 'var(--color-cyan)' : 'var(--color-text-1)' }">{{ c.text }}</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '1px' }">{{ c.meaning }}</div>
+          </div>
+          <button
+            class="btn tap"
+            :style="{ width: '28px', height: '28px', borderRadius: '8px', background: 'var(--color-surface-2)', display: 'grid', placeItems: 'center', color: 'var(--color-text-3)' }"
+            @click.stop="openDetail(c.id)"
+          >
+            <Icon name="chevron-right" :size="14" />
           </button>
         </button>
       </div>
     </AppSheet>
-  </section>
+  </div>
 </template>
 
 <style scoped>
-.player {
-  padding: 0 0 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.player__head {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: calc(56px + env(safe-area-inset-top)) 20px 14px;
-  background: transparent;
-  border-bottom: 1px solid transparent;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    backdrop-filter 0.2s ease;
-}
-.player__head.is-compact {
-  background: var(--color-bg-1);
-  border-bottom-color: var(--color-border-1);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-}
-.player__head-icon-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  background: var(--color-surface-2);
-  color: var(--color-text-2);
-  flex-shrink: 0;
-}
-.player__head-center {
+.scrollarea {
   flex: 1;
-  min-width: 0;
-  text-align: center;
-}
-.player__head-eyebrow {
-  margin: 0;
-  font-size: 10px;
-  color: var(--color-text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 700;
-}
-.player__head-topic {
-  margin: 2px 0 0;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--color-text-1);
-}
-
-.player__head-compact {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-}
-.player__head-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(
-    135deg,
-    color-mix(in oklch, var(--c) 40%, transparent),
-    color-mix(in oklch, var(--c) 16%, transparent)
-  );
-  color: var(--c);
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-.player__head-waves {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  height: 14px;
-}
-.player__head-bar-idle {
-  display: inline-block;
-  width: 3px;
-  height: 6.3px;
-  background: currentColor;
-  border-radius: 2px;
-  opacity: 0.4;
-}
-.player__head-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-.player__head-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text-1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.player__head-sub {
-  margin: 0;
-  font-size: 11px;
-  color: var(--color-text-3);
-}
-.player__head-play {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--grad-primary);
-  color: #0b0f22;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  box-shadow: 0 8px 30px rgba(34, 211, 238, 0.4);
-}
-.player__head-play :deep(svg) {
-  margin-left: 1px;
-}
-
-.player__warn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  margin: 12px 20px 0;
-  border-radius: 14px;
-  background: color-mix(in oklch, var(--color-amber) 18%, transparent);
-  border: 1px solid color-mix(in oklch, var(--color-amber) 35%, transparent);
-  color: color-mix(in oklch, var(--color-amber) 80%, white);
-  font-size: 13px;
-}
-
-.player__card-wrap {
-  padding: 20px 20px 0;
-}
-
-/* Status row */
-.player__status-row {
-  padding: 16px 20px 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.player__star {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  color: var(--color-text-3);
-  background: transparent;
-}
-.player__star.is-on {
-  color: #fcd34d;
-}
-.player__status-mid {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.player__status-line {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--color-text-3);
-  font-weight: 600;
-}
-.player__status-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  text-transform: capitalize;
-}
-.player__status-bar {
-  height: 4px;
-  background: var(--color-surface-2);
-  border-radius: 999px;
-  overflow: hidden;
-}
-.player__status-bar-fill {
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.35s ease;
-}
-.player__status-times {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: var(--color-text-3);
-}
-.player__more {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: var(--color-surface-2);
-  color: var(--color-text-2);
-  display: grid;
-  place-items: center;
-}
-
-/* Transport */
-:deep(.controls) {
-  padding: 24px 20px 0;
-}
-
-/* Secondary controls */
-.player__sub {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 16px 20px 0;
-}
-.player__sub-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-2);
-  font-size: 12px;
-  font-weight: 600;
-  max-width: 180px;
-}
-.player__sub-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.player__sub-btn.is-active {
-  color: var(--color-cyan);
-  background: color-mix(in oklch, var(--color-cyan) 18%, transparent);
-  border-color: color-mix(in oklch, var(--color-cyan) 35%, transparent);
-}
-.player__sub-chip {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-text-3);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-/* Lab controls */
-.lab {
-  padding: 16px;
-  margin: 24px 20px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.lab__head {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-cyan);
-}
-.lab__head-icon {
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
-  background: color-mix(in oklch, var(--color-cyan) 18%, transparent);
-  border: 1px solid color-mix(in oklch, var(--color-cyan) 35%, transparent);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.lab__head-title {
-  margin: 0;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.lab__grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.step,
-.toggle {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
-}
-.step__label,
-.toggle__label {
-  margin: 0;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--color-text-3);
-  text-transform: uppercase;
-}
-.step__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-}
-.step__btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.step__value {
-  min-width: 0;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-1);
-  flex: 1;
-}
-.toggle__btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-  background: transparent;
-  color: var(--color-text-2);
-}
-.toggle__btn.is-on {
-  color: var(--color-cyan);
-}
-.toggle__track {
-  display: inline-block;
-  width: 36px;
-  height: 20px;
-  border-radius: 999px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  position: relative;
-  transition: background 0.18s ease;
-}
-.toggle__btn.is-on .toggle__track {
-  background: var(--color-cyan);
-  border-color: var(--color-cyan);
-}
-.toggle__thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: white;
-  transition: transform 0.18s var(--ease-out-soft, cubic-bezier(0.2, 0.8, 0.2, 1));
-}
-.toggle__btn.is-on .toggle__thumb {
-  transform: translateX(16px);
-}
-.toggle__caption {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-/* Queue */
-.player__queue {
-  margin-top: 24px;
-}
-.player__queue-head {
-  padding: 0 20px;
-  margin-bottom: 12px;
-}
-.player__queue-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--color-text-1);
-}
-.player__queue-sub {
-  margin: 2px 0 0;
-  font-size: 12px;
-  color: var(--color-text-3);
-}
-.player__queue-list {
-  list-style: none;
-  margin: 0;
-  padding: 0 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.player__queue-item {
-  display: grid;
-  grid-template-columns: 32px 1fr auto;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: transparent;
-  border: 1px solid var(--color-border-1);
-  cursor: pointer;
-  text-align: left;
-}
-.player__queue-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: color-mix(in oklch, var(--c) 22%, transparent);
-  color: var(--c);
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-.player__queue-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.player__queue-en {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.player__queue-vi {
-  margin: 1px 0 0;
-  font-size: 11px;
-  color: var(--color-text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.player__queue-listens {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--color-text-3);
-}
-
-/* Voices sheet */
-.voices {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 4px 0 12px;
-}
-.voices__row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
-}
-.voices__row.is-active {
-  background: color-mix(in oklch, var(--color-cyan) 14%, transparent);
-  border-color: color-mix(in oklch, var(--color-cyan) 40%, transparent);
-}
-.voices__main {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-.voices__name {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-1);
-}
-.voices__lang {
-  font-size: 11px;
-  font-family: var(--font-mono);
-  color: var(--color-text-3);
-}
-.voices__preview {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+.scrollarea::-webkit-scrollbar {
+  display: none;
+}
+.tabbar-spacer {
+  height: calc(96px + env(safe-area-inset-bottom));
 }
 </style>

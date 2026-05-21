@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * Literal port of screens-main.jsx LibraryScreen (lines 202-312) +
+ * FilterSheetContent (lines 344-390). All inline styles preserved.
+ */
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -14,9 +18,7 @@ import ChunkRow from '@/components/chunk/ChunkRow.vue';
 import ChunkFormSheet from '@/components/chunk/ChunkFormSheet.vue';
 import SkelChunkRow from '@/components/chunk/SkelChunkRow.vue';
 import TopicIcon from '@/components/chunk/TopicIcon.vue';
-import EmptyState from '@/components/common/EmptyState.vue';
 import AppSheet from '@/components/common/AppSheet.vue';
-import AppButton from '@/components/common/AppButton.vue';
 import Icon from '@/components/common/Icon.vue';
 
 const router = useRouter();
@@ -28,6 +30,31 @@ const ui = useUiStore();
 
 const filterOpen = ref(false);
 const formOpen = ref(false);
+const editingChunk = ref<Chunk | undefined>(undefined);
+
+const levelFilters = ref<ChunkLevel[]>(['A1', 'A2']);
+const sourceFilters = ref<ChunkSource[]>(['frontend', 'interview']);
+
+const tabs: Array<{ key: LibraryTab; label: string }> = [
+  { key: 'all', label: 'Tất cả' },
+  { key: 'starred', label: 'Đã sao' },
+  { key: 'learning', label: 'Đang học' },
+  { key: 'mastered', label: 'Đã thuộc' },
+  { key: 'unheard', label: 'Chưa nghe' },
+];
+
+const SOURCES: Array<{ key: ChunkSource; label: string }> = [
+  { key: 'frontend', label: 'Frontend' },
+  { key: 'interview', label: 'Interview' },
+  { key: 'toeic', label: 'TOEIC' },
+  { key: 'angular', label: 'Angular' },
+  { key: 'javascript', label: 'JavaScript' },
+  { key: 'typescript', label: 'TypeScript' },
+  { key: 'profile', label: 'Profile' },
+  { key: 'custom', label: 'Custom' },
+];
+
+const LEVELS: ChunkLevel[] = ['A1', 'A2', 'B1'];
 
 function getTabCount(key: LibraryTab): number {
   switch (key) {
@@ -40,41 +67,16 @@ function getTabCount(key: LibraryTab): number {
     case 'mastered':
       return progress.masteredCount;
     case 'unheard':
-      return chunks.chunks.filter((c) => !progress.byId(c.id) || progress.byId(c.id)!.listenCount === 0).length;
+      return chunks.chunks.filter(
+        (c) => !progress.byId(c.id) || progress.byId(c.id)!.listenCount === 0,
+      ).length;
     case 'all':
     default:
       return chunks.chunks.length;
   }
 }
 
-const tabs: Array<{ key: LibraryTab; label: string }> = [
-  { key: 'all', label: 'Tất cả' },
-  { key: 'starred', label: 'Đã sao' },
-  { key: 'learning', label: 'Đang học' },
-  { key: 'mastered', label: 'Đã thuộc' },
-  { key: 'unheard', label: 'Chưa nghe' },
-];
-
-const levels: Array<{ key: ChunkLevel | 'all'; label: string }> = [
-  { key: 'all', label: 'Mọi cấp' },
-  { key: 'A1', label: 'A1' },
-  { key: 'A2', label: 'A2' },
-  { key: 'B1', label: 'B1' },
-];
-
-const sources: Array<{ key: ChunkSource | 'all'; label: string }> = [
-  { key: 'all', label: 'Tất cả pack' },
-  { key: 'frontend', label: 'Frontend' },
-  { key: 'interview', label: 'Interview' },
-  { key: 'toeic', label: 'TOEIC' },
-  { key: 'angular', label: 'Angular' },
-  { key: 'javascript', label: 'JavaScript' },
-  { key: 'typescript', label: 'TypeScript' },
-  { key: 'profile', label: 'Profile' },
-  { key: 'custom', label: 'Custom' },
-];
-
-const filteredCount = computed(() => chunks.filtered.length);
+const filteredChunks = computed(() => chunks.filtered);
 
 function setTab(t: LibraryTab) {
   chunks.setTab(t);
@@ -84,58 +86,20 @@ function setTopic(id: string | 'all') {
 }
 function clearAll() {
   chunks.clearFilters();
+  filterOpen.value = false;
 }
-
-function playAll() {
-  if (chunks.filtered.length === 0) return;
-  player.setQueue([...chunks.filtered], { mode: 'topic' });
-  void player.play();
-  router.push('/player');
+function applyFilters() {
+  filterOpen.value = false;
 }
-
-function shufflePlayAll() {
-  if (chunks.filtered.length === 0) return;
-  player.setShuffle(true);
-  player.setQueue([...chunks.filtered], { mode: 'shuffle' });
-  void player.play();
-  router.push('/player');
+function toggleLevel(l: ChunkLevel) {
+  const idx = levelFilters.value.indexOf(l);
+  if (idx >= 0) levelFilters.value.splice(idx, 1);
+  else levelFilters.value.push(l);
 }
-
-function startFlashcards() {
-  if (chunks.filtered.length === 0) return;
-  practice.start({ mode: 'flashcard', chunks: [...chunks.filtered] });
-  router.push('/study/flashcard');
-}
-
-function startWrite() {
-  if (chunks.filtered.length === 0) return;
-  practice.start({ mode: 'write', chunks: [...chunks.filtered] });
-  router.push('/study/write');
-}
-
-function startDictation() {
-  if (chunks.filtered.length === 0) return;
-  practice.start({ mode: 'dictation', chunks: [...chunks.filtered] });
-  router.push('/study/dictation');
-}
-
-function startLearn() {
-  if (chunks.filtered.length === 0) return;
-  router.push('/study/learn');
-}
-
-function startTest() {
-  router.push('/study/test');
-}
-
-function startMatch() {
-  router.push('/study/match');
-}
-
-function startSpeaking() {
-  if (chunks.filtered.length === 0) return;
-  practice.start({ mode: 'speaking', chunks: [...chunks.filtered] });
-  router.push('/study/speaking');
+function toggleSource(s: ChunkSource) {
+  const idx = sourceFilters.value.indexOf(s);
+  if (idx >= 0) sourceFilters.value.splice(idx, 1);
+  else sourceFilters.value.push(s);
 }
 
 function openDetail(chunk: Chunk) {
@@ -149,394 +113,277 @@ function playChunk(chunk: Chunk) {
 function toggleStar(chunk: Chunk) {
   void progress.toggleStarred(chunk.id);
 }
+
+function openNewChunk() {
+  editingChunk.value = undefined;
+  formOpen.value = true;
+}
 </script>
 
 <template>
-  <section class="lib">
-    <header class="lib__head safe-pt">
-      <div class="lib__title-block">
-        <h1 class="lib__title">Library</h1>
-        <p class="lib__sub">
-          <span class="mono">{{ chunks.chunks.length }}</span> chunks across
-          <span class="mono">{{ chunks.topics.length }}</span> topics
-        </p>
-      </div>
-
-      <div class="lib__search-row">
-        <label class="lib__search glass">
-          <Icon name="search" :size="18" />
-          <input
-            :value="chunks.searchKeyword"
-            type="search"
-            placeholder="Search English or Vietnamese…"
-            aria-label="Tìm kiếm"
-            @input="chunks.setSearch(($event.target as HTMLInputElement).value)"
-          />
-          <button
-            v-if="chunks.searchKeyword"
-            class="lib__search-clear tap"
-            :aria-label="'Xoá'"
-            @click="chunks.setSearch('')"
-          >
-            <Icon name="close" :size="14" />
-          </button>
-        </label>
-        <button class="lib__filter glass tap" :aria-label="'Bộ lọc'" @click="filterOpen = true">
-          <Icon name="filter" :size="18" />
-        </button>
-      </div>
-
-      <nav class="lib__tabs no-scrollbar" aria-label="Lọc theo trạng thái">
+  <div class="scrollarea" :style="{ paddingTop: '56px' }">
+    <!-- Header -->
+    <div :style="{ padding: '8px 20px 14px' }">
+      <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }">
+        <div>
+          <h1 :style="{ margin: 0, fontSize: '28px', fontWeight: 700, letterSpacing: '-0.02em' }">Library</h1>
+          <div :style="{ fontSize: '13px', color: 'var(--color-text-3)', marginTop: '2px' }">
+            <span class="mono">{{ chunks.chunks.length }}</span> chunks ·
+            <span class="mono">{{ chunks.topics.length }}</span> topics
+          </div>
+        </div>
         <button
-          v-for="t in tabs"
-          :key="t.key"
-          class="lib__tab tap"
-          :class="{ 'is-active': chunks.activeTab === t.key }"
-          @click="setTab(t.key)"
-        >
-          {{ t.label }}
-          <span class="lib__tab-count mono">{{ getTabCount(t.key) }}</span>
-        </button>
-      </nav>
-
-      <div class="lib__topics no-scrollbar" aria-label="Lọc theo chủ đề">
-        <button
-          class="lib__topic-chip lib__topic-chip--all tap"
-          :class="{ 'is-active': chunks.selectedTopic === 'all' }"
-          @click="setTopic('all')"
-        >
-          All topics
-        </button>
-        <button
-          v-for="t in chunks.topicWithCounts"
-          :key="t.id"
-          class="lib__topic-chip tap"
-          :class="{ 'is-active': chunks.selectedTopic === t.id }"
+          class="btn tap"
           :style="{
-            '--c': t.color,
-            background:
-              chunks.selectedTopic === t.id
-                ? `color-mix(in oklch, ${t.color} 32%, transparent)`
-                : 'var(--color-surface-2)',
-            color: chunks.selectedTopic === t.id ? t.color : 'var(--color-text-2)',
-            borderColor:
-              chunks.selectedTopic === t.id
-                ? `color-mix(in oklch, ${t.color} 60%, var(--color-border-1))`
-                : 'var(--color-border-1)',
+            padding: '6px 12px',
+            borderRadius: '999px',
+            fontSize: '12px',
+            fontWeight: 700,
+            background: 'color-mix(in oklch, var(--color-cyan) 16%, transparent)',
+            border: '1px solid color-mix(in oklch, var(--color-cyan) 35%, transparent)',
+            color: 'var(--color-cyan)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
           }"
-          @click="setTopic(t.id)"
+          @click="openNewChunk"
         >
-          <TopicIcon :name="t.id" :size="13" />
-          <span>{{ t.name }}</span>
+          <Icon name="plus" :size="12" /> Thêm
         </button>
       </div>
-    </header>
+    </div>
 
-    <div class="lib__actions no-scrollbar">
-      <AppButton variant="primary" size="sm" @click="playAll">
-        <Icon name="play" :size="14" />
-        Phát tất cả
-      </AppButton>
-      <AppButton variant="glass" size="sm" @click="shufflePlayAll">
-        <Icon name="shuffle" :size="14" />
-        Trộn
-      </AppButton>
-      <AppButton variant="glass" size="sm" @click="startFlashcards">
-        <Icon name="flashcard" :size="14" />
-        Flashcard
-      </AppButton>
-      <AppButton variant="glass" size="sm" @click="startLearn">
-        <Icon name="sparkles" :size="14" />
-        Learn
-      </AppButton>
-      <AppButton variant="glass" size="sm" @click="startWrite">
-        <Icon name="pencil" :size="14" />
-        Write
-      </AppButton>
-      <AppButton variant="glass" size="sm" @click="startDictation">
-        <Icon name="ear" :size="14" />
-        Dictation
-      </AppButton>
-      <AppButton variant="glass" size="sm" @click="startSpeaking">
-        <Icon name="mic" :size="14" />
-        Speaking
-      </AppButton>
-      <AppButton variant="glass" size="sm" @click="startTest">
-        <Icon name="trophy" :size="14" />
-        Test
-      </AppButton>
-      <AppButton variant="glass" size="sm" @click="startMatch">
-        <Icon name="puzzle" :size="14" />
-        Match
-      </AppButton>
-      <button
-        v-if="chunks.searchKeyword || chunks.selectedTopic !== 'all' || chunks.selectedLevel !== 'all' || chunks.selectedSource !== 'all' || chunks.activeTab !== 'all'"
-        class="lib__clear tap"
-        @click="clearAll"
+    <!-- Search row -->
+    <div :style="{ padding: '0 20px', display: 'flex', gap: '8px' }">
+      <label
+        class="glass"
+        :style="{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          padding: '0 14px',
+          height: '44px',
+        }"
       >
-        Xoá bộ lọc
+        <Icon name="search" :size="18" :style="{ color: 'var(--color-text-3)' }" />
+        <input
+          :value="chunks.searchKeyword"
+          type="search"
+          placeholder="Tìm English hoặc Vietnamese…"
+          :style="{
+            flex: 1,
+            background: 'transparent',
+            border: 0,
+            outline: 'none',
+            color: 'var(--color-text-1)',
+            fontSize: '14px',
+            fontFamily: 'inherit',
+          }"
+          @input="chunks.setSearch(($event.target as HTMLInputElement).value)"
+        />
+      </label>
+      <button
+        class="btn tap glass"
+        :style="{ width: '44px', height: '44px', display: 'grid', placeItems: 'center' }"
+        :aria-label="'Bộ lọc'"
+        @click="filterOpen = true"
+      >
+        <Icon name="filter" :size="18" :style="{ color: 'var(--color-text-2)' }" />
       </button>
     </div>
 
-    <div class="lib__list">
-      <SkelChunkRow v-if="!chunks.loaded" :count="6" />
+    <!-- Tabs -->
+    <div
+      class="no-scrollbar"
+      :style="{ display: 'flex', gap: '6px', padding: '14px 20px 0', overflowX: 'auto' }"
+    >
+      <button
+        v-for="t in tabs"
+        :key="t.key"
+        class="btn tap"
+        :style="{
+          padding: '8px 14px',
+          borderRadius: '999px',
+          fontSize: '13px',
+          fontWeight: 600,
+          background: chunks.activeTab === t.key ? 'var(--color-surface-3)' : 'transparent',
+          color: chunks.activeTab === t.key ? 'var(--color-text-1)' : 'var(--color-text-3)',
+          border: chunks.activeTab === t.key
+            ? '1px solid var(--color-border-2)'
+            : '1px solid var(--color-border-1)',
+          whiteSpace: 'nowrap',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+        }"
+        @click="setTab(t.key)"
+      >
+        {{ t.label }}
+        <span class="mono" :style="{ fontSize: '11px', opacity: 0.7 }">{{ getTabCount(t.key) }}</span>
+      </button>
+    </div>
 
+    <!-- Topic chip scroller -->
+    <div
+      class="no-scrollbar"
+      :style="{ display: 'flex', gap: '8px', padding: '12px 20px 0', overflowX: 'auto' }"
+    >
+      <button
+        class="btn tap"
+        :style="{
+          padding: '6px 12px',
+          borderRadius: '999px',
+          fontSize: '12px',
+          fontWeight: 600,
+          background: chunks.selectedTopic === 'all' ? 'var(--grad-primary)' : 'var(--color-surface-2)',
+          color: chunks.selectedTopic === 'all' ? '#0B0F22' : 'var(--color-text-2)',
+          border: '1px solid var(--color-border-1)',
+          whiteSpace: 'nowrap',
+        }"
+        @click="setTopic('all')"
+      >All topics</button>
+      <button
+        v-for="t in chunks.topicWithCounts"
+        :key="t.id"
+        class="btn tap"
+        :style="{
+          padding: '6px 12px',
+          borderRadius: '999px',
+          fontSize: '12px',
+          fontWeight: 600,
+          background: chunks.selectedTopic === t.id
+            ? `color-mix(in oklch, ${t.color} 32%, transparent)`
+            : 'var(--color-surface-2)',
+          color: chunks.selectedTopic === t.id ? t.color : 'var(--color-text-2)',
+          border: `1px solid color-mix(in oklch, ${t.color} ${chunks.selectedTopic === t.id ? 60 : 0}%, var(--color-border-1))`,
+          whiteSpace: 'nowrap',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '5px',
+        }"
+        @click="setTopic(t.id)"
+      >
+        <TopicIcon :name="t.id" :size="13" />{{ t.name }}
+      </button>
+    </div>
+
+    <!-- Result list -->
+    <div :style="{ padding: '16px 20px 0', display: 'flex', flexDirection: 'column', gap: '8px' }">
+      <SkelChunkRow v-if="!chunks.loaded" :count="6" />
       <template v-else>
         <ChunkRow
-          v-for="c in chunks.filtered"
+          v-for="c in filteredChunks"
           :key="c.id"
           :chunk="c"
           @open="openDetail"
           @play="playChunk"
           @toggle-star="toggleStar"
         />
-        <EmptyState
-          v-if="filteredCount === 0"
-          icon="search"
-          title="Không có chunk nào khớp"
-          tone="violet"
-          hint="Thử bỏ bớt bộ lọc, hoặc đổi từ khoá tìm kiếm."
+        <div
+          v-if="filteredChunks.length === 0"
+          :style="{
+            padding: '36px 24px',
+            textAlign: 'center',
+            color: 'var(--color-text-3)',
+            fontSize: '13px',
+          }"
         >
-          <AppButton variant="glass" size="sm" @click="clearAll">
-            <Icon name="x" :size="14" />
-            Xoá bộ lọc
-          </AppButton>
-        </EmptyState>
+          Không có chunk nào khớp bộ lọc. <button class="btn tap" :style="{ color: 'var(--color-cyan)', fontWeight: 700, marginLeft: '6px' }" @click="clearAll">Xoá bộ lọc</button>
+        </div>
       </template>
     </div>
 
-    <ChunkFormSheet :open="formOpen" @close="formOpen = false" />
+    <div class="tabbar-spacer" />
 
-    <AppSheet :open="filterOpen" title="Bộ lọc" @close="filterOpen = false">
-      <div class="filter">
-        <section>
-          <p class="filter__label">Cấp độ</p>
-          <div class="filter__chips">
+    <!-- Filter sheet -->
+    <AppSheet :open="filterOpen" title="Filter chunks" @close="filterOpen = false">
+      <div :style="{ display: 'flex', flexDirection: 'column', gap: '18px', paddingTop: '8px' }">
+        <div>
+          <div :style="{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-3)', letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: '8px' }">Level</div>
+          <div :style="{ display: 'flex', gap: '8px' }">
             <button
-              v-for="l in levels"
-              :key="l.key"
-              class="filter__chip tap"
-              :class="{ 'is-active': chunks.selectedLevel === l.key }"
-              @click="chunks.setLevel(l.key as ChunkLevel | 'all')"
-            >
-              {{ l.label }}
-            </button>
+              v-for="l in LEVELS"
+              :key="l"
+              class="btn tap"
+              :style="{
+                flex: 1,
+                padding: '10px 0',
+                borderRadius: '12px',
+                background: levelFilters.includes(l) ? 'var(--color-surface-3)' : 'var(--color-surface-1)',
+                border: levelFilters.includes(l) ? '1px solid var(--color-violet)' : '1px solid var(--color-border-1)',
+                fontSize: '14px',
+                fontWeight: 700,
+                color: levelFilters.includes(l) ? 'var(--color-violet)' : 'var(--color-text-2)',
+              }"
+              @click="toggleLevel(l)"
+            >{{ l }}</button>
           </div>
-        </section>
-        <section>
-          <p class="filter__label">Pack nguồn</p>
-          <div class="filter__chips">
+        </div>
+        <div>
+          <div :style="{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-3)', letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: '8px' }">Source</div>
+          <div :style="{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }">
             <button
-              v-for="s in sources"
+              v-for="s in SOURCES"
               :key="s.key"
-              class="filter__chip tap"
-              :class="{ 'is-active': chunks.selectedSource === s.key }"
-              @click="chunks.setSource(s.key as ChunkSource | 'all')"
+              class="btn tap"
+              :style="{
+                padding: '10px 14px',
+                borderRadius: '14px',
+                textAlign: 'left',
+                background: sourceFilters.includes(s.key) ? 'var(--color-surface-3)' : 'var(--color-surface-1)',
+                border: sourceFilters.includes(s.key) ? '1px solid var(--color-cyan)' : '1px solid var(--color-border-1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '14px',
+                fontWeight: 600,
+              }"
+              @click="toggleSource(s.key)"
             >
               {{ s.label }}
+              <Icon v-if="sourceFilters.includes(s.key)" name="check" :size="16" :style="{ color: 'var(--color-cyan)' }" />
             </button>
           </div>
-        </section>
+        </div>
+        <div :style="{ display: 'flex', gap: '8px', paddingTop: '4px' }">
+          <button
+            class="btn tap glass"
+            :style="{ flex: 1, padding: '14px 0', fontSize: '14px', fontWeight: 700 }"
+            @click="clearAll"
+          >Reset</button>
+          <button
+            class="btn tap"
+            :style="{
+              flex: 2,
+              padding: '14px 0',
+              borderRadius: '16px',
+              fontSize: '14px',
+              fontWeight: 700,
+              background: 'var(--grad-primary)',
+              color: '#0B0F22',
+            }"
+            @click="applyFilters"
+          >Apply · {{ filteredChunks.length }} chunks</button>
+        </div>
       </div>
-      <template #actions>
-        <AppButton variant="glass" size="md" block @click="clearAll">Xoá tất cả</AppButton>
-        <AppButton variant="primary" size="md" block @click="filterOpen = false">Áp dụng</AppButton>
-      </template>
     </AppSheet>
-  </section>
+
+    <ChunkFormSheet :open="formOpen" :initial="editingChunk" @close="formOpen = false" />
+  </div>
 </template>
 
 <style scoped>
-.lib {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 56px 0 0;
-}
-.lib__head {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.lib__title-block {
-  padding: 8px 20px 0;
-}
-.lib__title {
-  margin: 0;
-  font-family: var(--font-ui);
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--color-text-1);
-}
-.lib__sub {
-  margin: 2px 0 0;
-  font-size: 13px;
-  color: var(--color-text-3);
-}
-
-.lib__search-row {
-  display: flex;
-  gap: 8px;
-  padding: 0 20px;
-}
-.lib__search {
+.scrollarea {
   flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 14px;
-  height: 44px;
-  border-radius: var(--radius-lg);
-  color: var(--color-text-3);
-}
-.lib__search input {
-  flex: 1;
-  background: transparent;
-  border: 0;
-  outline: 0;
-  font-size: 14px;
-  font-family: inherit;
-  color: var(--color-text-1);
-}
-.lib__search input::placeholder {
-  color: var(--color-text-3);
-}
-.lib__search-clear {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--color-surface-3);
-  color: var(--color-text-3);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.lib__filter {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-lg);
-  display: grid;
-  place-items: center;
-  color: var(--color-text-2);
-}
-
-.lib__tabs {
-  display: flex;
-  gap: 6px;
-  padding: 0 20px;
-  overflow-x: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: none;
 }
-.lib__tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  background: transparent;
-  color: var(--color-text-3);
-  border: 1px solid var(--color-border-1);
-  white-space: nowrap;
+.scrollarea::-webkit-scrollbar {
+  display: none;
 }
-.lib__tab.is-active {
-  background: var(--color-surface-3);
-  color: var(--color-text-1);
-  border-color: var(--color-border-2);
-}
-.lib__tab-count {
-  font-size: 11px;
-  opacity: 0.7;
-}
-
-.lib__topics {
-  display: flex;
-  gap: 8px;
-  padding: 0 20px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.lib__topic-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-  background: var(--color-surface-2);
-  color: var(--color-text-2);
-  border: 1px solid var(--color-border-1);
-}
-.lib__topic-chip--all {
-  background: var(--color-surface-2);
-  color: var(--color-text-2);
-}
-.lib__topic-chip--all.is-active {
-  background: var(--grad-primary) !important;
-  color: #0b0f22 !important;
-  border-color: transparent !important;
-}
-
-.lib__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 20px 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.lib__clear {
-  margin-left: auto;
-  padding: 6px 10px;
-  font-size: 12px;
-  color: var(--color-text-3);
-  text-decoration: underline;
-  background: transparent;
-}
-
-.lib__list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 20px 0;
-}
-
-/* Filter sheet */
-.filter {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: 4px 0 12px;
-}
-.filter__label {
-  margin: 0 0 8px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-3);
-}
-.filter__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.filter__chip {
-  padding: 8px 14px;
-  border-radius: 999px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-2);
-}
-.filter__chip.is-active {
-  background: color-mix(in oklch, var(--color-cyan) 18%, transparent);
-  border-color: color-mix(in oklch, var(--color-cyan) 40%, transparent);
-  color: var(--color-cyan);
+.tabbar-spacer {
+  height: calc(96px + env(safe-area-inset-bottom));
 }
 </style>

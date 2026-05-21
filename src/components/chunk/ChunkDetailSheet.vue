@@ -1,19 +1,24 @@
 <script setup lang="ts">
+/**
+ * Literal port of chunk-detail.jsx ChunkDetail (lines 7-196).
+ * Inline styles copied verbatim through :style binding; tab + voice
+ * state wired to local refs; data hooks to chunkStore / progressStore.
+ */
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { useChunkStore } from '@/stores/chunkStore';
 import { useProgressStore } from '@/stores/progressStore';
 import { usePlayerStore } from '@/stores/playerStore';
-import { useSettingsStore } from '@/stores/settingsStore';
 import { useUiStore } from '@/stores/uiStore';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { usePracticeStore } from '@/stores/practiceStore';
 import { speechService } from '@/services/speechService';
 import type { Chunk, ChunkExample } from '@/types/chunk';
 
 import AppSheet from '@/components/common/AppSheet.vue';
-import LevelPill from './LevelPill.vue';
 import TopicChip from './TopicChip.vue';
-import TopicIcon from './TopicIcon.vue';
+import LevelPill from './LevelPill.vue';
 import Icon from '@/components/common/Icon.vue';
 
 type TabKey = 'examples' | 'voices' | 'related';
@@ -23,6 +28,7 @@ const chunks = useChunkStore();
 const progress = useProgressStore();
 const player = usePlayerStore();
 const settings = useSettingsStore();
+const practice = usePracticeStore();
 const router = useRouter();
 
 const tab = ref<TabKey>('examples');
@@ -33,7 +39,10 @@ const chunk = computed<Chunk | undefined>(() =>
   ui.sheetChunkId ? chunks.byId(ui.sheetChunkId) : undefined,
 );
 const p = computed(() => (chunk.value ? progress.byId(chunk.value.id) : undefined));
-const accent = computed(() => chunks.topicById(chunk.value?.topic ?? '')?.color ?? '#22D3EE');
+const topic = computed(() =>
+  chunk.value ? chunks.topicById(chunk.value.topic) : undefined,
+);
+const accent = computed(() => topic.value?.color ?? '#22D3EE');
 
 const accuracy = computed(() => {
   const cur = p.value;
@@ -42,57 +51,71 @@ const accuracy = computed(() => {
   if (total === 0) return null;
   return Math.round((cur.correctCount / total) * 100);
 });
+const statusLabel = computed(() => {
+  const s = p.value?.status ?? 'new';
+  return s.charAt(0).toUpperCase() + s.slice(1);
+});
 
-const examples = computed<ChunkExample[]>(() => chunk.value?.examples ?? []);
+const examples = computed<Array<{ ctx: string; en: string; vi: string }>>(() => {
+  if (!chunk.value) return [];
+  if (chunk.value.examples && chunk.value.examples.length > 0) {
+    const labels: Record<ChunkExample['context'], string> = {
+      standup: 'Standup',
+      slack: 'Slack',
+      client: 'Client',
+      interview: 'Interview',
+      toeic: 'TOEIC',
+      general: 'General',
+    };
+    return chunk.value.examples.map((e) => ({
+      ctx: labels[e.context] ?? e.context,
+      en: e.text,
+      vi: e.meaning,
+    }));
+  }
+  // Synthetic examples mirroring the design's ExamplesTab fallback.
+  const lowered = chunk.value.text.toLowerCase().replace(/\.$/, '');
+  return [
+    {
+      ctx: 'Standup',
+      en: `Quick update — ${lowered} and should have a PR by EOD.`,
+      vi: 'Cập nhật nhanh — sẽ có PR trước cuối ngày.',
+    },
+    {
+      ctx: 'Slack',
+      en: `Hey @lead, ${lowered} — will let you know once it's merged.`,
+      vi: 'Sẽ báo lại khi merge xong.',
+    },
+    {
+      ctx: 'Client',
+      en: `${chunk.value.text} I'll share the demo link once staging is updated.`,
+      vi: 'Tôi sẽ gửi link demo khi staging được cập nhật.',
+    },
+  ];
+});
 
 const related = computed<Chunk[]>(() => {
   if (!chunk.value) return [];
   return chunks.chunks
     .filter((c) => c.topic === chunk.value!.topic && c.id !== chunk.value!.id)
-    .slice(0, 5);
+    .slice(0, 4);
 });
-
-const contextLabels: Record<ChunkExample['context'], string> = {
-  standup: 'Standup',
-  slack: 'Slack',
-  client: 'Client',
-  interview: 'Interview',
-  toeic: 'TOEIC',
-  general: 'Khác',
-};
 
 function close() {
   ui.closeSheet();
 }
 
-function play() {
-  if (!chunk.value) return;
-  player.setQueue([chunk.value], { mode: 'normal' });
-  void player.play();
-  close();
-  router.push('/player');
-}
-
-function addToQueue() {
-  if (!chunk.value) return;
-  player.queue.push(chunk.value);
-}
-
-function toggleStar() {
-  if (!chunk.value) return;
-  void progress.toggleStarred(chunk.value.id);
-}
-
-async function playExample(ex: ChunkExample) {
-  try {
-    await speechService.speak({
-      text: ex.text,
-      voiceName: settings.selectedVoiceName ?? undefined,
-      rate: settings.defaultSpeed,
-    });
-  } catch {
-    // ignore
-  }
+function highlightSegments(text: string, needle: string): Array<{ text: string; hl: boolean }> {
+  if (!needle) return [{ text, hl: false }];
+  const lower = text.toLowerCase();
+  const target = needle.toLowerCase().replace(/\.$/, '');
+  const idx = lower.indexOf(target);
+  if (idx < 0) return [{ text, hl: false }];
+  return [
+    { text: text.slice(0, idx), hl: false },
+    { text: text.slice(idx, idx + target.length), hl: true },
+    { text: text.slice(idx + target.length), hl: false },
+  ];
 }
 
 async function playSelf() {
@@ -104,10 +127,20 @@ async function playSelf() {
       rate: settings.defaultSpeed,
     });
   } catch {
-    // ignore
+    /* ignore */
   }
 }
-
+async function playExample(text: string) {
+  try {
+    await speechService.speak({
+      text,
+      voiceName: settings.selectedVoiceName ?? undefined,
+      rate: settings.defaultSpeed,
+    });
+  } catch {
+    /* ignore */
+  }
+}
 async function previewVoice(name: string, e: Event) {
   e.stopPropagation();
   try {
@@ -117,52 +150,61 @@ async function previewVoice(name: string, e: Event) {
       rate: 1,
     });
   } catch {
-    // ignore
+    /* ignore */
   }
 }
-
 function useVoice(name: string) {
   settings.selectedVoiceName = name;
 }
-
+function toggleStar() {
+  if (!chunk.value) return;
+  void progress.toggleStarred(chunk.value.id);
+}
 function openRelated(c: Chunk) {
   ui.openChunkDetail(c.id);
   tab.value = 'examples';
 }
+function actionFlashcard() {
+  if (!chunk.value) return;
+  practice.start({ mode: 'flashcard', chunks: [chunk.value] });
+  close();
+  router.push('/study/flashcard');
+}
+function actionWrite() {
+  if (!chunk.value) return;
+  practice.start({ mode: 'write', chunks: [chunk.value] });
+  close();
+  router.push('/study/write');
+}
+function actionAddQueue() {
+  if (!chunk.value) return;
+  player.queue.push(chunk.value);
+}
 
-function fmtDate(iso?: string) {
+const fmtLastListened = computed(() => {
+  const iso = p.value?.lastListenedAt;
   if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
-}
-
-/** Split example text into segments highlighting the chunk text. */
-function highlightSegments(exampleText: string, chunkText: string): Array<{ text: string; hl: boolean }> {
-  if (!chunkText) return [{ text: exampleText, hl: false }];
-  const lower = exampleText.toLowerCase();
-  const target = chunkText.toLowerCase();
-  const idx = lower.indexOf(target);
-  if (idx < 0) return [{ text: exampleText, hl: false }];
-  return [
-    { text: exampleText.slice(0, idx), hl: false },
-    { text: exampleText.slice(idx, idx + chunkText.length), hl: true },
-    { text: exampleText.slice(idx + chunkText.length), hl: false },
-  ];
-}
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const day = Math.floor(diffMs / (24 * 3600 * 1000));
+  if (day < 1) return 'today';
+  if (day === 1) return '1d ago';
+  return `${day}d ago`;
+});
+const fmtNextReview = computed(() => {
+  const iso = p.value?.nextReviewAt;
+  if (!iso) return '—';
+  const diffMs = new Date(iso).getTime() - Date.now();
+  const day = Math.floor(diffMs / (24 * 3600 * 1000));
+  if (diffMs < 0) return 'now';
+  if (day < 1) return 'today';
+  if (day === 1) return 'tomorrow';
+  return `${day}d`;
+});
 
 onMounted(async () => {
   await speechService.ensureVoicesLoaded();
   englishVoices.value = speechService.getEnglishVoices();
 });
-
 watch(open, async (v) => {
   if (v) {
     tab.value = 'examples';
@@ -176,697 +218,393 @@ watch(open, async (v) => {
 
 <template>
   <AppSheet :open="open" :title="undefined" max-height="92dvh" @close="close">
-    <div v-if="chunk" class="cd" :style="{ '--accent': accent }">
+    <div v-if="chunk">
       <!-- Hero card -->
-      <article class="cd__hero">
-        <span v-if="p?.starred" class="cd__hero-dot" aria-hidden="true" />
-        <div class="cd__hero-row">
+      <div
+        :style="{
+          margin: '-4px -4px 0',
+          padding: '22px',
+          borderRadius: '22px',
+          background: `linear-gradient(160deg, color-mix(in oklch, ${accent} 30%, transparent), color-mix(in oklch, ${accent} 8%, transparent)), var(--color-surface-2)`,
+          border: `1px solid color-mix(in oklch, ${accent} 26%, transparent)`,
+          position: 'relative',
+          overflow: 'hidden',
+        }"
+      >
+        <div
+          :style="{
+            position: 'absolute',
+            top: '-30px',
+            right: '-30px',
+            width: '140px',
+            height: '140px',
+            borderRadius: '50%',
+            background: `radial-gradient(circle, color-mix(in oklch, ${accent} 35%, transparent), transparent 70%)`,
+            filter: 'blur(8px)',
+          }"
+        />
+        <div :style="{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }">
           <TopicChip :topic-id="chunk.topic" :show-icon="true" size="sm" />
           <LevelPill :level="chunk.level" />
-          <span class="cd__status">
+          <span
+            :style="{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '11px',
+              color: 'var(--color-text-3)',
+            }"
+          >
             <span class="dot" :class="`dot-${p?.status ?? 'new'}`" />
-            <span>{{ p?.status ?? 'new' }}</span>
+            {{ statusLabel }}
           </span>
         </div>
-        <p class="cd__hero-text">{{ chunk.text }}</p>
-        <p class="cd__hero-meaning">{{ chunk.meaning }}</p>
+        <div
+          :style="{
+            fontSize: '24px',
+            fontWeight: 700,
+            lineHeight: 1.25,
+            letterSpacing: '-0.015em',
+            marginTop: '14px',
+            position: 'relative',
+          }"
+        >{{ chunk.text }}</div>
+        <div
+          :style="{ fontSize: '14px', color: 'var(--color-text-2)', marginTop: '8px', position: 'relative' }"
+        >{{ chunk.meaning }}</div>
 
-        <div class="cd__hero-foot">
-          <button class="cd__hero-play tap" :aria-label="'Phát'" @click="playSelf">
-            <Icon name="play" :size="16" />
-          </button>
-          <span class="cd__waves" aria-hidden="true">
-            <span class="wave-bar" />
-            <span class="wave-bar" />
-            <span class="wave-bar" />
-            <span class="wave-bar" />
-          </span>
-          <span class="cd__hero-meta mono">
-            {{ p?.listenCount ?? 0 }} listen
-          </span>
+        <!-- Pronounce row -->
+        <div
+          :style="{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            marginTop: '18px',
+            position: 'relative',
+          }"
+        >
           <button
-            class="cd__hero-star tap"
-            :class="{ 'is-on': p?.starred }"
+            class="btn tap"
+            :style="{
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              background: 'var(--grad-primary)',
+              display: 'grid',
+              placeItems: 'center',
+              color: '#0B0F22',
+              boxShadow: '0 8px 30px rgba(34,211,238,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset',
+            }"
+            @click="playSelf"
+          >
+            <Icon name="play" :size="20" :style="{ marginLeft: '2px' }" />
+          </button>
+          <div :style="{ flex: 1 }">
+            <div :style="{ display: 'flex', alignItems: 'center', gap: '2px', color: accent, height: '26px' }">
+              <span
+                v-for="i in 4"
+                :key="i"
+                :style="{ display: 'inline-block', width: '3px', height: '11.7px', background: 'currentColor', borderRadius: '2px', opacity: 0.4 }"
+              />
+            </div>
+            <div
+              class="mono"
+              :style="{ fontSize: '10px', color: 'var(--color-text-3)', marginTop: '4px' }"
+            >0:00 · 0:02.3 · {{ settings.selectedVoiceName ?? 'Aria' }} · 1.00×</div>
+          </div>
+          <button
+            class="btn tap"
+            :style="{
+              width: '36px',
+              height: '36px',
+              display: 'grid',
+              placeItems: 'center',
+              borderRadius: '12px',
+              color: p?.starred ? '#FCD34D' : 'var(--color-text-3)',
+            }"
             :aria-pressed="Boolean(p?.starred)"
-            :aria-label="p?.starred ? 'Bỏ sao' : 'Đánh dấu sao'"
             @click="toggleStar"
           >
             <Icon :name="p?.starred ? 'star-filled' : 'star'" :size="18" />
           </button>
         </div>
-      </article>
+      </div>
 
-      <!-- Stats strip (4-col) -->
-      <div class="cd__stats glass">
-        <div class="cd__stat">
-          <p class="cd__stat-value mono">{{ p?.listenCount ?? 0 }}</p>
-          <p class="cd__stat-label">listens</p>
+      <!-- Stats strip -->
+      <div
+        class="glass"
+        :style="{ marginTop: '12px', padding: '12px 14px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }"
+      >
+        <div :style="{ textAlign: 'center' }">
+          <div class="mono" :style="{ fontSize: '14px', fontWeight: 700, letterSpacing: '-0.005em' }">{{ p?.listenCount ?? 0 }}</div>
+          <div :style="{ fontSize: '10px', color: 'var(--color-text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginTop: '2px' }">Listens</div>
         </div>
-        <div class="cd__stat">
-          <p class="cd__stat-value mono">{{ accuracy === null ? '—' : `${accuracy}%` }}</p>
-          <p class="cd__stat-label">accuracy</p>
+        <div :style="{ textAlign: 'center' }">
+          <div class="mono" :style="{ fontSize: '14px', fontWeight: 700, letterSpacing: '-0.005em' }">{{ accuracy === null ? '—' : `${accuracy}%` }}</div>
+          <div :style="{ fontSize: '10px', color: 'var(--color-text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginTop: '2px' }">Accuracy</div>
         </div>
-        <div class="cd__stat">
-          <p class="cd__stat-value mono">{{ p?.correctStreak ?? 0 }}</p>
-          <p class="cd__stat-label">streak</p>
+        <div :style="{ textAlign: 'center' }">
+          <div :style="{ fontSize: '14px', fontWeight: 700, letterSpacing: '-0.005em' }">{{ fmtLastListened }}</div>
+          <div :style="{ fontSize: '10px', color: 'var(--color-text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginTop: '2px' }">Last</div>
         </div>
-        <div class="cd__stat">
-          <p class="cd__stat-value mono">{{ p?.speakCount ?? 0 }}</p>
-          <p class="cd__stat-label">speaks</p>
+        <div :style="{ textAlign: 'center' }">
+          <div :style="{ fontSize: '14px', fontWeight: 700, letterSpacing: '-0.005em' }">{{ fmtNextReview }}</div>
+          <div :style="{ fontSize: '10px', color: 'var(--color-text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginTop: '2px' }">Next</div>
         </div>
       </div>
 
       <!-- Tabs -->
-      <nav class="cd__tabs" aria-label="Chi tiết chunk">
+      <div
+        :style="{
+          display: 'flex',
+          gap: '4px',
+          marginTop: '16px',
+          padding: '3px',
+          background: 'var(--color-surface-1)',
+          borderRadius: '12px',
+          border: '1px solid var(--color-border-1)',
+        }"
+      >
         <button
-          v-for="t in (['examples', 'voices', 'related'] as TabKey[])"
-          :key="t"
-          class="cd__tab tap"
-          :class="{ 'is-active': tab === t }"
-          @click="tab = t"
-        >
-          {{ t === 'examples' ? 'Examples' : t === 'voices' ? 'Voices' : 'Related' }}
-        </button>
-      </nav>
-
-      <!-- Examples tab -->
-      <section v-if="tab === 'examples'" class="cd__panel">
-        <article
-          v-for="(ex, idx) in examples"
-          :key="`ex-${idx}`"
-          class="cd__example glass"
-        >
-          <span class="cd__example-ctx">{{ contextLabels[ex.context] ?? ex.context }}</span>
-          <p class="cd__example-text">
-            <template v-for="(seg, si) in highlightSegments(ex.text, chunk.text)" :key="`seg-${si}`">
-              <mark v-if="seg.hl" class="cd__hl">{{ seg.text }}</mark>
-              <template v-else>{{ seg.text }}</template>
-            </template>
-          </p>
-          <p class="cd__example-vi">{{ ex.meaning }}</p>
-          <button
-            class="cd__example-play tap"
-            :aria-label="'Phát ví dụ'"
-            @click="playExample(ex)"
-          >
-            <Icon name="play" :size="12" />
-          </button>
-        </article>
-
-        <div v-if="examples.length === 0" class="cd__empty">
-          <span class="cd__empty-icon">
-            <Icon name="message" :size="20" />
-          </span>
-          <p class="cd__empty-title">Chưa có ví dụ</p>
-          <p class="cd__empty-hint">
-            Chunk này chưa kèm câu ví dụ trong pack. Bạn vẫn có thể nghe + luyện qua các mode khác.
-          </p>
-        </div>
-      </section>
-
-      <!-- Voices tab -->
-      <section v-else-if="tab === 'voices'" class="cd__panel">
-        <article
-          v-for="v in englishVoices"
-          :key="v.name"
-          class="cd__voice glass"
-          :class="{ 'is-selected': settings.selectedVoiceName === v.name }"
-        >
-          <span class="cd__voice-icon">
-            <Icon name="mic" :size="16" />
-          </span>
-          <div class="cd__voice-info">
-            <p class="cd__voice-name">{{ v.name }}</p>
-            <p class="cd__voice-meta">{{ v.lang }}{{ v.localService ? ' · local' : ' · cloud' }}</p>
-          </div>
-          <button
-            class="cd__voice-use tap"
-            :class="{ 'is-selected': settings.selectedVoiceName === v.name }"
-            @click="useVoice(v.name)"
-          >
-            {{ settings.selectedVoiceName === v.name ? 'Đang dùng' : 'Chọn' }}
-          </button>
-          <button
-            class="cd__voice-play tap"
-            :aria-label="'Nghe thử'"
-            @click="(e) => previewVoice(v.name, e)"
-          >
-            <Icon name="play" :size="12" />
-          </button>
-        </article>
-
-        <div v-if="englishVoices.length === 0" class="cd__empty">
-          <span class="cd__empty-icon">
-            <Icon name="mic" :size="20" />
-          </span>
-          <p class="cd__empty-title">Không có giọng English</p>
-          <p class="cd__empty-hint">Thiết bị này không có giọng English. Hãy thử Chrome/Edge trên desktop.</p>
-        </div>
-      </section>
-
-      <!-- Related tab -->
-      <section v-else class="cd__panel">
-        <article
-          v-for="c in related"
-          :key="c.id"
-          class="cd__related glass tap"
-          :style="{ '--c': accent }"
-          @click="openRelated(c)"
-        >
-          <button
-            class="cd__related-play tap"
-            :aria-label="`Mở chi tiết: ${c.text}`"
-          >
-            <TopicIcon :name="c.topic" :size="16" />
-          </button>
-          <div class="cd__related-info">
-            <p class="cd__related-text">{{ c.text }}</p>
-            <p class="cd__related-meaning">{{ c.meaning }}</p>
-          </div>
-          <LevelPill :level="c.level" />
-        </article>
-
-        <div v-if="related.length === 0" class="cd__empty">
-          <span class="cd__empty-icon">
-            <Icon name="sparkles" :size="20" />
-          </span>
-          <p class="cd__empty-title">Chưa có chunk liên quan</p>
-          <p class="cd__empty-hint">Mở Library hoặc thêm chunk tự tạo cho chủ đề này.</p>
-        </div>
-      </section>
-
-      <!-- Action button row -->
-      <div class="cd__actions">
-        <button
-          class="cd__action tap"
-          :style="{ '--c': 'var(--color-cyan)' }"
-          @click="play"
-        >
-          <span class="cd__action-icon"><Icon name="play" :size="18" /></span>
-          <span class="cd__action-label">Phát</span>
-        </button>
-        <button
-          class="cd__action tap"
-          :style="{ '--c': 'var(--color-violet)' }"
-          @click="addToQueue"
-        >
-          <span class="cd__action-icon"><Icon name="queue" :size="18" /></span>
-          <span class="cd__action-label">Vào queue</span>
-        </button>
-        <button
-          class="cd__action tap"
-          :style="{ '--c': p?.starred ? 'var(--color-amber)' : 'var(--color-text-2)' }"
-          @click="toggleStar"
-        >
-          <span class="cd__action-icon">
-            <Icon :name="p?.starred ? 'star-filled' : 'star'" :size="18" />
-          </span>
-          <span class="cd__action-label">{{ p?.starred ? 'Bỏ sao' : 'Sao' }}</span>
-        </button>
+          v-for="[k, l] in (['examples', 'In context'] as const, [['examples','In context'],['voices','Voices'],['related','Related']] as const)"
+          :key="k"
+          class="btn tap"
+          :style="{
+            flex: 1,
+            padding: '9px 0',
+            borderRadius: '9px',
+            fontSize: '12px',
+            fontWeight: 700,
+            background: tab === k ? 'var(--color-surface-3)' : 'transparent',
+            color: tab === k ? 'var(--color-text-1)' : 'var(--color-text-3)',
+          }"
+          @click="tab = k as TabKey"
+        >{{ l }}</button>
       </div>
 
-      <div class="cd__times">
-        <p>
-          <span>Lần cuối nghe</span>
-          <strong class="mono">{{ fmtDate(p?.lastListenedAt) }}</strong>
-        </p>
-        <p>
-          <span>Đến hạn ôn</span>
-          <strong class="mono">{{ fmtDate(p?.nextReviewAt) }}</strong>
-        </p>
+      <!-- Tab body -->
+      <div :style="{ marginTop: '14px' }">
+        <!-- Examples -->
+        <div v-if="tab === 'examples'" :style="{ display: 'flex', flexDirection: 'column', gap: '10px' }">
+          <div
+            v-for="(e, i) in examples"
+            :key="i"
+            class="glass"
+            :style="{ padding: '12px' }"
+          >
+            <div :style="{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }">
+              <span
+                :style="{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  letterSpacing: '.05em',
+                  textTransform: 'uppercase',
+                  color: 'var(--color-cyan)',
+                  padding: '3px 8px',
+                  borderRadius: '999px',
+                  background: 'rgba(34,211,238,0.12)',
+                  border: '1px solid rgba(34,211,238,0.25)',
+                }"
+              >{{ e.ctx }}</span>
+              <button
+                class="btn tap"
+                :style="{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '8px',
+                  background: 'var(--color-surface-3)',
+                  display: 'grid',
+                  placeItems: 'center',
+                  color: 'var(--color-text-1)',
+                }"
+                @click="playExample(e.en)"
+              >
+                <Icon name="play" :size="11" :style="{ marginLeft: '1px' }" />
+              </button>
+            </div>
+            <div :style="{ fontSize: '14px', lineHeight: 1.4 }">
+              <template v-for="(seg, si) in highlightSegments(e.en, chunk.text)" :key="si">
+                <span
+                  v-if="seg.hl"
+                  :style="{
+                    background: 'color-mix(in oklch, var(--color-cyan) 22%, transparent)',
+                    padding: '1px 5px',
+                    borderRadius: '4px',
+                    color: 'color-mix(in oklch, var(--color-cyan) 95%, white)',
+                    fontWeight: 600,
+                  }"
+                >{{ seg.text }}</span>
+                <span v-else>{{ seg.text }}</span>
+              </template>
+            </div>
+            <div :style="{ fontSize: '12px', color: 'var(--color-text-3)', marginTop: '6px' }">{{ e.vi }}</div>
+          </div>
+        </div>
+
+        <!-- Voices -->
+        <div v-else-if="tab === 'voices'" :style="{ display: 'flex', flexDirection: 'column', gap: '8px' }">
+          <p
+            v-if="englishVoices.length === 0"
+            :style="{ fontSize: '13px', color: 'var(--color-text-3)' }"
+          >Không tìm thấy giọng English trên thiết bị này.</p>
+          <div
+            v-for="v in englishVoices"
+            :key="v.name"
+            class="glass"
+            :style="{
+              padding: '12px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              border: settings.selectedVoiceName === v.name ? '1px solid var(--color-cyan)' : '1px solid var(--color-border-1)',
+            }"
+          >
+            <div
+              :style="{
+                width: '38px',
+                height: '38px',
+                borderRadius: '12px',
+                background: settings.selectedVoiceName === v.name ? 'var(--grad-primary)' : 'var(--color-surface-3)',
+                display: 'grid',
+                placeItems: 'center',
+                color: settings.selectedVoiceName === v.name ? '#0B0F22' : 'var(--color-text-1)',
+              }"
+            >
+              <Icon name="mic" :size="16" />
+            </div>
+            <div :style="{ flex: 1, minWidth: 0 }">
+              <div :style="{ fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }">{{ v.name }}</div>
+              <div :style="{ fontSize: '11px', color: 'var(--color-text-3)' }">{{ v.lang }}{{ v.localService ? ' · local' : ' · cloud' }}</div>
+            </div>
+            <button
+              class="btn tap"
+              :style="{
+                padding: '7px 12px',
+                borderRadius: '10px',
+                fontSize: '11px',
+                fontWeight: 700,
+                background: settings.selectedVoiceName === v.name ? 'var(--color-cyan)' : 'var(--color-surface-3)',
+                color: settings.selectedVoiceName === v.name ? '#0B0F22' : 'var(--color-text-1)',
+              }"
+              @click="useVoice(v.name)"
+            >{{ settings.selectedVoiceName === v.name ? 'Selected' : 'Use' }}</button>
+            <button
+              class="btn tap"
+              :style="{
+                width: '34px',
+                height: '34px',
+                borderRadius: '10px',
+                background: 'var(--color-surface-3)',
+                display: 'grid',
+                placeItems: 'center',
+                color: 'var(--color-text-1)',
+              }"
+              @click="(e) => previewVoice(v.name, e)"
+            >
+              <Icon name="play" :size="12" :style="{ marginLeft: '1px' }" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Related -->
+        <div v-else :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
+          <div
+            v-for="c in related"
+            :key="c.id"
+            class="glass tap"
+            :style="{
+              padding: '10px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              cursor: 'pointer',
+            }"
+            @click="openRelated(c)"
+          >
+            <div
+              :style="{
+                width: '30px',
+                height: '30px',
+                borderRadius: '9px',
+                background: 'var(--color-surface-3)',
+                display: 'grid',
+                placeItems: 'center',
+                flexShrink: 0,
+                color: 'var(--color-cyan)',
+              }"
+            >
+              <Icon name="play" :size="11" :style="{ marginLeft: '1px' }" />
+            </div>
+            <div :style="{ flex: 1, minWidth: 0 }">
+              <div :style="{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }">{{ c.text }}</div>
+              <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }">{{ c.meaning }}</div>
+            </div>
+            <LevelPill :level="c.level" />
+          </div>
+          <div
+            v-if="related.length === 0"
+            :style="{ padding: '16px', fontSize: '12px', color: 'var(--color-text-3)', textAlign: 'center' }"
+          >Chưa có chunk liên quan.</div>
+        </div>
       </div>
 
-      <div v-if="chunk.tags.length > 0" class="cd__tags">
-        <span v-for="t in chunk.tags" :key="t" class="cd__tag">#{{ t }}</span>
+      <!-- Bottom action row -->
+      <div :style="{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginTop: '18px' }">
+        <button
+          class="btn tap"
+          :style="{
+            padding: '12px',
+            borderRadius: '14px',
+            background: 'color-mix(in oklch, var(--color-cyan) 14%, transparent)',
+            border: '1px solid color-mix(in oklch, var(--color-cyan) 25%, transparent)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '6px',
+            color: 'var(--color-cyan)',
+          }"
+          @click="actionFlashcard"
+        >
+          <Icon name="cards" :size="18" />
+          <span :style="{ fontSize: '11px', fontWeight: 700 }">Flashcard</span>
+        </button>
+        <button
+          class="btn tap"
+          :style="{
+            padding: '12px',
+            borderRadius: '14px',
+            background: 'color-mix(in oklch, var(--color-violet) 14%, transparent)',
+            border: '1px solid color-mix(in oklch, var(--color-violet) 25%, transparent)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '6px',
+            color: 'var(--color-violet)',
+          }"
+          @click="actionWrite"
+        >
+          <Icon name="edit" :size="18" />
+          <span :style="{ fontSize: '11px', fontWeight: 700 }">Write</span>
+        </button>
+        <button
+          class="btn tap"
+          :style="{
+            padding: '12px',
+            borderRadius: '14px',
+            background: 'color-mix(in oklch, var(--color-emerald) 14%, transparent)',
+            border: '1px solid color-mix(in oklch, var(--color-emerald) 25%, transparent)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '6px',
+            color: 'var(--color-emerald)',
+          }"
+          @click="actionAddQueue"
+        >
+          <Icon name="headphones" :size="18" />
+          <span :style="{ fontSize: '11px', fontWeight: 700 }">Add to queue</span>
+        </button>
       </div>
     </div>
   </AppSheet>
 </template>
-
-<style scoped>
-.cd {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding-bottom: 16px;
-}
-
-/* Hero */
-.cd__hero {
-  position: relative;
-  padding: 22px;
-  border-radius: 22px;
-  overflow: hidden;
-  background:
-    linear-gradient(
-      160deg,
-      color-mix(in oklch, var(--accent) 30%, transparent) 0%,
-      color-mix(in oklch, var(--accent) 8%, transparent) 100%
-    ),
-    var(--color-surface-2);
-  border: 1px solid color-mix(in oklch, var(--accent) 26%, transparent);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.cd__hero::after {
-  content: '';
-  position: absolute;
-  width: 140px;
-  height: 140px;
-  right: -20px;
-  top: -20px;
-  background: color-mix(in oklch, var(--accent) 35%, transparent);
-  filter: blur(40px);
-  pointer-events: none;
-  z-index: 0;
-}
-.cd__hero > * {
-  position: relative;
-  z-index: 1;
-}
-.cd__hero-dot {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-amber);
-  box-shadow: 0 0 0 2px var(--color-bg-1);
-  z-index: 2;
-}
-.cd__hero-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.cd__status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--color-text-3);
-  text-transform: capitalize;
-  letter-spacing: 0.04em;
-}
-.cd__hero-text {
-  margin: 4px 0 0;
-  font-family: var(--font-ui);
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: -0.015em;
-  color: var(--color-text-1);
-}
-.cd__hero-meaning {
-  margin: 0;
-  font-size: 14px;
-  color: var(--color-text-2);
-  line-height: 1.4;
-}
-.cd__hero-foot {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 6px;
-}
-.cd__hero-play {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--grad-primary);
-  color: white;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 12px 28px -12px rgba(34, 211, 238, 0.55);
-}
-.cd__waves {
-  display: inline-flex;
-  align-items: center;
-  color: var(--color-cyan);
-  opacity: 0.5;
-}
-.cd__hero-meta {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--color-text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.cd__hero-star {
-  margin-left: auto;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-3);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.cd__hero-star.is-on {
-  color: var(--color-amber);
-  border-color: color-mix(in oklch, var(--color-amber) 35%, transparent);
-}
-
-/* Stats strip 4-col */
-.cd__stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  padding: 12px;
-}
-.cd__stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-.cd__stat + .cd__stat {
-  border-left: 1px solid var(--color-border-1);
-}
-.cd__stat-value {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-1);
-}
-.cd__stat-label {
-  margin: 0;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-3);
-}
-
-/* Tabs */
-.cd__tabs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  padding: 4px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
-  border-radius: 12px;
-}
-.cd__tab {
-  padding: 9px 8px;
-  border-radius: 9px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--color-text-3);
-  background: transparent;
-}
-.cd__tab.is-active {
-  color: var(--color-cyan);
-  background: var(--color-surface-3);
-}
-
-.cd__panel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-height: 80px;
-}
-
-/* Example row */
-.cd__example {
-  position: relative;
-  padding: 14px;
-  display: grid;
-  grid-template-columns: auto 1fr 32px;
-  gap: 8px 12px;
-  align-items: center;
-}
-.cd__example-ctx {
-  grid-column: 1;
-  grid-row: 1;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  background: color-mix(in oklch, var(--color-cyan) 18%, transparent);
-  color: var(--color-cyan);
-  border: 1px solid color-mix(in oklch, var(--color-cyan) 35%, transparent);
-  width: max-content;
-}
-.cd__example-text {
-  grid-column: 1 / span 2;
-  grid-row: 2;
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.45;
-  color: var(--color-text-1);
-}
-.cd__example-vi {
-  grid-column: 1 / span 2;
-  grid-row: 3;
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-text-3);
-  line-height: 1.4;
-}
-.cd__example-play {
-  grid-column: 3;
-  grid-row: 1 / span 3;
-  align-self: start;
-  margin-top: 2px;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--grad-primary);
-  color: white;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.cd__hl {
-  background: color-mix(in oklch, var(--color-cyan) 22%, transparent);
-  color: color-mix(in oklch, var(--color-cyan) 90%, white);
-  padding: 1px 4px;
-  border-radius: 4px;
-  font-weight: 700;
-}
-
-/* Voice row */
-.cd__voice {
-  display: grid;
-  grid-template-columns: 38px 1fr auto 34px;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-}
-.cd__voice.is-selected {
-  border-color: color-mix(in oklch, var(--color-cyan) 35%, transparent);
-  background: color-mix(in oklch, var(--color-cyan) 8%, transparent);
-}
-.cd__voice-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background: var(--color-surface-2);
-  color: var(--color-text-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.cd__voice.is-selected .cd__voice-icon {
-  background: var(--grad-primary);
-  color: white;
-}
-.cd__voice-info {
-  min-width: 0;
-}
-.cd__voice-name {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text-1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.cd__voice-meta {
-  margin: 0;
-  font-size: 11px;
-  color: var(--color-text-3);
-  font-family: var(--font-mono);
-}
-.cd__voice-use {
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-1);
-  font-size: 12px;
-  font-weight: 700;
-}
-.cd__voice-use.is-selected {
-  background: color-mix(in oklch, var(--color-cyan) 18%, transparent);
-  border-color: color-mix(in oklch, var(--color-cyan) 40%, transparent);
-  color: var(--color-cyan);
-}
-.cd__voice-play {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Related row */
-.cd__related {
-  display: grid;
-  grid-template-columns: 30px 1fr auto;
-  gap: 10px;
-  padding: 10px 12px;
-  align-items: center;
-}
-.cd__related-play {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  background: color-mix(in oklch, var(--c, var(--color-cyan)) 18%, transparent);
-  border: 1px solid color-mix(in oklch, var(--c, var(--color-cyan)) 28%, transparent);
-  color: color-mix(in oklch, var(--c, var(--color-cyan)) 90%, white);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.cd__related-info {
-  min-width: 0;
-}
-.cd__related-text {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text-1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.cd__related-meaning {
-  margin: 0;
-  font-size: 11px;
-  color: var(--color-text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Action row */
-.cd__actions {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-.cd__action {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 14px 8px;
-  border-radius: 14px;
-  background: color-mix(in oklch, var(--c) 14%, transparent);
-  border: 1px solid color-mix(in oklch, var(--c) 25%, transparent);
-  color: color-mix(in oklch, var(--c) 90%, white);
-}
-.cd__action-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.cd__action-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.cd__times {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px 16px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
-}
-.cd__times p {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.cd__times span {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-3);
-}
-.cd__times strong {
-  font-size: 12px;
-  font-weight: 700;
-  font-family: var(--font-mono);
-  color: var(--color-text-1);
-}
-
-.cd__tags {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.cd__tag {
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
-  font-size: 11px;
-  color: var(--color-text-3);
-}
-
-/* Empty fallback */
-.cd__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 6px;
-  padding: 20px 16px;
-}
-.cd__empty-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-cyan);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.cd__empty-title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-1);
-}
-.cd__empty-hint {
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-text-3);
-  max-width: 260px;
-}
-</style>
