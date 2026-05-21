@@ -11,7 +11,7 @@ import TopicChip from './TopicChip.vue';
 import LevelPill from './LevelPill.vue';
 import Icon from '@/components/common/Icon.vue';
 
-const props = defineProps<{ chunk: Chunk; showMeta?: boolean }>();
+const props = defineProps<{ chunk: Chunk }>();
 const emit = defineEmits<{ play: [Chunk]; open: [Chunk]; toggleStar: [Chunk] }>();
 
 const chunks = useChunkStore();
@@ -74,7 +74,6 @@ function onStar(e: Event) {
         {{ chunk.meaning }}
       </div>
       <div
-        v-if="showMeta !== false"
         :style="{
           display: 'flex',
           alignItems: 'center',

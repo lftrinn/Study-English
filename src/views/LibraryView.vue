@@ -134,37 +134,39 @@ function openNewChunk() {
 </script>
 
 <template>
-  <div class="scrollarea" :style="{ paddingTop: '56px' }">
-    <!-- Header -->
-    <div :style="{ padding: '8px 20px 14px' }">
-      <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }">
-        <div>
-          <h1 :style="{ margin: 0, fontSize: '28px', fontWeight: 700, letterSpacing: '-0.02em' }">Library</h1>
-          <div :style="{ fontSize: '13px', color: 'var(--color-text-3)', marginTop: '2px' }">
-            <span class="mono">{{ chunks.chunks.length }}</span> chunks ·
-            <span class="mono">{{ chunks.topics.length }}</span> topics
+  <div class="library-view">
+    <!-- Sticky top: header + search + tabs + topic chips -->
+    <div class="library-top">
+      <!-- Header -->
+      <div :style="{ padding: '8px 20px 14px' }">
+        <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }">
+          <div>
+            <h1 :style="{ margin: 0, fontSize: '28px', fontWeight: 700, letterSpacing: '-0.02em' }">Library</h1>
+            <div :style="{ fontSize: '13px', color: 'var(--color-text-3)', marginTop: '2px' }">
+              <span class="mono">{{ chunks.chunks.length }}</span> chunks ·
+              <span class="mono">{{ chunks.topics.length }}</span> topics
+            </div>
           </div>
+          <button
+            class="btn tap"
+            :style="{
+              padding: '6px 12px',
+              borderRadius: '999px',
+              fontSize: '12px',
+              fontWeight: 700,
+              background: 'color-mix(in oklch, var(--color-cyan) 16%, transparent)',
+              border: '1px solid color-mix(in oklch, var(--color-cyan) 35%, transparent)',
+              color: 'var(--color-cyan)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+            }"
+            @click="openNewChunk"
+          >
+            <Icon name="plus" :size="12" /> Thêm
+          </button>
         </div>
-        <button
-          class="btn tap"
-          :style="{
-            padding: '6px 12px',
-            borderRadius: '999px',
-            fontSize: '12px',
-            fontWeight: 700,
-            background: 'color-mix(in oklch, var(--color-cyan) 16%, transparent)',
-            border: '1px solid color-mix(in oklch, var(--color-cyan) 35%, transparent)',
-            color: 'var(--color-cyan)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-          }"
-          @click="openNewChunk"
-        >
-          <Icon name="plus" :size="12" /> Thêm
-        </button>
       </div>
-    </div>
 
     <!-- Search row -->
     <div :style="{ padding: '0 20px', display: 'flex', gap: '8px' }">
@@ -279,10 +281,11 @@ function openNewChunk() {
       >
         <TopicIcon :name="t.id" :size="13" />{{ t.name }}
       </button>
+      </div>
     </div>
 
-    <!-- Result list -->
-    <div :style="{ padding: '16px 20px 0', display: 'flex', flexDirection: 'column', gap: '8px' }">
+    <!-- Result list (scrollable area) -->
+    <div class="library-list no-scrollbar">
       <LoadingLibrary v-if="!chunks.loaded" />
       <template v-else>
         <EmptyLibrary v-if="chunks.chunks.length === 0" @seed="router.push('/onboarding')" @import="openNewChunk" />
@@ -299,8 +302,6 @@ function openNewChunk() {
         </template>
       </template>
     </div>
-
-    <div class="tabbar-spacer" />
 
     <!-- Filter sheet -->
     <AppSheet :open="filterOpen" title="Filter chunks" @close="filterOpen = false">
@@ -380,16 +381,35 @@ function openNewChunk() {
 </template>
 
 <style scoped>
-.scrollarea {
-  flex: 1;
+.library-view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.library-top {
+  flex: 0 0 auto;
+  padding-top: 56px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--color-bg-0) 92%, transparent) 0%,
+    color-mix(in oklch, var(--color-bg-0) 92%, transparent) 88%,
+    transparent 100%
+  );
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  padding-bottom: 14px;
+  z-index: 2;
+}
+.library-list {
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-width: none;
-}
-.scrollarea::-webkit-scrollbar {
-  display: none;
-}
-.tabbar-spacer {
-  height: calc(96px + env(safe-area-inset-bottom));
+  padding: 16px 20px calc(120px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 </style>
