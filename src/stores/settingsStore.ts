@@ -19,6 +19,9 @@ type PersistedSettings = {
   defaultRepeatMode: RepeatMode;
   lastTopic: string | 'all';
   onboardingDone: boolean;
+  /** Best Match-mode finish times in ms keyed by pair count. */
+  bestMatchTimes: Record<number, number>;
+  installPromptDismissedAt: number | null;
 };
 
 const DEFAULTS: PersistedSettings = {
@@ -34,6 +37,8 @@ const DEFAULTS: PersistedSettings = {
   defaultRepeatMode: 'all',
   lastTopic: 'all',
   onboardingDone: false,
+  bestMatchTimes: {},
+  installPromptDismissedAt: null,
 };
 
 function loadFromLocalStorage(): PersistedSettings {
@@ -70,6 +75,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const defaultRepeatMode = ref<RepeatMode>(DEFAULTS.defaultRepeatMode);
   const lastTopic = ref<string | 'all'>(DEFAULTS.lastTopic);
   const onboardingDone = ref<boolean>(DEFAULTS.onboardingDone);
+  const bestMatchTimes = ref<Record<number, number>>({ ...DEFAULTS.bestMatchTimes });
+  const installPromptDismissedAt = ref<number | null>(DEFAULTS.installPromptDismissedAt);
 
   const hydrated = ref(false);
 
@@ -87,6 +94,8 @@ export const useSettingsStore = defineStore('settings', () => {
       defaultRepeatMode: defaultRepeatMode.value,
       lastTopic: lastTopic.value,
       onboardingDone: onboardingDone.value,
+      bestMatchTimes: { ...bestMatchTimes.value },
+      installPromptDismissedAt: installPromptDismissedAt.value,
     };
   }
 
@@ -105,7 +114,22 @@ export const useSettingsStore = defineStore('settings', () => {
     defaultRepeatMode.value = s.defaultRepeatMode;
     lastTopic.value = s.lastTopic;
     onboardingDone.value = s.onboardingDone;
+    bestMatchTimes.value = { ...s.bestMatchTimes };
+    installPromptDismissedAt.value = s.installPromptDismissedAt;
     hydrated.value = true;
+  }
+
+  function recordMatchTime(pairCount: number, timeMs: number) {
+    const cur = bestMatchTimes.value[pairCount];
+    if (!cur || timeMs < cur) {
+      bestMatchTimes.value = { ...bestMatchTimes.value, [pairCount]: timeMs };
+    }
+  }
+  function getBestMatchTime(pairCount: number): number | undefined {
+    return bestMatchTimes.value[pairCount];
+  }
+  function dismissInstallPrompt() {
+    installPromptDismissedAt.value = Date.now();
   }
 
   function setTheme(t: ThemeMode) {
@@ -131,6 +155,8 @@ export const useSettingsStore = defineStore('settings', () => {
     defaultRepeatMode.value = DEFAULTS.defaultRepeatMode;
     lastTopic.value = DEFAULTS.lastTopic;
     onboardingDone.value = DEFAULTS.onboardingDone;
+    bestMatchTimes.value = { ...DEFAULTS.bestMatchTimes };
+    installPromptDismissedAt.value = DEFAULTS.installPromptDismissedAt;
   }
 
   // Persist on any change after hydration.
@@ -148,6 +174,8 @@ export const useSettingsStore = defineStore('settings', () => {
       defaultRepeatMode,
       lastTopic,
       onboardingDone,
+      bestMatchTimes,
+      installPromptDismissedAt,
     ],
     () => {
       if (!hydrated.value) return;
@@ -169,11 +197,16 @@ export const useSettingsStore = defineStore('settings', () => {
     defaultRepeatMode,
     lastTopic,
     onboardingDone,
+    bestMatchTimes,
+    installPromptDismissedAt,
     hydrated,
     hydrate,
     setTheme,
     toggleTheme,
     completeOnboarding,
+    recordMatchTime,
+    getBestMatchTime,
+    dismissInstallPrompt,
     resetAll,
   };
 });

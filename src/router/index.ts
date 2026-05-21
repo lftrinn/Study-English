@@ -57,6 +57,24 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Learn', tab: null, hideChrome: true },
   },
   {
+    path: '/study/test',
+    name: 'test',
+    component: () => import('@/views/TestView.vue'),
+    meta: { title: 'Test', tab: null, hideChrome: true },
+  },
+  {
+    path: '/study/match',
+    name: 'match',
+    component: () => import('@/views/MatchView.vue'),
+    meta: { title: 'Match', tab: null, hideChrome: true },
+  },
+  {
+    path: '/study/speaking',
+    name: 'speaking',
+    component: () => import('@/views/SpeakingView.vue'),
+    meta: { title: 'Speaking', tab: null, hideChrome: true },
+  },
+  {
     path: '/onboarding',
     name: 'onboarding',
     component: () => import('@/views/OnboardingView.vue'),
