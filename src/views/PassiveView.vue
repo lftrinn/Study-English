@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useChunkStore } from '@/stores/chunkStore';
 import { useProgressStore } from '@/stores/progressStore';
+import { useUiStore } from '@/stores/uiStore';
 import { playlistService } from '@/services/playlistService';
 
 import ModeShell from '@/components/layout/ModeShell.vue';
@@ -17,6 +18,7 @@ const router = useRouter();
 const player = usePlayerStore();
 const chunks = useChunkStore();
 const progress = useProgressStore();
+const ui = useUiStore();
 
 const showMeaning = ref(true);
 const startedAt = ref(Date.now());
@@ -69,6 +71,10 @@ function toggleMeaning() {
   showMeaning.value = !showMeaning.value;
 }
 
+function openDetail() {
+  if (current.value) ui.openChunkDetail(current.value.id);
+}
+
 onMounted(() => {
   ensureQueue();
   if (!isPlaying.value) void player.play();
@@ -88,7 +94,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <ModeShell title="Passive Lab" subtitle="Hands-free">
+  <ModeShell title="Passive Lab" subtitle="Hands-free" :on-more="openDetail">
     <template v-if="current && topic">
       <div class="passive">
         <!-- Stats row -->

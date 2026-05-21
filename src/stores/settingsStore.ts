@@ -8,6 +8,8 @@ export type RepeatMode = 'none' | 'one' | 'all';
 
 type PersistedSettings = {
   theme: ThemeMode;
+  displayName: string;
+  role: string;
   dailyGoal: number;
   level: 'A1' | 'A2' | 'B1';
   selectedTopics: string[];
@@ -28,6 +30,8 @@ type PersistedSettings = {
 
 const DEFAULTS: PersistedSettings = {
   theme: 'dark',
+  displayName: 'Bạn',
+  role: 'Frontend Dev',
   dailyGoal: 30,
   level: 'A2',
   selectedTopics: [],
@@ -68,6 +72,8 @@ function saveToLocalStorage(s: PersistedSettings) {
 
 export const useSettingsStore = defineStore('settings', () => {
   const theme = ref<ThemeMode>(DEFAULTS.theme);
+  const displayName = ref<string>(DEFAULTS.displayName);
+  const role = ref<string>(DEFAULTS.role);
   const dailyGoal = ref<number>(DEFAULTS.dailyGoal);
   const level = ref<'A1' | 'A2' | 'B1'>(DEFAULTS.level);
   const selectedTopics = ref<string[]>([...DEFAULTS.selectedTopics]);
@@ -89,6 +95,8 @@ export const useSettingsStore = defineStore('settings', () => {
   function snapshot(): PersistedSettings {
     return {
       theme: theme.value,
+      displayName: displayName.value,
+      role: role.value,
       dailyGoal: dailyGoal.value,
       level: level.value,
       selectedTopics: [...selectedTopics.value],
@@ -111,6 +119,8 @@ export const useSettingsStore = defineStore('settings', () => {
     if (hydrated.value) return;
     const s = loadFromLocalStorage();
     theme.value = s.theme;
+    displayName.value = s.displayName;
+    role.value = s.role;
     dailyGoal.value = s.dailyGoal;
     level.value = s.level;
     selectedTopics.value = [...s.selectedTopics];
@@ -154,6 +164,8 @@ export const useSettingsStore = defineStore('settings', () => {
   function resetAll() {
     Object.assign(snapshot(), DEFAULTS);
     theme.value = DEFAULTS.theme;
+    displayName.value = DEFAULTS.displayName;
+    role.value = DEFAULTS.role;
     dailyGoal.value = DEFAULTS.dailyGoal;
     level.value = DEFAULTS.level;
     selectedTopics.value = [...DEFAULTS.selectedTopics];
@@ -175,6 +187,8 @@ export const useSettingsStore = defineStore('settings', () => {
   watch(
     [
       theme,
+      displayName,
+      role,
       dailyGoal,
       level,
       selectedTopics,
@@ -200,6 +214,8 @@ export const useSettingsStore = defineStore('settings', () => {
 
   return {
     theme,
+    displayName,
+    role,
     dailyGoal,
     level,
     selectedTopics,

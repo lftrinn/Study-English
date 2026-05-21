@@ -221,29 +221,36 @@ function openDetail(c: Chunk) {
           <div :style="{ fontSize: '11px', color: 'var(--color-text-3)' }">vs. tuần trước</div>
         </div>
       </div>
-      <div :style="{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '120px', padding: '0 4px' }">
+      <div :style="{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '140px', padding: '0 4px' }">
         <div
           v-for="(d, i) in lastWeekStats"
           :key="d.date"
-          :style="{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', height: '100%' }"
+          :style="{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', height: '100%' }"
         >
-          <div
-            :style="{
-              width: '100%',
-              height: `${(d.listenCount / weekMax) * (120 - 24)}px`,
-              minHeight: '4px',
-              background: i === todayIndex ? 'var(--grad-primary)' : 'var(--color-surface-3)',
-              borderRadius: '6px',
-              transition: 'height .4s ease',
-              position: 'relative',
-            }"
-          >
+          <div :style="{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', position: 'relative' }">
             <div
-              v-if="i === todayIndex"
-              :style="{ position: 'absolute', top: '-16px', left: '50%', transform: 'translateX(-50%)', fontSize: '10px', fontWeight: 700, color: 'var(--color-cyan)' }"
+              v-if="i === todayIndex && d.listenCount > 0"
+              :style="{ fontSize: '11px', fontWeight: 700, color: 'var(--color-cyan)', marginBottom: '4px', whiteSpace: 'nowrap' }"
             >{{ d.listenCount }}</div>
+            <div
+              :style="{
+                width: '28px',
+                height: `${Math.max((d.listenCount / weekMax) * 100, d.listenCount > 0 ? 8 : 6)}%`,
+                minHeight: d.listenCount > 0 ? '8px' : '6px',
+                background: i === todayIndex
+                  ? 'var(--grad-primary)'
+                  : d.listenCount > 0
+                    ? 'var(--color-surface-3)'
+                    : 'var(--color-surface-1)',
+                border: i === todayIndex
+                  ? 'none'
+                  : '1px solid var(--color-border-1)',
+                borderRadius: '8px',
+                transition: 'height .4s ease',
+              }"
+            />
           </div>
-          <div :style="{ fontSize: '10px', color: 'var(--color-text-3)', fontWeight: 600 }">
+          <div :style="{ fontSize: '10px', color: i === todayIndex ? 'var(--color-cyan)' : 'var(--color-text-3)', fontWeight: 600 }">
             {{ DAY_LABEL[new Date(d.date).getDay()] }}
           </div>
         </div>

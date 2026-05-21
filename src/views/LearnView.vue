@@ -6,6 +6,7 @@ import { usePracticeStore } from '@/stores/practiceStore';
 import { useChunkStore } from '@/stores/chunkStore';
 import { useProgressStore } from '@/stores/progressStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useUiStore } from '@/stores/uiStore';
 import { speechService } from '@/services/speechService';
 import { answerCheckService } from '@/services/answerCheckService';
 import { distractorService, type ChoiceOption } from '@/services/distractorService';
@@ -35,6 +36,7 @@ const practice = usePracticeStore();
 const chunks = useChunkStore();
 const progress = useProgressStore();
 const settings = useSettingsStore();
+const ui = useUiStore();
 
 const sourceParam = computed(() => (route.query.source as string | undefined) ?? null);
 const titleLabel = computed(() => {
@@ -298,6 +300,10 @@ function exit() {
   else router.replace('/');
 }
 
+function openDetail() {
+  if (current.value) ui.openChunkDetail(current.value.id);
+}
+
 watch(
   () => `${current.value?.id ?? ''}-${currentType.value}`,
   () => {
@@ -325,7 +331,7 @@ watch(
 </script>
 
 <template>
-  <ModeShell title="Learn" :subtitle="subtitle" :on-close="exit">
+  <ModeShell :title="titleLabel" :subtitle="subtitle" :on-close="exit" :on-more="openDetail">
     <template v-if="practice.status === 'active' && current">
       <div :style="{ padding: '0 20px' }">
         <ProgressBar

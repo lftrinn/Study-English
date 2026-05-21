@@ -123,7 +123,7 @@ const subtitle = computed(() => {
 </script>
 
 <template>
-  <ModeShell title="Flashcards" :subtitle="subtitle" :on-close="exitSession">
+  <ModeShell title="Flashcards" :subtitle="subtitle" :on-close="exitSession" :on-more="openDetail">
     <template v-if="practice.status === 'active' && current">
       <!-- Progress + direction -->
       <div :style="{ padding: '0 20px' }">
@@ -188,7 +188,8 @@ const subtitle = computed(() => {
       <div
         :style="{
           flex: 1,
-          padding: '24px 20px',
+          minHeight: 0,
+          padding: '12px 20px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -198,7 +199,7 @@ const subtitle = computed(() => {
       </div>
 
       <!-- Action buttons -->
-      <div :style="{ padding: '0 20px 20px' }">
+      <div :style="{ padding: '0 20px calc(16px + env(safe-area-inset-bottom))', flexShrink: 0 }">
         <div :style="{ display: 'flex', gap: '10px' }">
           <button
             class="btn tap"

@@ -29,6 +29,25 @@ const repeatSheetOpen = ref(false);
 const goalSheetOpen = ref(false);
 const hintSheetOpen = ref(false);
 const confirmClearOpen = ref(false);
+const profileSheetOpen = ref(false);
+const profileDraft = ref({ displayName: '', role: '', level: 'A2' as 'A1' | 'A2' | 'B1' });
+
+function openProfileEdit() {
+  profileDraft.value = {
+    displayName: settings.displayName,
+    role: settings.role,
+    level: settings.level,
+  };
+  profileSheetOpen.value = true;
+}
+function saveProfile() {
+  const name = profileDraft.value.displayName.trim();
+  const role = profileDraft.value.role.trim();
+  settings.displayName = name || 'Bạn';
+  settings.role = role || 'Learner';
+  settings.level = profileDraft.value.level;
+  profileSheetOpen.value = false;
+}
 
 const HINT_POSITION_LABELS: Record<'below' | 'above' | 'inline', string> = {
   below: 'Phía dưới English',
@@ -164,17 +183,18 @@ async function deleteCustom(c: Chunk) {
           fontWeight: 700,
           color: '#0B0F22',
         }"
-      >B</div>
-      <div :style="{ flex: 1 }">
-        <div :style="{ fontSize: '15px', fontWeight: 700 }">Bạn · Frontend Dev</div>
+      >{{ (settings.displayName || 'B').trim().charAt(0).toUpperCase() }}</div>
+      <div :style="{ flex: 1, minWidth: 0 }">
+        <div :style="{ fontSize: '15px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }">{{ settings.displayName }} · {{ settings.role }}</div>
         <div :style="{ fontSize: '12px', color: 'var(--color-text-3)' }">
           Cấp {{ settings.level }} · Mục tiêu {{ settings.dailyGoal }}/ngày · {{ chunks.chunks.length }} chunks
         </div>
       </div>
       <button
         class="btn tap"
-        :style="{ padding: '8px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }"
+        :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)', display: 'grid', placeItems: 'center' }"
         :aria-label="'Sửa hồ sơ'"
+        @click="openProfileEdit"
       >
         <Icon name="edit" :size="16" />
       </button>
@@ -518,44 +538,44 @@ async function deleteCustom(c: Chunk) {
 
     <AppSheet :open="speedSheetOpen" title="Default speed" @close="speedSheetOpen = false">
       <div :style="{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', borderRadius: '12px', background: 'var(--color-surface-1)' }">
-        <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustSpeed(-0.1)">
+        <button class="btn tap stepper-btn" @click="adjustSpeed(-0.1)">
           <Icon name="minus" :size="14" />
         </button>
         <span class="mono" :style="{ fontSize: '24px', fontWeight: 700 }">{{ settings.defaultSpeed.toFixed(2) }}×</span>
-        <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustSpeed(0.1)">
+        <button class="btn tap stepper-btn" @click="adjustSpeed(0.1)">
           <Icon name="plus" :size="14" />
         </button>
       </div>
     </AppSheet>
     <AppSheet :open="gapSheetOpen" title="Gap (ms)" @close="gapSheetOpen = false">
       <div :style="{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', borderRadius: '12px', background: 'var(--color-surface-1)' }">
-        <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustGap(-100)">
+        <button class="btn tap stepper-btn" @click="adjustGap(-100)">
           <Icon name="minus" :size="14" />
         </button>
         <span class="mono" :style="{ fontSize: '24px', fontWeight: 700 }">{{ settings.defaultGap }}</span>
-        <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustGap(100)">
+        <button class="btn tap stepper-btn" @click="adjustGap(100)">
           <Icon name="plus" :size="14" />
         </button>
       </div>
     </AppSheet>
     <AppSheet :open="repeatSheetOpen" title="Lặp mỗi chunk" @close="repeatSheetOpen = false">
       <div :style="{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', borderRadius: '12px', background: 'var(--color-surface-1)' }">
-        <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustRepeat(-1)">
+        <button class="btn tap stepper-btn" @click="adjustRepeat(-1)">
           <Icon name="minus" :size="14" />
         </button>
         <span class="mono" :style="{ fontSize: '24px', fontWeight: 700 }">×{{ settings.defaultRepeatEach }}</span>
-        <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustRepeat(1)">
+        <button class="btn tap stepper-btn" @click="adjustRepeat(1)">
           <Icon name="plus" :size="14" />
         </button>
       </div>
     </AppSheet>
     <AppSheet :open="goalSheetOpen" title="Mục tiêu hàng ngày" @close="goalSheetOpen = false">
       <div :style="{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', borderRadius: '12px', background: 'var(--color-surface-1)' }">
-        <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustGoal(-5)">
+        <button class="btn tap stepper-btn" @click="adjustGoal(-5)">
           <Icon name="minus" :size="14" />
         </button>
         <span class="mono" :style="{ fontSize: '24px', fontWeight: 700 }">{{ settings.dailyGoal }}</span>
-        <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustGoal(5)">
+        <button class="btn tap stepper-btn" @click="adjustGoal(5)">
           <Icon name="plus" :size="14" />
         </button>
       </div>
@@ -597,6 +617,89 @@ async function deleteCustom(c: Chunk) {
       </template>
     </AppSheet>
 
+    <AppSheet :open="profileSheetOpen" title="Sửa hồ sơ" @close="profileSheetOpen = false">
+      <div :style="{ display: 'flex', flexDirection: 'column', gap: '14px' }">
+        <label :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
+          <span :style="{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '.04em' }">Tên hiển thị</span>
+          <input
+            v-model="profileDraft.displayName"
+            type="text"
+            maxlength="40"
+            placeholder="Tên của bạn"
+            :style="{
+              width: '100%',
+              padding: '12px 14px',
+              borderRadius: '12px',
+              background: 'var(--color-surface-1)',
+              border: '1px solid var(--color-border-2)',
+              color: 'var(--color-text-1)',
+              fontSize: '15px',
+              fontFamily: 'inherit',
+              outline: 'none',
+            }"
+          />
+        </label>
+        <label :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
+          <span :style="{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '.04em' }">Vai trò / nghề nghiệp</span>
+          <input
+            v-model="profileDraft.role"
+            type="text"
+            maxlength="40"
+            placeholder="VD: Frontend Dev"
+            :style="{
+              width: '100%',
+              padding: '12px 14px',
+              borderRadius: '12px',
+              background: 'var(--color-surface-1)',
+              border: '1px solid var(--color-border-2)',
+              color: 'var(--color-text-1)',
+              fontSize: '15px',
+              fontFamily: 'inherit',
+              outline: 'none',
+            }"
+          />
+        </label>
+        <div :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
+          <span :style="{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '.04em' }">Cấp độ</span>
+          <div :style="{ display: 'flex', gap: '8px' }">
+            <button
+              v-for="opt in (['A1', 'A2', 'B1'] as const)"
+              :key="opt"
+              class="btn tap"
+              :style="{
+                flex: 1,
+                padding: '12px',
+                borderRadius: '12px',
+                background: profileDraft.level === opt ? 'var(--color-surface-3)' : 'var(--color-surface-1)',
+                border: profileDraft.level === opt ? '1px solid var(--color-cyan)' : '1px solid var(--color-border-1)',
+                fontSize: '14px',
+                fontWeight: 700,
+                color: profileDraft.level === opt ? 'var(--color-text-1)' : 'var(--color-text-2)',
+              }"
+              @click="profileDraft.level = opt"
+            >{{ opt }}</button>
+          </div>
+        </div>
+      </div>
+      <template #actions>
+        <button class="btn tap glass" :style="{ flex: 1, padding: '14px 0', borderRadius: '16px', fontSize: '14px', fontWeight: 700 }" @click="profileSheetOpen = false">Huỷ</button>
+        <button
+          class="btn tap"
+          :style="{
+            flex: 1,
+            padding: '14px 0',
+            borderRadius: '16px',
+            background: 'var(--grad-primary)',
+            color: '#fff',
+            fontSize: '14px',
+            fontWeight: 700,
+            textShadow: '0 1px 1.5px rgba(0,0,0,0.18)',
+          }"
+          @click="saveProfile"
+        >Lưu</button>
+      </template>
+    </AppSheet>
+
     <ChunkFormSheet :open="formOpen" :initial="editingChunk" @close="formOpen = false" />
   </div>
 </template>
@@ -626,5 +729,14 @@ async function deleteCustom(c: Chunk) {
   display: grid;
   place-items: center;
   flex-shrink: 0;
+}
+.stepper-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--color-surface-2);
+  color: var(--color-text-2);
 }
 </style>
