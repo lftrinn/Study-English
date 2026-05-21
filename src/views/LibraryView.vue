@@ -29,6 +29,24 @@ const ui = useUiStore();
 const filterOpen = ref(false);
 const formOpen = ref(false);
 
+function getTabCount(key: LibraryTab): number {
+  switch (key) {
+    case 'starred':
+      return progress.starredCount;
+    case 'learning':
+      return Array.from(progress.progressMap.values()).filter(
+        (p) => p.status === 'learning' || p.status === 'familiar',
+      ).length;
+    case 'mastered':
+      return progress.masteredCount;
+    case 'unheard':
+      return chunks.chunks.filter((c) => !progress.byId(c.id) || progress.byId(c.id)!.listenCount === 0).length;
+    case 'all':
+    default:
+      return chunks.chunks.length;
+  }
+}
+
 const tabs: Array<{ key: LibraryTab; label: string }> = [
   { key: 'all', label: 'Tất cả' },
   { key: 'starred', label: 'Đã sao' },
@@ -136,37 +154,35 @@ function toggleStar(chunk: Chunk) {
 <template>
   <section class="lib">
     <header class="lib__head safe-pt">
-      <div class="lib__title-row">
-        <div>
-          <p class="text-caption text-text-3">Thư viện</p>
-          <h1 class="text-title-2">{{ filteredCount }} chunks</h1>
-        </div>
-        <div class="lib__title-actions">
-          <button class="lib__icon-btn tap" :aria-label="'Tạo chunk mới'" @click="formOpen = true">
-            <Icon name="plus" :size="20" />
-          </button>
-          <button class="lib__icon-btn tap" :aria-label="'Bộ lọc'" @click="filterOpen = true">
-            <Icon name="filter" :size="20" />
-          </button>
-        </div>
+      <div class="lib__title-block">
+        <h1 class="lib__title">Library</h1>
+        <p class="lib__sub">
+          <span class="mono">{{ chunks.chunks.length }}</span> chunks across
+          <span class="mono">{{ chunks.topics.length }}</span> topics
+        </p>
       </div>
 
-      <div class="lib__search glass">
-        <Icon name="search" :size="18" />
-        <input
-          :value="chunks.searchKeyword"
-          type="search"
-          placeholder="Tìm chunk hoặc nghĩa..."
-          aria-label="Tìm kiếm"
-          @input="chunks.setSearch(($event.target as HTMLInputElement).value)"
-        />
-        <button
-          v-if="chunks.searchKeyword"
-          class="lib__search-clear tap"
-          :aria-label="'Xoá tìm kiếm'"
-          @click="chunks.setSearch('')"
-        >
-          <Icon name="close" :size="16" />
+      <div class="lib__search-row">
+        <label class="lib__search glass">
+          <Icon name="search" :size="18" />
+          <input
+            :value="chunks.searchKeyword"
+            type="search"
+            placeholder="Search English or Vietnamese…"
+            aria-label="Tìm kiếm"
+            @input="chunks.setSearch(($event.target as HTMLInputElement).value)"
+          />
+          <button
+            v-if="chunks.searchKeyword"
+            class="lib__search-clear tap"
+            :aria-label="'Xoá'"
+            @click="chunks.setSearch('')"
+          >
+            <Icon name="close" :size="14" />
+          </button>
+        </label>
+        <button class="lib__filter glass tap" :aria-label="'Bộ lọc'" @click="filterOpen = true">
+          <Icon name="filter" :size="18" />
         </button>
       </div>
 
@@ -179,28 +195,39 @@ function toggleStar(chunk: Chunk) {
           @click="setTab(t.key)"
         >
           {{ t.label }}
+          <span class="lib__tab-count mono">{{ getTabCount(t.key) }}</span>
         </button>
       </nav>
 
       <div class="lib__topics no-scrollbar" aria-label="Lọc theo chủ đề">
         <button
-          class="lib__topic-chip tap"
+          class="lib__topic-chip lib__topic-chip--all tap"
           :class="{ 'is-active': chunks.selectedTopic === 'all' }"
           @click="setTopic('all')"
         >
-          Mọi chủ đề
+          All topics
         </button>
         <button
           v-for="t in chunks.topicWithCounts"
           :key="t.id"
           class="lib__topic-chip tap"
           :class="{ 'is-active': chunks.selectedTopic === t.id }"
-          :style="{ '--c': t.color }"
+          :style="{
+            '--c': t.color,
+            background:
+              chunks.selectedTopic === t.id
+                ? `color-mix(in oklch, ${t.color} 32%, transparent)`
+                : 'var(--color-surface-2)',
+            color: chunks.selectedTopic === t.id ? t.color : 'var(--color-text-2)',
+            borderColor:
+              chunks.selectedTopic === t.id
+                ? `color-mix(in oklch, ${t.color} 60%, var(--color-border-1))`
+                : 'var(--color-border-1)',
+          }"
           @click="setTopic(t.id)"
         >
-          <TopicIcon :name="t.id" :size="14" />
+          <TopicIcon :name="t.id" :size="13" />
           <span>{{ t.name }}</span>
-          <span class="lib__topic-count">{{ t.count }}</span>
         </button>
       </div>
     </header>
@@ -323,43 +350,44 @@ function toggleStar(chunk: Chunk) {
 .lib {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding-bottom: 8px;
+  gap: 14px;
+  padding: 56px 0 0;
 }
 .lib__head {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px 16px 0;
+  gap: 14px;
 }
-.lib__title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: max(env(safe-area-inset-top), 12px);
+.lib__title-block {
+  padding: 8px 20px 0;
 }
-.lib__title-actions {
-  display: flex;
-  gap: 8px;
-}
-.lib__icon-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
+.lib__title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--color-text-1);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+}
+.lib__sub {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--color-text-3);
 }
 
+.lib__search-row {
+  display: flex;
+  gap: 8px;
+  padding: 0 20px;
+}
 .lib__search {
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
-  border-radius: 16px;
+  padding: 0 14px;
+  height: 44px;
+  border-radius: var(--radius-lg);
   color: var(--color-text-3);
 }
 .lib__search input {
@@ -367,80 +395,97 @@ function toggleStar(chunk: Chunk) {
   background: transparent;
   border: 0;
   outline: 0;
-  font-size: 15px;
+  font-size: 14px;
+  font-family: inherit;
   color: var(--color-text-1);
 }
 .lib__search input::placeholder {
   color: var(--color-text-3);
 }
 .lib__search-clear {
-  color: var(--color-text-3);
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: var(--color-surface-2);
+  background: var(--color-surface-3);
+  color: var(--color-text-3);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+.lib__filter {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg);
+  display: grid;
+  place-items: center;
+  color: var(--color-text-2);
 }
 
 .lib__tabs {
   display: flex;
   gap: 6px;
+  padding: 0 20px;
   overflow-x: auto;
   scrollbar-width: none;
 }
 .lib__tab {
-  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
   border-radius: 999px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--color-text-2);
+  background: transparent;
+  color: var(--color-text-3);
+  border: 1px solid var(--color-border-1);
   white-space: nowrap;
 }
 .lib__tab.is-active {
-  background: color-mix(in oklch, var(--color-cyan) 18%, transparent);
-  border-color: color-mix(in oklch, var(--color-cyan) 40%, transparent);
-  color: var(--color-cyan);
+  background: var(--color-surface-3);
+  color: var(--color-text-1);
+  border-color: var(--color-border-2);
+}
+.lib__tab-count {
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 .lib__topics {
   display: flex;
   gap: 8px;
+  padding: 0 20px;
   overflow-x: auto;
   scrollbar-width: none;
 }
 .lib__topic-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
+  gap: 5px;
+  padding: 6px 12px;
   border-radius: 999px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-text-2);
   white-space: nowrap;
+  background: var(--color-surface-2);
+  color: var(--color-text-2);
+  border: 1px solid var(--color-border-1);
 }
-.lib__topic-chip.is-active {
-  background: color-mix(in oklch, var(--c, var(--color-cyan)) 18%, transparent);
-  border-color: color-mix(in oklch, var(--c, var(--color-cyan)) 40%, transparent);
-  color: color-mix(in oklch, var(--c, var(--color-cyan)) 90%, white);
+.lib__topic-chip--all {
+  background: var(--color-surface-2);
+  color: var(--color-text-2);
 }
-.lib__topic-count {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  opacity: 0.7;
+.lib__topic-chip--all.is-active {
+  background: var(--grad-primary) !important;
+  color: #0b0f22 !important;
+  border-color: transparent !important;
 }
 
 .lib__actions {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 16px;
+  padding: 4px 20px 0;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -450,13 +495,14 @@ function toggleStar(chunk: Chunk) {
   font-size: 12px;
   color: var(--color-text-3);
   text-decoration: underline;
+  background: transparent;
 }
 
 .lib__list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 0 16px;
+  padding: 12px 20px 0;
 }
 
 /* Filter sheet */

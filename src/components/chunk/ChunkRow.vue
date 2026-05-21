@@ -4,7 +4,6 @@ import type { Chunk } from '@/types/chunk';
 import { useChunkStore } from '@/stores/chunkStore';
 import { useProgressStore } from '@/stores/progressStore';
 import TopicChip from './TopicChip.vue';
-import TopicIcon from './TopicIcon.vue';
 import LevelPill from './LevelPill.vue';
 import Icon from '@/components/common/Icon.vue';
 
@@ -49,23 +48,22 @@ function onStar(e: Event) {
       :aria-label="`Phát: ${chunk.text}`"
       @click="onPlay"
     >
-      <TopicIcon :name="chunk.topic" :size="18" />
-      <span class="chunk-row__play-overlay" aria-hidden="true">
-        <Icon name="play" :size="10" />
-      </span>
+      <Icon name="play" :size="14" />
     </button>
 
     <div class="chunk-row__main">
       <p class="chunk-row__text">{{ chunk.text }}</p>
       <p class="chunk-row__meaning">{{ chunk.meaning }}</p>
       <div v-if="showMeta !== false" class="chunk-row__meta">
-        <TopicChip :topic-id="chunk.topic" size="sm" />
+        <TopicChip :topic-id="chunk.topic" :show-icon="true" size="sm" />
         <LevelPill :level="chunk.level" />
         <span class="chunk-row__count">
-          <Icon name="headphones" :size="12" />
-          {{ listenCount }}
+          <Icon name="headphones" :size="11" />
+          <span class="mono">{{ listenCount }}</span>
         </span>
-        <span class="dot" :class="`dot-${status}`" :aria-label="status" />
+        <span class="chunk-row__status">
+          <span class="dot" :class="`dot-${status}`" :aria-label="status" />
+        </span>
       </div>
     </div>
 
@@ -84,78 +82,57 @@ function onStar(e: Event) {
 <style scoped>
 .chunk-row {
   display: grid;
-  grid-template-columns: 44px 1fr auto;
+  grid-template-columns: 40px 1fr auto;
   gap: 12px;
-  padding: 12px;
-  align-items: center;
+  padding: 12px 14px;
+  align-items: flex-start;
   cursor: pointer;
 }
 
 .chunk-row__play {
-  position: relative;
-  width: 44px;
-  height: 44px;
+  margin-top: 2px;
+  width: 40px;
+  height: 40px;
   border-radius: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   background: linear-gradient(
     135deg,
     color-mix(in oklch, var(--c) 32%, transparent),
-    color-mix(in oklch, var(--c) 14%, transparent)
+    color-mix(in oklch, var(--c) 16%, transparent)
   );
-  border: 1px solid color-mix(in oklch, var(--c) 28%, transparent);
-  color: color-mix(in oklch, var(--c) 90%, white);
+  border: 1px solid color-mix(in oklch, var(--c) 30%, transparent);
+  color: var(--c);
+  flex-shrink: 0;
 }
-.chunk-row__play-overlay {
-  position: absolute;
-  inset: auto -3px -3px auto;
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  background: var(--grad-primary);
-  color: white;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid var(--color-bg-0);
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-.chunk-row:hover .chunk-row__play-overlay,
-.chunk-row__play:focus-visible .chunk-row__play-overlay {
-  opacity: 1;
+.chunk-row__play :deep(svg) {
+  margin-left: 1px;
 }
 
 .chunk-row__main {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 .chunk-row__text {
   margin: 0;
-  font-weight: 700;
-  font-size: 15px;
-  line-height: 1.3;
+  font-weight: 600;
+  font-size: 14.5px;
+  line-height: 1.35;
   color: var(--color-text-1);
-  letter-spacing: -0.01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  letter-spacing: -0.005em;
 }
 .chunk-row__meaning {
-  margin: 0;
-  font-size: 13px;
+  margin: 2px 0 0;
+  font-size: 12.5px;
   line-height: 1.35;
   color: var(--color-text-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .chunk-row__meta {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 8px;
   flex-wrap: wrap;
 }
 .chunk-row__count {
@@ -163,23 +140,23 @@ function onStar(e: Event) {
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  font-weight: 600;
   color: var(--color-text-3);
-  font-family: var(--font-mono);
+}
+.chunk-row__status {
+  display: inline-flex;
+  align-items: center;
 }
 
 .chunk-row__star {
-  align-self: flex-start;
   width: 36px;
   height: 36px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
   color: var(--color-text-3);
   background: transparent;
 }
 .chunk-row__star.is-starred {
-  color: var(--color-amber);
+  color: #fcd34d;
 }
 </style>
