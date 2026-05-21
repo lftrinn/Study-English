@@ -45,12 +45,14 @@ export const usePracticeStore = defineStore('practice', () => {
     userAnswer?: string;
     isCorrect: boolean;
     score?: number;
+    modeOverride?: PracticeMode;
   }) {
-    if (!mode.value) return;
+    const m = opts.modeOverride ?? mode.value;
+    if (!m) return;
     const r: PracticeResult = {
       id: crypto.randomUUID(),
       chunkId: opts.chunkId,
-      mode: mode.value,
+      mode: m,
       prompt: opts.prompt,
       expectedAnswer: opts.expectedAnswer,
       userAnswer: opts.userAnswer,
