@@ -12,6 +12,7 @@ import type { Chunk, ChunkLevel, ChunkSource } from '@/types/chunk';
 
 import ChunkRow from '@/components/chunk/ChunkRow.vue';
 import ChunkFormSheet from '@/components/chunk/ChunkFormSheet.vue';
+import SkelChunkRow from '@/components/chunk/SkelChunkRow.vue';
 import TopicIcon from '@/components/chunk/TopicIcon.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 import AppSheet from '@/components/common/AppSheet.vue';
@@ -251,25 +252,30 @@ function toggleStar(chunk: Chunk) {
     </div>
 
     <div class="lib__list">
-      <ChunkRow
-        v-for="c in chunks.filtered"
-        :key="c.id"
-        :chunk="c"
-        @open="openDetail"
-        @play="playChunk"
-        @toggle-star="toggleStar"
-      />
-      <EmptyState
-        v-if="filteredCount === 0"
-        icon="search"
-        title="Không có chunk nào khớp"
-        hint="Thử bỏ bớt bộ lọc, hoặc đổi từ khoá tìm kiếm."
-      >
-        <AppButton variant="glass" size="sm" @click="clearAll">
-          <Icon name="x" :size="14" />
-          Xoá bộ lọc
-        </AppButton>
-      </EmptyState>
+      <SkelChunkRow v-if="!chunks.loaded" :count="6" />
+
+      <template v-else>
+        <ChunkRow
+          v-for="c in chunks.filtered"
+          :key="c.id"
+          :chunk="c"
+          @open="openDetail"
+          @play="playChunk"
+          @toggle-star="toggleStar"
+        />
+        <EmptyState
+          v-if="filteredCount === 0"
+          icon="search"
+          title="Không có chunk nào khớp"
+          tone="violet"
+          hint="Thử bỏ bớt bộ lọc, hoặc đổi từ khoá tìm kiếm."
+        >
+          <AppButton variant="glass" size="sm" @click="clearAll">
+            <Icon name="x" :size="14" />
+            Xoá bộ lọc
+          </AppButton>
+        </EmptyState>
+      </template>
     </div>
 
     <ChunkFormSheet :open="formOpen" @close="formOpen = false" />

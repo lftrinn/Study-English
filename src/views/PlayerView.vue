@@ -8,6 +8,7 @@ import { useUiStore } from '@/stores/uiStore';
 import { speechService } from '@/services/speechService';
 
 import ChunkCard from '@/components/chunk/ChunkCard.vue';
+import TopicIcon from '@/components/chunk/TopicIcon.vue';
 import PlayerControls from '@/components/player/PlayerControls.vue';
 import AppSheet from '@/components/common/AppSheet.vue';
 import AppButton from '@/components/common/AppButton.vue';
@@ -21,7 +22,12 @@ const ui = useUiStore();
 
 const voiceSheetOpen = ref(false);
 const scrollY = ref(0);
-const compact = computed(() => scrollY.value > 80);
+const compact = computed(() => scrollY.value > 100);
+const topicColor = computed(() => chunks.topicById(player.current?.topic ?? '')?.color ?? '#22D3EE');
+function togglePlay() {
+  if (player.isPlaying && !player.isPaused) player.pause();
+  else void player.play();
+}
 
 const englishVoices = ref<SpeechSynthesisVoice[]>([]);
 
@@ -129,15 +135,36 @@ function playSample() {
       class="player__head safe-pt"
       :class="{ 'is-compact': compact && player.current }"
     >
-      <p class="text-caption text-text-3">Đang phát</p>
-      <div class="player__head-row">
-        <h1 class="text-title-3">{{ player.current?.text ?? 'Chưa có chunk' }}</h1>
-        <div v-if="compact && player.current" class="player__head-waves" aria-hidden="true">
-          <span class="wave-bar" />
-          <span class="wave-bar" />
-          <span class="wave-bar" />
-          <span class="wave-bar" />
+      <!-- Expanded -->
+      <template v-if="!(compact && player.current)">
+        <p class="text-caption text-text-3">Đang phát</p>
+        <div class="player__head-row">
+          <h1 class="text-title-3">{{ player.current?.text ?? 'Chưa có chunk' }}</h1>
         </div>
+      </template>
+
+      <!-- Compact morph (Apple Music style) -->
+      <div v-else class="player__head-compact">
+        <span class="player__head-icon" :style="{ '--c': topicColor }">
+          <TopicIcon :name="player.current!.topic" :size="18" />
+        </span>
+        <span
+          v-if="player.isPlaying && !player.isPaused"
+          class="player__head-waves"
+          aria-hidden="true"
+        >
+          <span class="wave-bar" />
+          <span class="wave-bar" />
+          <span class="wave-bar" />
+          <span class="wave-bar" />
+        </span>
+        <div class="player__head-text">
+          <p class="player__head-title">{{ player.current!.text }}</p>
+          <p class="player__head-sub">{{ player.current!.meaning }}</p>
+        </div>
+        <button class="player__head-play tap" :aria-label="'Phát / Tạm dừng'" @click="togglePlay">
+          <Icon :name="player.isPlaying && !player.isPaused ? 'pause' : 'play'" :size="16" />
+        </button>
       </div>
     </header>
 
@@ -159,54 +186,72 @@ function playSample() {
           <Icon name="voice" :size="16" />
           <span class="player__sub-text">{{ currentVoice }}</span>
         </button>
-        <button class="player__sub-btn tap" :class="{ 'is-active': player.mixVoice }" @click="toggleMixVoice">
-          <Icon name="sparkles" :size="16" />
-          Mix voice
-        </button>
         <span class="player__sub-chip">{{ repeatChip }}</span>
       </div>
 
-      <!-- Tuning controls -->
-      <div class="player__tuning glass">
-        <div class="tuner">
-          <p class="tuner__label">Tốc độ</p>
-          <div class="tuner__row">
-            <button class="tuner__btn tap" :aria-label="'Giảm tốc độ'" @click="changeSpeed(-0.1)">
-              <Icon name="minus" :size="14" />
-            </button>
-            <span class="tuner__value">{{ player.speed.toFixed(1) }}×</span>
-            <button class="tuner__btn tap" :aria-label="'Tăng tốc độ'" @click="changeSpeed(0.1)">
-              <Icon name="plus" :size="14" />
-            </button>
-          </div>
-        </div>
+      <!-- Lab controls -->
+      <section class="lab glass">
+        <header class="lab__head">
+          <span class="lab__head-icon"><Icon name="sparkles" :size="12" /></span>
+          <p class="lab__head-title">Lab controls</p>
+        </header>
 
-        <div class="tuner">
-          <p class="tuner__label">Gap (ms)</p>
-          <div class="tuner__row">
-            <button class="tuner__btn tap" :aria-label="'Giảm gap'" @click="changeGap(-100)">
-              <Icon name="minus" :size="14" />
-            </button>
-            <span class="tuner__value">{{ player.gap }}</span>
-            <button class="tuner__btn tap" :aria-label="'Tăng gap'" @click="changeGap(100)">
-              <Icon name="plus" :size="14" />
-            </button>
+        <div class="lab__grid">
+          <div class="step">
+            <p class="step__label">Speed</p>
+            <div class="step__row">
+              <button class="step__btn tap" :aria-label="'Giảm speed'" @click="changeSpeed(-0.1)">
+                <Icon name="minus" :size="14" />
+              </button>
+              <span class="step__value mono">{{ player.speed.toFixed(1) }}×</span>
+              <button class="step__btn tap" :aria-label="'Tăng speed'" @click="changeSpeed(0.1)">
+                <Icon name="plus" :size="14" />
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div class="tuner">
-          <p class="tuner__label">Lặp mỗi chunk</p>
-          <div class="tuner__row">
-            <button class="tuner__btn tap" :aria-label="'Giảm lặp'" @click="changeRepeatEach(-1)">
-              <Icon name="minus" :size="14" />
-            </button>
-            <span class="tuner__value">×{{ player.repeatEach }}</span>
-            <button class="tuner__btn tap" :aria-label="'Tăng lặp'" @click="changeRepeatEach(1)">
-              <Icon name="plus" :size="14" />
+          <div class="step">
+            <p class="step__label">Gap</p>
+            <div class="step__row">
+              <button class="step__btn tap" :aria-label="'Giảm gap'" @click="changeGap(-100)">
+                <Icon name="minus" :size="14" />
+              </button>
+              <span class="step__value mono">{{ player.gap }}ms</span>
+              <button class="step__btn tap" :aria-label="'Tăng gap'" @click="changeGap(100)">
+                <Icon name="plus" :size="14" />
+              </button>
+            </div>
+          </div>
+
+          <div class="step">
+            <p class="step__label">Lặp mỗi chunk</p>
+            <div class="step__row">
+              <button class="step__btn tap" :aria-label="'Giảm lặp'" @click="changeRepeatEach(-1)">
+                <Icon name="minus" :size="14" />
+              </button>
+              <span class="step__value mono">×{{ player.repeatEach }}</span>
+              <button class="step__btn tap" :aria-label="'Tăng lặp'" @click="changeRepeatEach(1)">
+                <Icon name="plus" :size="14" />
+              </button>
+            </div>
+          </div>
+
+          <div class="toggle">
+            <p class="toggle__label">Mix voice</p>
+            <button
+              class="toggle__btn tap"
+              :class="{ 'is-on': player.mixVoice }"
+              :aria-pressed="player.mixVoice"
+              @click="toggleMixVoice"
+            >
+              <span class="toggle__track">
+                <span class="toggle__thumb" />
+              </span>
+              <span class="toggle__caption">{{ player.mixVoice ? 'On' : 'Off' }}</span>
             </button>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- Queue preview -->
       <section class="player__queue">
@@ -288,7 +333,7 @@ function playSample() {
 .player__head {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   padding-top: max(env(safe-area-inset-top), 12px);
   position: sticky;
   top: 0;
@@ -297,12 +342,15 @@ function playSample() {
   margin: -12px -16px 0;
   padding-left: 16px;
   padding-right: 16px;
-  padding-bottom: 8px;
+  padding-bottom: 10px;
   transition: padding 0.2s ease, background 0.2s ease;
 }
 .player__head.is-compact {
-  background: var(--color-bg-0);
+  background: color-mix(in oklch, var(--color-bg-1) 92%, transparent);
   border-bottom: 1px solid var(--color-border-1);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  padding-bottom: 8px;
 }
 .player__head-row {
   display: flex;
@@ -315,10 +363,65 @@ function playSample() {
   white-space: nowrap;
   flex: 1;
 }
+
+.player__head-compact {
+  display: grid;
+  grid-template-columns: 36px auto 1fr 40px;
+  align-items: center;
+  gap: 10px;
+}
+.player__head-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklch, var(--c) 40%, transparent),
+    color-mix(in oklch, var(--c) 16%, transparent)
+  );
+  color: color-mix(in oklch, var(--c) 90%, white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 .player__head-waves {
   color: var(--color-cyan);
   display: inline-flex;
   align-items: center;
+}
+.player__head-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.player__head-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.player__head-sub {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.player__head-play {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--grad-primary);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px -8px rgba(34, 211, 238, 0.5);
 }
 
 .player__warn {
@@ -372,36 +475,70 @@ function playSample() {
   text-transform: uppercase;
 }
 
-/* Tuning */
-.player__tuning {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  padding: 12px;
+/* Lab controls */
+.lab {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-.tuner {
+.lab__head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-cyan);
+}
+.lab__head-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: color-mix(in oklch, var(--color-cyan) 18%, transparent);
+  border: 1px solid color-mix(in oklch, var(--color-cyan) 35%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.lab__head-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.lab__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.step,
+.toggle {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border-1);
 }
-.tuner__label {
+.step__label,
+.toggle__label {
   margin: 0;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-3);
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text-3);
+  text-transform: uppercase;
 }
-.tuner__row {
+.step__row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
 }
-.tuner__btn {
+.step__btn {
   width: 28px;
   height: 28px;
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--color-surface-2);
   border: 1px solid var(--color-border-1);
   color: var(--color-text-2);
@@ -409,13 +546,57 @@ function playSample() {
   align-items: center;
   justify-content: center;
 }
-.tuner__value {
-  min-width: 48px;
+.step__value {
+  min-width: 0;
   text-align: center;
   font-family: var(--font-mono);
   font-size: 14px;
   font-weight: 700;
   color: var(--color-text-1);
+  flex: 1;
+}
+.toggle__btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--color-text-2);
+}
+.toggle__btn.is-on {
+  color: var(--color-cyan);
+}
+.toggle__track {
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-1);
+  position: relative;
+  transition: background 0.18s ease;
+}
+.toggle__btn.is-on .toggle__track {
+  background: var(--color-cyan);
+  border-color: var(--color-cyan);
+}
+.toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.18s var(--ease-out-soft, cubic-bezier(0.2, 0.8, 0.2, 1));
+}
+.toggle__btn.is-on .toggle__thumb {
+  transform: translateX(16px);
+}
+.toggle__caption {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 /* Queue */
