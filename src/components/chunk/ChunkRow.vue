@@ -4,6 +4,7 @@ import type { Chunk } from '@/types/chunk';
 import { useChunkStore } from '@/stores/chunkStore';
 import { useProgressStore } from '@/stores/progressStore';
 import TopicChip from './TopicChip.vue';
+import TopicIcon from './TopicIcon.vue';
 import LevelPill from './LevelPill.vue';
 import Icon from '@/components/common/Icon.vue';
 
@@ -48,9 +49,9 @@ function onStar(e: Event) {
       :aria-label="`Phát: ${chunk.text}`"
       @click="onPlay"
     >
-      <span class="chunk-row__topic-icon" aria-hidden="true">{{ topic?.emoji ?? '🎧' }}</span>
-      <span class="chunk-row__play-icon">
-        <Icon name="play" :size="14" />
+      <TopicIcon :name="chunk.topic" :size="18" />
+      <span class="chunk-row__play-overlay" aria-hidden="true">
+        <Icon name="play" :size="10" />
       </span>
     </button>
 
@@ -58,10 +59,10 @@ function onStar(e: Event) {
       <p class="chunk-row__text">{{ chunk.text }}</p>
       <p class="chunk-row__meaning">{{ chunk.meaning }}</p>
       <div v-if="showMeta !== false" class="chunk-row__meta">
-        <TopicChip :topic-id="chunk.topic" />
+        <TopicChip :topic-id="chunk.topic" size="sm" />
         <LevelPill :level="chunk.level" />
         <span class="chunk-row__count">
-          <Icon name="ear" :size="12" />
+          <Icon name="headphones" :size="12" />
           {{ listenCount }}
         </span>
         <span class="dot" :class="`dot-${status}`" :aria-label="status" />
@@ -83,7 +84,7 @@ function onStar(e: Event) {
 <style scoped>
 .chunk-row {
   display: grid;
-  grid-template-columns: 56px 1fr auto;
+  grid-template-columns: 44px 1fr auto;
   gap: 12px;
   padding: 12px;
   align-items: center;
@@ -92,33 +93,38 @@ function onStar(e: Event) {
 
 .chunk-row__play {
   position: relative;
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in oklch, var(--c) 18%, transparent);
-  border: 1px solid color-mix(in oklch, var(--c) 30%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklch, var(--c) 32%, transparent),
+    color-mix(in oklch, var(--c) 14%, transparent)
+  );
+  border: 1px solid color-mix(in oklch, var(--c) 28%, transparent);
   color: color-mix(in oklch, var(--c) 90%, white);
 }
-.chunk-row__topic-icon {
-  font-size: 22px;
-  line-height: 1;
-}
-.chunk-row__play-icon {
+.chunk-row__play-overlay {
   position: absolute;
-  right: -4px;
-  bottom: -4px;
-  width: 22px;
-  height: 22px;
+  inset: auto -3px -3px auto;
+  width: 18px;
+  height: 18px;
   border-radius: 999px;
-  background: var(--color-cyan);
-  color: var(--color-bg-0);
+  background: var(--grad-primary);
+  color: white;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 2px solid var(--color-bg-0);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.chunk-row:hover .chunk-row__play-overlay,
+.chunk-row__play:focus-visible .chunk-row__play-overlay {
+  opacity: 1;
 }
 
 .chunk-row__main {

@@ -272,7 +272,7 @@ watch(
     <template v-else-if="current">
       <AppCard variant="glass-strong" padding="lg" class="sp__chunk" :style="{ '--accent': accent }">
         <header class="sp__chunk-head">
-          <TopicChip :topic-id="current.topic" :show-emoji="true" />
+          <TopicChip :topic-id="current.topic" :show-icon="true" />
           <LevelPill :level="current.level" />
         </header>
         <p class="sp__chunk-text">{{ current.text }}</p>

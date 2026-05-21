@@ -71,7 +71,7 @@ function onKey(e: KeyboardEvent) {
 <template>
   <article class="wp glass-strong">
     <header class="wp__head">
-      <TopicChip :topic-id="chunk.topic" :show-emoji="true" />
+      <TopicChip :topic-id="chunk.topic" :show-icon="true" />
       <LevelPill :level="chunk.level" />
     </header>
 

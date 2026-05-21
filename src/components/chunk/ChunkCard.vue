@@ -30,7 +30,7 @@ const accent = computed(() => topic.value?.color ?? '#22D3EE');
     :style="{ '--accent': accent }"
   >
     <div class="chunk-card__head">
-      <TopicChip :topic-id="chunk.topic" :show-emoji="true" />
+      <TopicChip :topic-id="chunk.topic" :show-icon="true" />
       <LevelPill :level="chunk.level" />
       <span class="dot" :class="`dot-${status}`" :aria-label="status" />
     </div>

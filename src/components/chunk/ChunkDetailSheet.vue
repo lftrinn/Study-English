@@ -74,7 +74,7 @@ function fmtDate(iso?: string) {
   <AppSheet :open="open" :title="chunk?.text ?? 'Chunk'" @close="close">
     <div v-if="chunk" class="cd">
       <div class="cd__row">
-        <TopicChip :topic-id="chunk.topic" :show-emoji="true" />
+        <TopicChip :topic-id="chunk.topic" :show-icon="true" />
         <LevelPill :level="chunk.level" />
         <span class="dot" :class="`dot-${p?.status ?? 'new'}`" />
         <span class="cd__status">{{ p?.status ?? 'new' }}</span>

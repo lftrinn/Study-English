@@ -18,6 +18,7 @@ import ProgressRing from '@/components/common/ProgressRing.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 import Icon from '@/components/common/Icon.vue';
 import TopicChip from '@/components/chunk/TopicChip.vue';
+import TopicIcon from '@/components/chunk/TopicIcon.vue';
 
 const router = useRouter();
 const chunks = useChunkStore();
@@ -281,7 +282,7 @@ function playMistakes() {
             :style="{ '--c': t.color }"
             @click="topicId = t.id"
           >
-            <span>{{ t.emoji }}</span>
+            <TopicIcon :name="t.id" :size="14" />
             <span>{{ t.name }}</span>
           </button>
         </div>
@@ -411,7 +412,7 @@ function playMistakes() {
           :key="c.id"
           class="tv__mistake glass"
         >
-          <TopicChip :topic-id="c.topic" :show-emoji="true" />
+          <TopicChip :topic-id="c.topic" :show-icon="true" />
           <div class="tv__mistake-text">
             <p class="tv__mistake-en">{{ c.text }}</p>
             <p class="tv__mistake-vi">{{ c.meaning }}</p>

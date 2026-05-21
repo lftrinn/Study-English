@@ -71,7 +71,7 @@ function onPlay(e: Event) {
     <div class="flip-inner">
       <div class="flip-face flash__face glass-strong">
         <header class="flash__head">
-          <TopicChip :topic-id="chunk.topic" :show-emoji="true" />
+          <TopicChip :topic-id="chunk.topic" :show-icon="true" />
           <LevelPill :level="chunk.level" />
         </header>
         <div class="flash__body">
@@ -87,7 +87,7 @@ function onPlay(e: Event) {
       </div>
       <div class="flip-face flip-back flash__face flash__face--back glass-strong">
         <header class="flash__head">
-          <TopicChip :topic-id="chunk.topic" :show-emoji="true" />
+          <TopicChip :topic-id="chunk.topic" :show-icon="true" />
           <LevelPill :level="chunk.level" />
         </header>
         <div class="flash__body">

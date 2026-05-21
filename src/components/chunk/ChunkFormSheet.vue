@@ -6,6 +6,7 @@ import { useChunkStore } from '@/stores/chunkStore';
 import AppSheet from '@/components/common/AppSheet.vue';
 import AppButton from '@/components/common/AppButton.vue';
 import Icon from '@/components/common/Icon.vue';
+import TopicIcon from './TopicIcon.vue';
 
 const props = defineProps<{
   open: boolean;
@@ -116,7 +117,7 @@ async function save() {
             :style="{ '--c': t.color }"
             @click="topic = t.id"
           >
-            <span>{{ t.emoji }}</span>
+            <TopicIcon :name="t.id" :size="14" />
             <span>{{ t.name }}</span>
           </button>
         </div>

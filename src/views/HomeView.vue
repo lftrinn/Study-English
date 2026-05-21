@@ -14,6 +14,7 @@ import type { Chunk } from '@/types/chunk';
 import AppCard from '@/components/common/AppCard.vue';
 import ProgressRing from '@/components/common/ProgressRing.vue';
 import ChunkRow from '@/components/chunk/ChunkRow.vue';
+import TopicIcon from '@/components/chunk/TopicIcon.vue';
 import Icon from '@/components/common/Icon.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 
@@ -287,7 +288,7 @@ const quickActions = [
           :style="{ '--c': t.color }"
           @click="gotoTopic(t.id)"
         >
-          <span class="home__topic-icon">{{ t.emoji }}</span>
+          <span class="home__topic-icon"><TopicIcon :name="t.id" :size="20" /></span>
           <span class="home__topic-name">{{ t.name }}</span>
           <span class="home__topic-count">{{ t.listened }} / {{ t.total }}</span>
         </button>
@@ -550,8 +551,14 @@ const quickActions = [
   border-color: color-mix(in oklch, var(--c) 28%, transparent);
 }
 .home__topic-icon {
-  font-size: 22px;
-  line-height: 1;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklch, var(--c) 20%, transparent);
+  color: var(--c);
 }
 .home__topic-name {
   font-size: 11px;

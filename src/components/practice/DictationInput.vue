@@ -100,7 +100,7 @@ onMounted(() => {
 <template>
   <article class="dt glass-strong">
     <header class="dt__head">
-      <TopicChip :topic-id="chunk.topic" :show-emoji="true" />
+      <TopicChip :topic-id="chunk.topic" :show-icon="true" />
       <LevelPill :level="chunk.level" />
     </header>
 

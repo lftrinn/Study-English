@@ -13,6 +13,7 @@ import type { Chunk } from '@/types/chunk';
 import AppCard from '@/components/common/AppCard.vue';
 import ProgressRing from '@/components/common/ProgressRing.vue';
 import ChunkRow from '@/components/chunk/ChunkRow.vue';
+import TopicIcon from '@/components/chunk/TopicIcon.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 import AppButton from '@/components/common/AppButton.vue';
 import Icon from '@/components/common/Icon.vue';
@@ -169,7 +170,7 @@ function toggleStar(chunk: Chunk) {
           class="prg__topic glass"
           :style="{ '--c': t.color }"
         >
-          <span class="prg__topic-icon">{{ t.emoji }}</span>
+          <span class="prg__topic-icon"><TopicIcon :name="t.id" :size="18" /></span>
           <div class="prg__topic-info">
             <p class="prg__topic-name">{{ t.name }}</p>
             <p class="prg__topic-count">{{ t.listened }} / {{ t.count }}</p>
@@ -406,11 +407,11 @@ function toggleStar(chunk: Chunk) {
   border-color: color-mix(in oklch, var(--c) 24%, transparent);
 }
 .prg__topic-icon {
-  font-size: 22px;
   width: 36px;
   height: 36px;
   border-radius: 10px;
   background: color-mix(in oklch, var(--c) 18%, transparent);
+  color: var(--c);
   display: inline-flex;
   align-items: center;
   justify-content: center;

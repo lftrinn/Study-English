@@ -12,6 +12,7 @@ import type { Chunk, ChunkLevel, ChunkSource } from '@/types/chunk';
 
 import ChunkRow from '@/components/chunk/ChunkRow.vue';
 import ChunkFormSheet from '@/components/chunk/ChunkFormSheet.vue';
+import TopicIcon from '@/components/chunk/TopicIcon.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 import AppSheet from '@/components/common/AppSheet.vue';
 import AppButton from '@/components/common/AppButton.vue';
@@ -196,7 +197,7 @@ function toggleStar(chunk: Chunk) {
           :style="{ '--c': t.color }"
           @click="setTopic(t.id)"
         >
-          <span>{{ t.emoji }}</span>
+          <TopicIcon :name="t.id" :size="14" />
           <span>{{ t.name }}</span>
           <span class="lib__topic-count">{{ t.count }}</span>
         </button>

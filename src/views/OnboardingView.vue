@@ -8,6 +8,7 @@ import { speechService } from '@/services/speechService';
 
 import AppButton from '@/components/common/AppButton.vue';
 import Icon from '@/components/common/Icon.vue';
+import TopicIcon from '@/components/chunk/TopicIcon.vue';
 import type { ChunkLevel } from '@/types/chunk';
 
 const router = useRouter();
@@ -243,7 +244,7 @@ onMounted(() => {
             :style="{ '--c': t.color }"
             @click="toggleTopic(t.id)"
           >
-            <span class="ob__topic-icon">{{ t.emoji }}</span>
+            <span class="ob__topic-icon"><TopicIcon :name="t.id" :size="20" /></span>
             <span class="ob__topic-name">{{ t.name }}</span>
             <span v-if="topicsLocal.includes(t.id)" class="ob__topic-check">
               <Icon name="check" :size="12" />
@@ -634,10 +635,10 @@ onMounted(() => {
   height: 36px;
   border-radius: 12px;
   background: color-mix(in oklch, var(--c) 20%, transparent);
+  color: var(--c);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
 }
 .ob__topic-name {
   font-size: 13px;

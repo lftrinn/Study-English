@@ -189,7 +189,7 @@ function optionState(opt: ChoiceOption): 'idle' | 'correct' | 'wrong' | 'reveal'
 <template>
   <article class="qq glass-strong">
     <header class="qq__head">
-      <TopicChip :topic-id="chunk.topic" :show-emoji="true" />
+      <TopicChip :topic-id="chunk.topic" :show-icon="true" />
       <LevelPill :level="chunk.level" />
     </header>
 

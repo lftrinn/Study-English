@@ -306,7 +306,7 @@ async function clearAllData() {
           class="set__custom"
         >
           <div class="set__custom-info">
-            <TopicChip :topic-id="c.topic" :show-emoji="true" />
+            <TopicChip :topic-id="c.topic" :show-icon="true" />
             <p class="set__custom-en">{{ c.text }}</p>
             <p class="set__custom-vi">{{ c.meaning }}</p>
           </div>
