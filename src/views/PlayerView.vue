@@ -246,10 +246,10 @@ const upNext = computed(() =>
               color: 'var(--color-text-1)',
               flexShrink: 0,
             }"
-            :aria-label="'Tuỳ chọn'"
+            :aria-label="'Chi tiết chunk'"
             @click="openHeaderMenu"
           >
-            <Icon name="more" :size="20" />
+            <Icon name="message" :size="20" />
           </button>
         </template>
       </div>
