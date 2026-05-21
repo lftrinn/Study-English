@@ -6,6 +6,7 @@ import { useChunkStore } from '@/stores/chunkStore';
 import { useProgressStore } from '@/stores/progressStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { usePlayerStore } from '@/stores/playerStore';
+import { usePracticeStore } from '@/stores/practiceStore';
 import { useUiStore } from '@/stores/uiStore';
 import { playlistService } from '@/services/playlistService';
 import type { Chunk } from '@/types/chunk';
@@ -21,6 +22,7 @@ const chunks = useChunkStore();
 const progress = useProgressStore();
 const settings = useSettingsStore();
 const player = usePlayerStore();
+const practice = usePracticeStore();
 const ui = useUiStore();
 
 const greeting = computed(() => {
@@ -107,6 +109,13 @@ function toeicMini() {
   gotoPlayer(list, 'topic');
 }
 
+function startFlashcards() {
+  const list = playlistService.buildStarred(chunks.chunks, progress.progressMap);
+  const queue = list.length > 0 ? list : chunks.chunks.slice(0, 20);
+  practice.start({ mode: 'flashcard', chunks: queue });
+  router.push('/study/flashcard');
+}
+
 function gotoTopic(topicId: string) {
   chunks.setTopic(topicId);
   router.push('/library');
@@ -127,6 +136,7 @@ const quickActions = [
   { key: 'review', icon: 'flame', label: 'Review yếu', hint: 'Ôn chunk hay sai', run: reviewWeak, color: 'var(--color-rose)' },
   { key: 'interview', icon: 'sparkles', label: 'Interview', hint: 'Luyện phỏng vấn', run: interviewPractice, color: 'var(--color-violet)' },
   { key: 'toeic', icon: 'trophy', label: 'TOEIC mini', hint: 'Test nhanh', run: toeicMini, color: 'var(--color-amber)' },
+  { key: 'flashcard', icon: 'flashcard', label: 'Flashcard', hint: 'Học bằng thẻ', run: startFlashcards, color: 'var(--color-emerald)' },
 ] as const;
 </script>
 
@@ -374,6 +384,16 @@ const quickActions = [
   align-items: flex-start;
   color: color-mix(in oklch, var(--c) 90%, white);
   border-color: color-mix(in oklch, var(--c) 28%, transparent);
+}
+.home__action:nth-child(5) {
+  grid-column: span 2;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+.home__action:nth-child(5) .home__action-icon {
+  width: 38px;
+  height: 38px;
 }
 .home__action-icon {
   width: 32px;

@@ -33,6 +33,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Settings', tab: 'settings' },
   },
   {
+    path: '/study/flashcard',
+    name: 'flashcard',
+    component: () => import('@/views/FlashcardView.vue'),
+    meta: { title: 'Flashcards', tab: null, hideChrome: true },
+  },
+  {
     path: '/onboarding',
     name: 'onboarding',
     component: () => import('@/views/OnboardingView.vue'),

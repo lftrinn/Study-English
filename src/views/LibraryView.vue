@@ -6,6 +6,7 @@ import { useChunkStore } from '@/stores/chunkStore';
 import type { LibraryTab } from '@/stores/chunkStore';
 import { useProgressStore } from '@/stores/progressStore';
 import { usePlayerStore } from '@/stores/playerStore';
+import { usePracticeStore } from '@/stores/practiceStore';
 import { useUiStore } from '@/stores/uiStore';
 import type { Chunk, ChunkLevel, ChunkSource } from '@/types/chunk';
 
@@ -19,6 +20,7 @@ const router = useRouter();
 const chunks = useChunkStore();
 const progress = useProgressStore();
 const player = usePlayerStore();
+const practice = usePracticeStore();
 const ui = useUiStore();
 
 const filterOpen = ref(false);
@@ -75,6 +77,12 @@ function shufflePlayAll() {
   player.setQueue([...chunks.filtered], { mode: 'shuffle' });
   void player.play();
   router.push('/player');
+}
+
+function startFlashcards() {
+  if (chunks.filtered.length === 0) return;
+  practice.start({ mode: 'flashcard', chunks: [...chunks.filtered] });
+  router.push('/study/flashcard');
 }
 
 function openDetail(chunk: Chunk) {
@@ -165,6 +173,10 @@ function toggleStar(chunk: Chunk) {
       <AppButton variant="glass" size="sm" @click="shufflePlayAll">
         <Icon name="shuffle" :size="14" />
         Trộn
+      </AppButton>
+      <AppButton variant="glass" size="sm" @click="startFlashcards">
+        <Icon name="flashcard" :size="14" />
+        Flashcard
       </AppButton>
       <button
         v-if="chunks.searchKeyword || chunks.selectedTopic !== 'all' || chunks.selectedLevel !== 'all' || chunks.selectedSource !== 'all' || chunks.activeTab !== 'all'"
