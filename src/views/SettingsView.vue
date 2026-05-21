@@ -3,24 +3,43 @@ import { computed, onMounted, ref } from 'vue';
 
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useProgressStore } from '@/stores/progressStore';
+import { useChunkStore } from '@/stores/chunkStore';
 import { speechService } from '@/services/speechService';
 import { storageService, type BackupShape } from '@/services/storageService';
+import type { Chunk } from '@/types/chunk';
 
 import AppCard from '@/components/common/AppCard.vue';
 import AppButton from '@/components/common/AppButton.vue';
 import AppSheet from '@/components/common/AppSheet.vue';
+import ChunkFormSheet from '@/components/chunk/ChunkFormSheet.vue';
+import TopicChip from '@/components/chunk/TopicChip.vue';
 import Icon from '@/components/common/Icon.vue';
 
 const settings = useSettingsStore();
 const progress = useProgressStore();
+const chunks = useChunkStore();
 
 const voiceSheetOpen = ref(false);
 const confirmClearOpen = ref(false);
+const formOpen = ref(false);
+const editingChunk = ref<Chunk | undefined>(undefined);
 const englishVoices = ref<SpeechSynthesisVoice[]>([]);
 const fileInput = ref<HTMLInputElement | null>(null);
 const importStatus = ref<{ kind: 'idle' | 'success' | 'error'; message?: string }>({
   kind: 'idle',
 });
+
+function openNewChunk() {
+  editingChunk.value = undefined;
+  formOpen.value = true;
+}
+function openEditChunk(c: Chunk) {
+  editingChunk.value = c;
+  formOpen.value = true;
+}
+async function deleteCustom(c: Chunk) {
+  await chunks.deleteCustomChunkById(c.id);
+}
 
 onMounted(async () => {
   await speechService.ensureVoicesLoaded();
@@ -269,6 +288,40 @@ async function clearAllData() {
       </AppButton>
     </AppCard>
 
+    <!-- Custom chunks -->
+    <AppCard padding="md">
+      <div class="set__row">
+        <div>
+          <p class="set__label">Chunks tự tạo</p>
+          <p class="set__hint">{{ chunks.customChunks.length }} chunk · lưu trong IndexedDB</p>
+        </div>
+        <AppButton variant="primary" size="sm" @click="openNewChunk">
+          <Icon name="plus" :size="14" /> Thêm
+        </AppButton>
+      </div>
+      <div v-if="chunks.customChunks.length > 0" class="set__custom-list">
+        <article
+          v-for="c in chunks.customChunks"
+          :key="c.id"
+          class="set__custom"
+        >
+          <div class="set__custom-info">
+            <TopicChip :topic-id="c.topic" :show-emoji="true" />
+            <p class="set__custom-en">{{ c.text }}</p>
+            <p class="set__custom-vi">{{ c.meaning }}</p>
+          </div>
+          <div class="set__custom-actions">
+            <button class="set__custom-btn tap" :aria-label="'Sửa'" @click="openEditChunk(c)">
+              <Icon name="pencil" :size="14" />
+            </button>
+            <button class="set__custom-btn rose tap" :aria-label="'Xoá'" @click="deleteCustom(c)">
+              <Icon name="trash" :size="14" />
+            </button>
+          </div>
+        </article>
+      </div>
+    </AppCard>
+
     <!-- PWA hint -->
     <AppCard padding="md">
       <p class="set__label">Cài đặt PWA</p>
@@ -277,6 +330,8 @@ async function clearAllData() {
         Android/Desktop Chrome: thanh địa chỉ sẽ hiện nút <strong>Install</strong>.
       </p>
     </AppCard>
+
+    <ChunkFormSheet :open="formOpen" :initial="editingChunk" @close="formOpen = false" />
 
     <!-- About -->
     <AppCard padding="md">
@@ -505,6 +560,66 @@ async function clearAllData() {
   background: color-mix(in oklch, var(--color-rose) 14%, transparent);
   color: var(--color-rose);
   border: 1px solid color-mix(in oklch, var(--color-rose) 35%, transparent);
+}
+
+/* Custom chunks list */
+.set__custom-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.set__custom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border-1);
+}
+.set__custom-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.set__custom-en {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.set__custom-vi {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.set__custom-actions {
+  display: flex;
+  gap: 6px;
+}
+.set__custom-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-1);
+  color: var(--color-text-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.set__custom-btn.rose {
+  color: var(--color-rose);
+  border-color: color-mix(in oklch, var(--color-rose) 30%, transparent);
 }
 
 /* Voices sheet */

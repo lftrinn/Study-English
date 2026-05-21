@@ -11,6 +11,7 @@ import { useUiStore } from '@/stores/uiStore';
 import type { Chunk, ChunkLevel, ChunkSource } from '@/types/chunk';
 
 import ChunkRow from '@/components/chunk/ChunkRow.vue';
+import ChunkFormSheet from '@/components/chunk/ChunkFormSheet.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 import AppSheet from '@/components/common/AppSheet.vue';
 import AppButton from '@/components/common/AppButton.vue';
@@ -24,6 +25,7 @@ const practice = usePracticeStore();
 const ui = useUiStore();
 
 const filterOpen = ref(false);
+const formOpen = ref(false);
 
 const tabs: Array<{ key: LibraryTab; label: string }> = [
   { key: 'all', label: 'Tất cả' },
@@ -102,6 +104,20 @@ function startLearn() {
   router.push('/study/learn');
 }
 
+function startTest() {
+  router.push('/study/test');
+}
+
+function startMatch() {
+  router.push('/study/match');
+}
+
+function startSpeaking() {
+  if (chunks.filtered.length === 0) return;
+  practice.start({ mode: 'speaking', chunks: [...chunks.filtered] });
+  router.push('/study/speaking');
+}
+
 function openDetail(chunk: Chunk) {
   ui.openChunkDetail(chunk.id);
 }
@@ -123,9 +139,14 @@ function toggleStar(chunk: Chunk) {
           <p class="text-caption text-text-3">Thư viện</p>
           <h1 class="text-title-2">{{ filteredCount }} chunks</h1>
         </div>
-        <button class="lib__icon-btn tap" :aria-label="'Bộ lọc'" @click="filterOpen = true">
-          <Icon name="filter" :size="20" />
-        </button>
+        <div class="lib__title-actions">
+          <button class="lib__icon-btn tap" :aria-label="'Tạo chunk mới'" @click="formOpen = true">
+            <Icon name="plus" :size="20" />
+          </button>
+          <button class="lib__icon-btn tap" :aria-label="'Bộ lọc'" @click="filterOpen = true">
+            <Icon name="filter" :size="20" />
+          </button>
+        </div>
       </div>
 
       <div class="lib__search glass">
@@ -207,6 +228,18 @@ function toggleStar(chunk: Chunk) {
         <Icon name="ear" :size="14" />
         Dictation
       </AppButton>
+      <AppButton variant="glass" size="sm" @click="startSpeaking">
+        <Icon name="mic" :size="14" />
+        Speaking
+      </AppButton>
+      <AppButton variant="glass" size="sm" @click="startTest">
+        <Icon name="trophy" :size="14" />
+        Test
+      </AppButton>
+      <AppButton variant="glass" size="sm" @click="startMatch">
+        <Icon name="puzzle" :size="14" />
+        Match
+      </AppButton>
       <button
         v-if="chunks.searchKeyword || chunks.selectedTopic !== 'all' || chunks.selectedLevel !== 'all' || chunks.selectedSource !== 'all' || chunks.activeTab !== 'all'"
         class="lib__clear tap"
@@ -237,6 +270,8 @@ function toggleStar(chunk: Chunk) {
         </AppButton>
       </EmptyState>
     </div>
+
+    <ChunkFormSheet :open="formOpen" @close="formOpen = false" />
 
     <AppSheet :open="filterOpen" title="Bộ lọc" @close="filterOpen = false">
       <div class="filter">
@@ -295,6 +330,10 @@ function toggleStar(chunk: Chunk) {
   align-items: center;
   justify-content: space-between;
   padding-top: max(env(safe-area-inset-top), 12px);
+}
+.lib__title-actions {
+  display: flex;
+  gap: 8px;
 }
 .lib__icon-btn {
   width: 40px;

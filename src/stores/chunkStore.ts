@@ -123,6 +123,21 @@ export const useChunkStore = defineStore('chunks', () => {
     activeTab.value = 'all';
   }
 
+  const customChunks = computed(() => chunks.value.filter((c) => c.source === 'custom'));
+
+  async function upsertCustomChunk(c: Chunk) {
+    const normalized: Chunk = { ...c, source: 'custom' };
+    await storageService.putCustomChunk(normalized);
+    const idx = chunks.value.findIndex((x) => x.id === normalized.id);
+    if (idx >= 0) chunks.value.splice(idx, 1, normalized);
+    else chunks.value.push(normalized);
+  }
+
+  async function deleteCustomChunkById(id: string) {
+    await storageService.deleteCustomChunk(id);
+    chunks.value = chunks.value.filter((c) => c.id !== id);
+  }
+
   return {
     chunks,
     topics,
@@ -134,6 +149,7 @@ export const useChunkStore = defineStore('chunks', () => {
     activeTab,
     topicWithCounts,
     filtered,
+    customChunks,
     loadAll,
     byId,
     topicById,
@@ -144,5 +160,7 @@ export const useChunkStore = defineStore('chunks', () => {
     setSearch,
     setTab,
     clearFilters,
+    upsertCustomChunk,
+    deleteCustomChunkById,
   };
 });

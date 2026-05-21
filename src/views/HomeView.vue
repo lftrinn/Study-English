@@ -137,11 +137,29 @@ function startDictation() {
   router.push('/study/dictation');
 }
 
+function startTest() {
+  router.push('/study/test');
+}
+
+function startMatch() {
+  router.push('/study/match');
+}
+
+function startSpeaking() {
+  const list = playlistService.buildStarred(chunks.chunks, progress.progressMap);
+  const queue = list.length > 0 ? list : chunks.chunks.slice(0, 10);
+  practice.start({ mode: 'speaking', chunks: queue });
+  router.push('/study/speaking');
+}
+
 const studyModes = [
   { key: 'flashcard', icon: 'flashcard', label: 'Flashcard', run: startFlashcards, color: 'var(--color-emerald)' },
   { key: 'learn', icon: 'sparkles', label: 'Learn', run: startLearn, color: 'var(--color-violet)' },
   { key: 'write', icon: 'pencil', label: 'Write', run: startWrite, color: 'var(--color-amber)' },
   { key: 'dictation', icon: 'ear', label: 'Dictation', run: startDictation, color: 'var(--color-cyan)' },
+  { key: 'test', icon: 'trophy', label: 'Test', run: startTest, color: 'var(--color-rose)' },
+  { key: 'match', icon: 'puzzle', label: 'Match', run: startMatch, color: 'var(--color-blue)' },
+  { key: 'speaking', icon: 'mic', label: 'Speaking', run: startSpeaking, color: 'var(--color-orange)' },
 ] as const;
 
 function gotoTopic(topicId: string) {
@@ -437,17 +455,24 @@ const quickActions = [
 
 /* Study modes row */
 .home__modes {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
   gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+.home__modes::-webkit-scrollbar {
+  display: none;
 }
 .home__mode {
-  padding: 12px 8px;
+  padding: 12px 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
   border-color: color-mix(in oklch, var(--c) 28%, transparent);
+  min-width: 78px;
+  flex-shrink: 0;
 }
 .home__mode-icon {
   width: 36px;

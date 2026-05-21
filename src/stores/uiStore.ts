@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, shallowRef } from 'vue';
 
 export type SheetKind =
   | 'none'
@@ -9,10 +9,16 @@ export type SheetKind =
   | 'test-setup'
   | 'session-summary';
 
+export type BeforeInstallPromptEventLike = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+};
+
 export const useUiStore = defineStore('ui', () => {
   const sheet = ref<SheetKind>('none');
   const sheetChunkId = ref<string | null>(null);
   const installPromptVisible = ref(false);
+  const installPromptEvent = shallowRef<BeforeInstallPromptEventLike | null>(null);
   const compactPlayer = ref(false);
 
   function openChunkDetail(chunkId: string) {
@@ -33,16 +39,22 @@ export const useUiStore = defineStore('ui', () => {
   function setInstallPromptVisible(v: boolean) {
     installPromptVisible.value = v;
   }
+  function setInstallPromptEvent(e: BeforeInstallPromptEventLike | null) {
+    installPromptEvent.value = e;
+    installPromptVisible.value = Boolean(e);
+  }
 
   return {
     sheet,
     sheetChunkId,
     installPromptVisible,
+    installPromptEvent,
     compactPlayer,
     openChunkDetail,
     openSheet,
     closeSheet,
     setCompactPlayer,
     setInstallPromptVisible,
+    setInstallPromptEvent,
   };
 });

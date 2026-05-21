@@ -3,6 +3,7 @@ import { computed, watchEffect } from 'vue';
 import { useRoute } from 'vue-router';
 import BottomNav from './BottomNav.vue';
 import ChunkDetailSheet from '@/components/chunk/ChunkDetailSheet.vue';
+import InstallBanner from '@/components/common/InstallBanner.vue';
 import { useSettingsStore } from '@/stores/settingsStore';
 
 const route = useRoute();
@@ -29,6 +30,7 @@ watchEffect(() => {
     </main>
     <BottomNav v-if="!hideChrome" />
     <ChunkDetailSheet />
+    <InstallBanner v-if="!hideChrome" />
   </div>
 </template>
 
