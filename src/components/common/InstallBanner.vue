@@ -59,7 +59,7 @@ function later() {
   position: fixed;
   left: 12px;
   right: 12px;
-  bottom: calc(96px + env(safe-area-inset-bottom));
+  bottom: calc(160px + env(safe-area-inset-bottom));
   z-index: 70;
   padding: 12px 14px;
   border-radius: 18px;

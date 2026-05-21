@@ -12,7 +12,6 @@ import { playlistService } from '@/services/playlistService';
 import type { Chunk } from '@/types/chunk';
 
 import AppCard from '@/components/common/AppCard.vue';
-import ProgressRing from '@/components/common/ProgressRing.vue';
 import ChunkRow from '@/components/chunk/ChunkRow.vue';
 import TopicIcon from '@/components/chunk/TopicIcon.vue';
 import Icon from '@/components/common/Icon.vue';
@@ -193,36 +192,25 @@ const quickActions = [
       <h1 class="text-title-1">Hôm nay nghe gì? 👋</h1>
     </header>
 
-    <!-- Daily goal + streak + total -->
-    <div class="home__top">
-      <AppCard variant="glass-strong" padding="md" class="home__goal">
-        <ProgressRing :value="goalProgress" :size="72" :stroke="8" :show-label="false" />
-        <div class="home__goal-info">
-          <p class="text-caption text-text-3">Mục tiêu hôm nay</p>
-          <p class="home__goal-count">
-            <strong>{{ progress.todayListenCount }}</strong>
-            <span>/ {{ settings.dailyGoal }} chunks</span>
-          </p>
-          <p class="text-small text-text-3">
-            Còn {{ Math.max(0, settings.dailyGoal - progress.todayListenCount) }} chunk để đạt mục tiêu
-          </p>
+    <!-- 3-column stat strip -->
+    <div class="home__strip glass-strong">
+      <div class="home__strip-cell">
+        <p class="home__strip-label">Hôm nay</p>
+        <p class="home__strip-value mono">{{ progress.todayListenCount }}</p>
+        <p class="home__strip-sub">/ {{ settings.dailyGoal }} chunks</p>
+        <div class="home__strip-bar">
+          <div class="home__strip-bar-fill" :style="{ width: `${Math.min(100, goalProgress * 100)}%` }" />
         </div>
-      </AppCard>
-      <div class="home__pair">
-        <AppCard padding="md" class="home__mini">
-          <Icon name="flame" :size="20" />
-          <div>
-            <p class="text-caption text-text-3">Streak</p>
-            <p class="home__big">{{ progress.streakDays }}<span>ngày</span></p>
-          </div>
-        </AppCard>
-        <AppCard padding="md" class="home__mini">
-          <Icon name="ear" :size="20" />
-          <div>
-            <p class="text-caption text-text-3">Đã nghe</p>
-            <p class="home__big">{{ progress.totalListened }}<span>lần</span></p>
-          </div>
-        </AppCard>
+      </div>
+      <div class="home__strip-cell home__strip-cell--center">
+        <span class="home__strip-icon"><Icon name="flame" :size="20" /></span>
+        <p class="home__strip-value mono">{{ progress.streakDays }}</p>
+        <p class="home__strip-sub">ngày streak</p>
+      </div>
+      <div class="home__strip-cell">
+        <p class="home__strip-label">Đã nghe</p>
+        <p class="home__strip-value mono">{{ progress.totalListened }}</p>
+        <p class="home__strip-sub">tổng lần</p>
       </div>
     </div>
 
@@ -347,58 +335,88 @@ const quickActions = [
   color: var(--color-text-3);
 }
 
-/* Top row */
-.home__top {
+/* 3-column stat strip */
+.home__strip {
+  position: relative;
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
+  grid-template-columns: 1fr 1fr 1fr;
+  padding: 18px 16px;
+  border-radius: 22px;
+  overflow: hidden;
 }
-.home__goal {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+.home__strip::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    160px 160px at 100% 0%,
+    color-mix(in oklch, var(--color-cyan) 18%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
 }
-.home__goal-info {
+.home__strip-cell {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+  align-items: flex-start;
+  padding-right: 12px;
 }
-.home__goal-count {
-  margin: 0;
-  font-family: var(--font-ui);
-  font-size: 18px;
-  font-weight: 700;
+.home__strip-cell + .home__strip-cell {
+  border-left: 1px solid var(--color-border-1);
+  padding-left: 14px;
 }
-.home__goal-count strong {
-  font-size: 26px;
-  margin-right: 4px;
-}
-.home__pair {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-.home__mini {
-  display: flex;
+.home__strip-cell--center {
   align-items: center;
-  gap: 10px;
-  color: var(--color-text-2);
+  text-align: center;
 }
-.home__big {
+.home__strip-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--color-amber) 18%, transparent);
+  border: 1px solid color-mix(in oklch, var(--color-amber) 40%, transparent);
+  color: var(--color-amber);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.home__strip-label {
   margin: 0;
-  font-family: var(--font-ui);
-  font-size: 22px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-3);
+}
+.home__strip-value {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
   color: var(--color-text-1);
 }
-.home__big span {
+.home__strip-sub {
+  margin: 0;
   font-size: 11px;
-  font-weight: 600;
-  margin-left: 4px;
   color: var(--color-text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+}
+.home__strip-bar {
+  margin-top: 6px;
+  height: 4px;
+  width: 100%;
+  background: var(--color-surface-1);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.home__strip-bar-fill {
+  height: 100%;
+  background: var(--grad-primary);
+  border-radius: 999px;
+  transition: width 0.35s var(--ease-out-soft, cubic-bezier(0.2, 0.8, 0.2, 1));
 }
 
 /* Continue */
@@ -579,12 +597,4 @@ const quickActions = [
   gap: 8px;
 }
 
-@media (min-width: 480px) {
-  .home__top {
-    grid-template-columns: 1fr 1fr;
-  }
-  .home__pair {
-    grid-template-columns: 1fr;
-  }
-}
 </style>

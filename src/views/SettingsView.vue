@@ -142,6 +142,21 @@ async function clearAllData() {
       <h1 class="text-title-1">Settings</h1>
     </header>
 
+    <!-- Profile card -->
+    <AppCard variant="glass-strong" padding="md" class="set__profile">
+      <span class="set__avatar mono">B</span>
+      <div class="set__profile-info">
+        <p class="set__profile-name">Học viên ẩn danh</p>
+        <p class="set__profile-sub">
+          Cấp độ {{ settings.level }} · {{ chunks.chunks.length }} chunks ·
+          {{ progress.starredCount }} sao
+        </p>
+      </div>
+      <button class="set__profile-edit tap" :aria-label="'Sửa hồ sơ'">
+        <Icon name="edit" :size="16" />
+      </button>
+    </AppCard>
+
     <!-- Theme -->
     <AppCard variant="glass-strong" padding="md">
       <div class="set__row">
@@ -393,6 +408,58 @@ async function clearAllData() {
   gap: 2px;
   padding-top: max(env(safe-area-inset-top), 12px);
   margin-bottom: 6px;
+}
+
+/* Profile card */
+.set__profile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.set__avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--grad-primary);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  box-shadow: 0 12px 24px -10px rgba(34, 211, 238, 0.45);
+}
+.set__profile-info {
+  flex: 1;
+  min-width: 0;
+}
+.set__profile-name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-1);
+}
+.set__profile-sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.set__profile-edit {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-1);
+  color: var(--color-text-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .set__row {

@@ -102,22 +102,35 @@ function toggleStar(chunk: Chunk) {
       <h1 class="text-title-1">Progress</h1>
     </header>
 
-    <!-- Streak + summary -->
-    <div class="prg__top">
-      <AppCard variant="glass-strong" padding="md" class="prg__streak">
-        <Icon name="flame" :size="24" />
-        <div>
+    <!-- Streak hero with amber radial -->
+    <div class="prg__hero glass-strong">
+      <div class="prg__hero-row">
+        <span class="prg__hero-icon">
+          <Icon name="flame" :size="28" />
+        </span>
+        <div class="prg__hero-info">
           <p class="text-caption text-text-3">Streak</p>
-          <p class="prg__big">{{ progress.streakDays }}<span>ngày</span></p>
+          <p class="prg__hero-value mono">
+            {{ progress.streakDays }}<span class="prg__hero-unit">ngày</span>
+          </p>
         </div>
-      </AppCard>
-      <AppCard variant="glass-strong" padding="md" class="prg__streak">
-        <ProgressRing :value="masteredPct" :size="56" :stroke="6" />
-        <div>
-          <p class="text-caption text-text-3">Đã thuộc</p>
-          <p class="prg__big">{{ progress.masteredCount }}<span>/ {{ totalChunks }}</span></p>
+        <div class="prg__hero-mastered">
+          <ProgressRing :value="masteredPct" :size="48" :stroke="5" :show-label="false" />
+          <p class="prg__hero-sub">
+            {{ progress.masteredCount }}<span class="prg__hero-unit">/{{ totalChunks }} đã thuộc</span>
+          </p>
         </div>
-      </AppCard>
+      </div>
+      <div class="prg__hero-days">
+        <span
+          v-for="(d, i) in weekly"
+          :key="d.date"
+          class="prg__hero-day"
+          :class="{ 'is-on': d.listenCount > 0, 'is-today': i === weekly.length - 1 }"
+        >
+          {{ dayLabel[new Date(d.date).getDay()] }}
+        </span>
+      </div>
     </div>
 
     <!-- Stat tiles -->
@@ -287,29 +300,108 @@ function toggleStar(chunk: Chunk) {
   color: var(--color-text-3);
 }
 
-.prg__top {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+.prg__hero {
+  position: relative;
+  padding: 18px;
+  border-radius: 22px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
-.prg__streak {
+.prg__hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    180px 180px at 90% 0%,
+    color-mix(in oklch, var(--color-amber) 18%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+.prg__hero > * {
+  position: relative;
+  z-index: 1;
+}
+.prg__hero-row {
   display: flex;
   align-items: center;
   gap: 14px;
-  color: var(--color-text-2);
 }
-.prg__big {
+.prg__hero-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: var(--grad-warm);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 18px 36px -16px color-mix(in oklch, var(--color-orange) 60%, transparent);
+}
+.prg__hero-info {
+  flex: 1;
+}
+.prg__hero-value {
   margin: 0;
-  font-family: var(--font-ui);
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--color-text-1);
+  line-height: 1;
 }
-.prg__big span {
+.prg__hero-unit {
   font-size: 12px;
-  margin-left: 4px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  margin-left: 6px;
   color: var(--color-text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.prg__hero-mastered {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: right;
+}
+.prg__hero-sub {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-1);
+  line-height: 1.1;
+}
+.prg__hero-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.prg__hero-day {
+  height: 28px;
+  border-radius: 8px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text-3);
+}
+.prg__hero-day.is-on {
+  background: color-mix(in oklch, var(--color-amber) 18%, transparent);
+  border-color: color-mix(in oklch, var(--color-amber) 40%, transparent);
+  color: var(--color-amber);
+}
+.prg__hero-day.is-today {
+  background: color-mix(in oklch, var(--color-cyan) 18%, transparent);
+  border-color: color-mix(in oklch, var(--color-cyan) 45%, transparent);
+  color: var(--color-cyan);
 }
 
 .prg__tiles {

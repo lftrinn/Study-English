@@ -4,12 +4,18 @@ import { useRoute } from 'vue-router';
 import BottomNav from './BottomNav.vue';
 import ChunkDetailSheet from '@/components/chunk/ChunkDetailSheet.vue';
 import InstallBanner from '@/components/common/InstallBanner.vue';
+import MiniPlayer from '@/components/player/MiniPlayer.vue';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { usePlayerStore } from '@/stores/playerStore';
 
 const route = useRoute();
 const settings = useSettingsStore();
+const player = usePlayerStore();
 
 const hideChrome = computed(() => Boolean(route.meta?.hideChrome));
+const hasMini = computed(
+  () => !hideChrome.value && Boolean(player.current) && route.name !== 'player',
+);
 
 watchEffect(() => {
   if (typeof document !== 'undefined') {
@@ -26,8 +32,14 @@ watchEffect(() => {
           <component :is="Component" />
         </transition>
       </router-view>
-      <div v-if="!hideChrome" class="tabbar-spacer" aria-hidden="true" />
+      <div
+        v-if="!hideChrome"
+        class="tabbar-spacer"
+        :class="{ 'tabbar-spacer--mini': hasMini }"
+        aria-hidden="true"
+      />
     </main>
+    <MiniPlayer v-if="!hideChrome" />
     <BottomNav v-if="!hideChrome" />
     <ChunkDetailSheet />
     <InstallBanner v-if="!hideChrome" />
@@ -53,8 +65,12 @@ watchEffect(() => {
 }
 
 .tabbar-spacer {
-  height: calc(88px + env(safe-area-inset-bottom));
+  height: calc(96px + env(safe-area-inset-bottom));
   flex-shrink: 0;
+  transition: height 0.2s ease;
+}
+.tabbar-spacer--mini {
+  height: calc(160px + env(safe-area-inset-bottom));
 }
 
 .fade-enter-active,

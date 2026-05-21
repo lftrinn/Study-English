@@ -60,6 +60,7 @@ const label = computed(() => `${Math.round(pct.value * 100)}%`);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-shadow: none;
 }
 .ring__label {
   position: absolute;
