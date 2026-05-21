@@ -12,11 +12,10 @@ import { answerCheckService } from '@/services/answerCheckService';
 import type { Chunk } from '@/types/chunk';
 import type { AnswerCheckResult } from '@/types/practice';
 
-import AppCard from '@/components/common/AppCard.vue';
-import AppButton from '@/components/common/AppButton.vue';
+import ModeShell from '@/components/layout/ModeShell.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
-import TopicChip from '@/components/chunk/TopicChip.vue';
-import LevelPill from '@/components/chunk/LevelPill.vue';
+import ProgressBar from '@/components/common/ProgressBar.vue';
+import ProgressRing from '@/components/common/ProgressRing.vue';
 import Icon from '@/components/common/Icon.vue';
 
 const router = useRouter();
@@ -44,23 +43,35 @@ const WAVE_BARS = 28;
 const current = computed<Chunk | undefined>(() => practice.current);
 const accent = computed(() => chunks.topicById(current.value?.topic ?? '')?.color ?? '#22D3EE');
 
-const progressPct = computed(() => practice.progressPct);
-
-const elapsedLabel = computed(() => {
-  const s = elapsedMs.value / 1000;
-  return s.toFixed(1);
-});
+const elapsedSec = computed(() => elapsedMs.value / 1000);
 
 const overallScore = computed(() => {
   if (!result.value) return 0;
   return Math.round(result.value.score * 100);
 });
-
 const scoreColor = computed(() => {
   const s = overallScore.value;
   if (s >= 85) return 'var(--color-emerald)';
   if (s >= 70) return 'var(--color-amber)';
   return 'var(--color-rose)';
+});
+
+const wordScores = computed(() => {
+  if (!result.value) return [] as Array<{ token: string; score: number; status: string }>;
+  return result.value.diff.map((d) => {
+    let score = 0;
+    if (d.status === 'match') score = 95;
+    else if (d.status === 'missing') score = 0;
+    else score = 55;
+    return { token: d.token, score, status: d.status };
+  });
+});
+
+const summaryHeadline = computed(() => {
+  const s = overallScore.value;
+  if (s >= 85) return 'Great attempt';
+  if (s >= 70) return 'Almost there';
+  return 'Keep trying';
 });
 
 function startSession() {
@@ -71,7 +82,8 @@ function startSession() {
 function exit() {
   abort();
   practice.reset();
-  router.replace('/');
+  if (window.history.length > 1) router.back();
+  else router.replace('/');
 }
 
 async function playTarget() {
@@ -83,7 +95,7 @@ async function playTarget() {
       rate: settings.defaultSpeed,
     });
   } catch {
-    // ignore
+    /* ignore */
   }
 }
 
@@ -110,9 +122,7 @@ function startRecording() {
     },
     onEnd: () => {
       stopElapsed();
-      if (phase.value === 'recording') {
-        evaluate();
-      }
+      if (phase.value === 'recording') evaluate();
     },
   });
 
@@ -195,21 +205,11 @@ function tryAgain() {
 
 function waveHeight(i: number): number {
   if (phase.value !== 'recording') return 0.3;
-  const sec = elapsedMs.value / 1000;
-  // Simulated waveform based on time and bar index
-  return 0.4 + 0.6 * Math.abs(Math.sin(sec * 5 + i * 0.6));
+  const sec = elapsedSec.value;
+  // Sin-based pseudo-random heights — matches design's
+  // `Math.sin(elapsed * 6 + i * 0.6)` mock waveform.
+  return 0.4 + 0.6 * Math.abs(Math.sin(sec * 6 + i * 0.6));
 }
-
-const wordScores = computed(() => {
-  if (!result.value) return [];
-  return result.value.diff.map((d) => {
-    let score = 0;
-    if (d.status === 'match') score = 95;
-    else if (d.status === 'missing') score = 0;
-    else score = 55;
-    return { token: d.token, score, status: d.status };
-  });
-});
 
 onMounted(() => {
   if (practice.status !== 'active' && chunks.chunks.length > 0) {
@@ -228,169 +228,204 @@ watch(
     result.value = null;
   },
 );
+
+const subtitle = computed(() => {
+  if (practice.total === 0) return undefined;
+  return `${Math.min(practice.index + 1, practice.total)} / ${practice.total}`;
+});
 </script>
 
 <template>
-  <section class="sp">
-    <header class="sp__head safe-pt">
-      <button class="sp__icon tap" :aria-label="'Quay lại'" @click="exit">
-        <Icon name="chevron-left" :size="20" />
-      </button>
-      <div class="sp__head-info">
-        <p class="text-caption text-text-3">Speaking</p>
-        <p class="sp__counter">
-          {{ Math.min(practice.index + 1, practice.total) }} / {{ practice.total }}
-        </p>
-      </div>
-      <button
-        class="sp__icon tap"
-        :aria-label="'Nghe mẫu'"
-        :disabled="!current"
-        @click="playTarget"
-      >
-        <Icon name="volume" :size="18" />
-      </button>
-    </header>
-
-    <div class="sp__bar">
-      <div class="sp__bar-fill" :style="{ width: `${progressPct}%` }" />
-    </div>
-
+  <ModeShell title="Speaking Lab" :subtitle="subtitle" :on-close="exit">
     <template v-if="!supported">
       <EmptyState
         icon="mic"
         title="Trình duyệt không hỗ trợ Speech Recognition"
-        hint="Hãy thử trên Chrome/Edge/Safari trên iOS để dùng Speaking mode. Bạn vẫn có thể nghe và lặp lại thủ công."
+        hint="Hãy thử trên Chrome/Edge/Safari iOS. Bạn vẫn có thể nghe và lặp lại thủ công."
       >
-        <AppButton variant="primary" size="md" @click="playTarget">
-          <Icon name="volume" :size="14" />
-          Nghe mẫu
-        </AppButton>
+        <button class="sp__cta tap" @click="playTarget">
+          <Icon name="volume" :size="14" /> Nghe mẫu
+        </button>
       </EmptyState>
     </template>
 
     <template v-else-if="current">
-      <AppCard variant="glass-strong" padding="lg" class="sp__chunk" :style="{ '--accent': accent }">
-        <header class="sp__chunk-head">
-          <TopicChip :topic-id="current.topic" :show-icon="true" />
-          <LevelPill :level="current.level" />
-        </header>
-        <p class="sp__chunk-text">{{ current.text }}</p>
-        <p class="sp__chunk-meaning">{{ current.meaning }}</p>
-      </AppCard>
-
-      <!-- Idle -->
-      <div v-if="phase === 'idle'" class="sp__stage">
-        <div class="sp__visual" :style="{ '--accent': accent }">
-          <button
-            class="sp__mic tap"
-            :aria-label="'Bắt đầu ghi âm'"
-            @click="startRecording"
-          >
-            <Icon name="mic" :size="34" />
-          </button>
-        </div>
-        <p class="sp__hint">Tap để ghi âm — đọc to câu phía trên</p>
-        <AppButton variant="glass" size="md" @click="playTarget">
-          <Icon name="volume" :size="14" />
-          Nghe mẫu trước
-        </AppButton>
+      <div :style="{ padding: '0 20px' }">
+        <ProgressBar
+          :value="Math.min(practice.index + 1, practice.total)"
+          :max="practice.total"
+          :height="4"
+        />
       </div>
 
-      <!-- Recording -->
-      <div v-else-if="phase === 'recording'" class="sp__stage">
-        <div class="sp__rec-visual">
-          <span class="sp__rec-ring" />
-          <span class="sp__rec-ring" />
-          <span class="sp__rec-ring" />
-          <button class="sp__rec-mic tap" :aria-label="'Dừng ghi âm'" @click="stopRecording">
-            <Icon name="mic" :size="34" />
-          </button>
+      <div class="sp__body">
+        <!-- Target card -->
+        <div
+          class="sp__target"
+          :style="{
+            background: `linear-gradient(160deg, color-mix(in oklch, ${accent} 22%, transparent), color-mix(in oklch, ${accent} 6%, transparent))`,
+            border: `1px solid color-mix(in oklch, ${accent} 26%, transparent)`,
+          }"
+        >
+          <header class="sp__target-head">
+            <span class="sp__target-label" :style="{ color: accent }">Repeat after me</span>
+            <button
+              class="sp__icon-btn tap"
+              :aria-label="'Phát mẫu'"
+              @click="playTarget"
+            >
+              <Icon name="play" :size="14" />
+            </button>
+          </header>
+          <p class="sp__target-text">{{ current.text }}</p>
+          <p v-if="current.phonetic" class="sp__phonetic mono">{{ current.phonetic }}</p>
+          <p class="sp__meaning">{{ current.meaning }}</p>
         </div>
 
-        <div class="sp__wave">
-          <span
-            v-for="i in WAVE_BARS"
-            :key="`bar-${i}`"
-            class="sp__wave-bar"
-            :style="{ height: `${waveHeight(i) * 100}%` }"
-          />
-        </div>
+        <!-- Stage -->
+        <div class="sp__stage">
+          <!-- Idle -->
+          <div v-if="phase === 'idle'" class="sp__visual-block">
+            <div
+              class="sp__idle-circle"
+              :style="{
+                background: `linear-gradient(135deg, color-mix(in oklch, ${accent} 25%, transparent), color-mix(in oklch, ${accent} 8%, transparent))`,
+                borderColor: `color-mix(in oklch, ${accent} 30%, transparent)`,
+                color: accent,
+              }"
+            >
+              <Icon name="mic" :size="52" />
+            </div>
+            <p class="sp__idle-hint">
+              Tap the button below to start.<br />
+              Recording happens locally — nothing leaves your device.
+            </p>
+          </div>
 
-        <div class="sp__rec-meta">
-          <span class="sp__rec-dot" />
-          <span class="sp__rec-text">Đang ghi</span>
-          <span class="sp__rec-timer mono">{{ elapsedLabel }}s</span>
-        </div>
+          <!-- Recording -->
+          <div v-else-if="phase === 'recording'" class="sp__visual-block">
+            <div class="sp__rec-wrap">
+              <span
+                v-for="i in 3"
+                :key="`ring-${i}`"
+                class="sp__rec-ring"
+                :style="{
+                  borderColor: `color-mix(in oklch, ${accent} 50%, transparent)`,
+                  animationDelay: `${(i - 1) * 0.7}s`,
+                }"
+              />
+              <div
+                class="sp__rec-core"
+                :style="{
+                  background: `linear-gradient(135deg, ${accent}, color-mix(in oklch, ${accent} 60%, var(--color-violet)))`,
+                  boxShadow: `0 0 60px color-mix(in oklch, ${accent} 50%, transparent)`,
+                }"
+              >
+                <Icon name="mic" :size="48" />
+              </div>
+            </div>
 
-        <AppButton variant="danger" size="md" @click="stopRecording">
-          <Icon name="stop" :size="14" />
-          Dừng & kiểm tra
-        </AppButton>
-      </div>
+            <div class="sp__wave">
+              <span
+                v-for="i in WAVE_BARS"
+                :key="`bar-${i}`"
+                class="sp__wave-bar"
+                :style="{
+                  height: `${waveHeight(i) * 100}%`,
+                  background: accent,
+                }"
+              />
+            </div>
 
-      <!-- Result -->
-      <div v-else class="sp__stage">
-        <div class="sp__result-ring" :style="{ '--score-color': scoreColor }">
-          <svg viewBox="0 0 110 110" class="sp__result-svg">
-            <circle cx="55" cy="55" r="48" stroke="rgba(255,255,255,0.08)" stroke-width="8" fill="none" />
-            <circle
-              cx="55"
-              cy="55"
-              r="48"
-              :stroke="scoreColor"
-              stroke-width="8"
-              fill="none"
-              stroke-linecap="round"
-              :stroke-dasharray="`${(overallScore / 100) * 2 * Math.PI * 48} ${2 * Math.PI * 48}`"
-              transform="rotate(-90 55 55)"
-              style="transition: stroke-dasharray 0.4s ease"
-            />
-          </svg>
-          <div class="sp__result-inner">
-            <span class="sp__result-pct">{{ overallScore }}%</span>
-            <span class="sp__result-label">accuracy</span>
+            <p class="sp__rec-meta mono">
+              Listening…
+              <span class="sp__rec-dot" :style="{ background: accent }" />
+              {{ elapsedSec.toFixed(1) }}s
+            </p>
+          </div>
+
+          <!-- Result -->
+          <div v-else class="sp__result-block">
+            <div class="sp__result-row">
+              <ProgressRing
+                :value="overallScore / 100"
+                :size="110"
+                :stroke="9"
+                :color="scoreColor"
+                :show-label="false"
+              />
+              <div class="sp__result-ring-inner">
+                <span class="sp__result-pct mono">{{ overallScore }}</span>
+                <span class="sp__result-pct-label">Score</span>
+              </div>
+              <div class="sp__result-text">
+                <span class="sp__result-headline" :style="{ color: scoreColor }">
+                  {{ summaryHeadline }}
+                </span>
+                <p class="sp__result-stats">
+                  Pronunciation:
+                  <b>{{ overallScore >= 85 ? 'strong' : overallScore >= 70 ? 'okay' : 'needs work' }}</b><br />
+                  Pacing: <b>natural</b><br />
+                  Stress:
+                  <b :style="{ color: 'var(--color-amber)' }">{{ overallScore >= 85 ? 'even' : 'uneven' }}</b>
+                </p>
+              </div>
+            </div>
+
+            <div class="sp__words-card">
+              <div class="sp__words-label">Word-by-word</div>
+              <div class="sp__words">
+                <span
+                  v-for="(w, idx) in wordScores"
+                  :key="`w-${idx}-${w.token}`"
+                  class="sp__word mono"
+                  :style="{
+                    color: w.score >= 85 ? '#34D399' : w.score >= 70 ? '#F59E0B' : '#FB7185',
+                    background: `color-mix(in oklch, ${w.score >= 85 ? '#34D399' : w.score >= 70 ? '#F59E0B' : '#FB7185'} 16%, transparent)`,
+                    borderColor: `color-mix(in oklch, ${w.score >= 85 ? '#34D399' : w.score >= 70 ? '#F59E0B' : '#FB7185'} 30%, transparent)`,
+                  }"
+                >
+                  {{ w.token }} <span class="sp__word-score">{{ w.score }}</span>
+                </span>
+              </div>
+              <div v-if="overallScore < 85" class="sp__tip">
+                Tip: lặp từng cụm nhỏ trước khi đọc cả câu, nhấn vào trọng âm chính.
+              </div>
+            </div>
+
+            <p v-if="recognized" class="sp__heard">
+              <span class="sp__heard-label">You said</span>
+              {{ recognized }}
+            </p>
           </div>
         </div>
 
-        <p class="sp__heard">
-          <span class="sp__heard-label">Bạn đã nói</span>
-          {{ recognized || '(không nhận diện được)' }}
-        </p>
+        <div v-if="errorMsg" class="sp__err">
+          Speech recognition lỗi: <strong>{{ errorMsg }}</strong>. Hãy thử lại.
+        </div>
 
-        <div v-if="wordScores.length > 0" class="sp__words">
-          <span
-            v-for="(w, idx) in wordScores"
-            :key="`w-${idx}-${w.token}`"
-            class="sp__word"
-            :class="`is-${w.status}`"
+        <!-- Action row -->
+        <div class="sp__actions">
+          <button
+            v-if="phase === 'idle'"
+            class="sp__cta tap"
+            @click="startRecording"
           >
-            {{ w.token }}
-          </span>
+            <Icon name="mic" :size="18" /> Tap to record
+          </button>
+          <button
+            v-else-if="phase === 'recording'"
+            class="sp__cta sp__cta-stop tap"
+            @click="stopRecording"
+          >
+            <span class="sp__stop-square" />
+            Stop · <span class="mono">{{ elapsedSec.toFixed(1) }}s</span>
+          </button>
+          <template v-else>
+            <button class="sp__cta-secondary tap" @click="tryAgain">Try again</button>
+            <button class="sp__cta tap" @click="next">Next chunk →</button>
+          </template>
         </div>
-
-        <p
-          v-if="overallScore < 70"
-          class="sp__tip"
-        >
-          <Icon name="sparkles" :size="14" />
-          Mẹo: nghe lại mẫu rồi đọc theo từng cụm nhỏ trước khi đọc cả câu.
-        </p>
-
-        <div class="sp__result-actions">
-          <AppButton variant="glass" size="md" block @click="tryAgain">
-            <Icon name="mic" :size="14" />
-            Thử lại
-          </AppButton>
-          <AppButton variant="primary" size="md" block @click="next">
-            <Icon name="arrow-right" :size="14" />
-            Chunk tiếp theo
-          </AppButton>
-        </div>
-      </div>
-
-      <div v-if="errorMsg && supported" class="sp__err">
-        Speech recognition lỗi: <strong>{{ errorMsg }}</strong>. Hãy thử lại.
       </div>
     </template>
 
@@ -400,281 +435,270 @@ watch(
       title="Chưa có chunk để luyện nói"
       hint="Mở Library, lọc chủ đề rồi quay lại."
     >
-      <AppButton variant="primary" size="md" @click="startSession">
-        <Icon name="mic" :size="14" />
-        Bắt đầu phiên Speaking
-      </AppButton>
+      <button class="sp__cta tap" @click="startSession">
+        <Icon name="mic" :size="14" /> Bắt đầu Speaking
+      </button>
     </EmptyState>
-  </section>
+  </ModeShell>
 </template>
 
 <style scoped>
-.sp {
-  padding: 12px 16px 32px;
+.sp__body {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  min-height: 100vh;
-  min-height: 100dvh;
-}
-.sp__head {
-  display: grid;
-  grid-template-columns: 40px 1fr 40px;
-  align-items: center;
-  gap: 10px;
-  padding-top: max(env(safe-area-inset-top), 8px);
-}
-.sp__icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-1);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.sp__head-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.sp__counter {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 700;
-}
-.sp__bar {
-  height: 6px;
-  background: var(--color-surface-1);
-  border-radius: 999px;
-  overflow: hidden;
-}
-.sp__bar-fill {
-  height: 100%;
-  background: var(--grad-primary);
-  transition: width 0.3s var(--ease-out-soft, cubic-bezier(0.2, 0.8, 0.2, 1));
+  padding: 8px 20px 0;
+  gap: 18px;
+  min-height: 0;
 }
 
-/* Chunk card */
-.sp__chunk {
-  position: relative;
+/* Target card */
+.sp__target {
+  padding: 18px;
+  border-radius: 20px;
+}
+.sp__target-head {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow: hidden;
+  align-items: center;
+  justify-content: space-between;
 }
-.sp__chunk::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(120% 70% at 0% 0%, color-mix(in oklch, var(--accent) 22%, transparent), transparent 55%);
-  pointer-events: none;
-}
-.sp__chunk > * {
-  position: relative;
-  z-index: 1;
-}
-.sp__chunk-head {
-  display: flex;
-  gap: 8px;
-}
-.sp__chunk-text {
-  margin: 6px 0 0;
-  font-size: 20px;
+.sp__target-label {
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: -0.015em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.sp__icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: var(--color-surface-3);
+  color: var(--color-text-1);
+  display: grid;
+  place-items: center;
+}
+.sp__target-text {
+  margin: 14px 0 0;
+  font-size: 24px;
+  font-weight: 700;
   line-height: 1.25;
+  letter-spacing: -0.01em;
   color: var(--color-text-1);
 }
-.sp__chunk-meaning {
-  margin: 0;
-  font-size: 13px;
+.sp__phonetic {
+  margin: 8px 0 0;
+  font-size: 12px;
   color: var(--color-text-3);
 }
+.sp__meaning {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--color-text-2);
+}
 
+/* Stage */
 .sp__stage {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  text-align: center;
+  justify-content: center;
+  padding: 16px 0;
+  min-height: 0;
 }
 
-/* Idle visual */
-.sp__visual {
+.sp__visual-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  width: 100%;
+}
+
+/* Idle */
+.sp__idle-circle {
   width: 130px;
   height: 130px;
   border-radius: 50%;
-  background:
-    radial-gradient(120% 70% at 30% 30%, color-mix(in oklch, var(--accent) 40%, transparent), transparent 60%),
-    var(--color-surface-2);
-  border: 1px solid color-mix(in oklch, var(--accent) 35%, transparent);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  border: 1px solid transparent;
+  display: grid;
+  place-items: center;
 }
-.sp__mic {
-  width: 76px;
-  height: 76px;
-  border-radius: 50%;
-  background: var(--grad-primary);
-  color: white;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 16px 36px -14px rgba(34, 211, 238, 0.6);
-}
-.sp__hint {
+.sp__idle-hint {
   margin: 0;
   font-size: 13px;
   color: var(--color-text-3);
+  line-height: 1.5;
+  max-width: 280px;
 }
 
-/* Recording visual */
-.sp__rec-visual {
+/* Recording */
+.sp__rec-wrap {
   position: relative;
-  width: 160px;
-  height: 160px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  width: 130px;
+  height: 130px;
 }
 .sp__rec-ring {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 2px solid color-mix(in oklch, var(--color-rose) 60%, transparent);
-  animation: recPulse 2.2s ease-out infinite;
+  border: 1.5px solid;
+  animation: spRecPulse 2s ease-out infinite;
 }
-.sp__rec-ring:nth-child(2) {
-  animation-delay: 0.6s;
+@keyframes spRecPulse {
+  0%   { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(1.7); opacity: 0; }
 }
-.sp__rec-ring:nth-child(3) {
-  animation-delay: 1.2s;
-}
-@keyframes recPulse {
-  0% {
-    opacity: 0.6;
-    transform: scale(0.6);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(1.2);
-  }
-}
-.sp__rec-mic {
-  width: 84px;
-  height: 84px;
+.sp__rec-core {
+  position: absolute;
+  inset: 14px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-rose) 0%, #ef4444 100%);
-  color: white;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1;
-  box-shadow: 0 18px 40px -16px color-mix(in oklch, var(--color-rose) 60%, transparent);
+  display: grid;
+  place-items: center;
+  color: #fff;
 }
 
 .sp__wave {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 3px;
-  height: 56px;
+  height: 60px;
   width: 100%;
   max-width: 320px;
-  justify-content: center;
 }
 .sp__wave-bar {
-  display: inline-block;
-  width: 4px;
+  width: 3.5px;
   min-height: 6px;
-  background: color-mix(in oklch, var(--color-cyan) 80%, white);
-  border-radius: 4px;
-  transition: height 0.12s ease;
+  border-radius: 2px;
+  transition: height 0.08s linear;
 }
 
 .sp__rec-meta {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
+  font-size: 11px;
+  color: var(--color-text-3);
 }
 .sp__rec-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-rose);
-  animation: recDot 1.4s ease-in-out infinite;
+  animation: spRecDot 1.4s ease-in-out infinite;
 }
-@keyframes recDot {
+@keyframes spRecDot {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
 }
-.sp__rec-text {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-cyan);
-}
-.sp__rec-timer {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-text-3);
-  font-family: var(--font-mono);
-}
 
 /* Result */
-.sp__result-ring {
+.sp__result-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+.sp__result-row {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.sp__result-ring-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
   width: 110px;
   height: 110px;
-}
-.sp__result-svg {
-  width: 100%;
-  height: 100%;
-}
-.sp__result-inner {
-  position: absolute;
-  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  pointer-events: none;
 }
 .sp__result-pct {
-  font-family: var(--font-ui);
   font-size: 28px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-weight: 700;
   color: var(--color-text-1);
 }
-.sp__result-label {
-  font-size: 10px;
-  letter-spacing: 0.06em;
+.sp__result-pct-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--color-text-3);
+}
+.sp__result-text {
+  flex: 1;
+  min-width: 0;
+}
+.sp__result-headline {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.sp__result-stats {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-text-2);
+  line-height: 1.5;
+}
+.sp__result-stats b {
+  color: var(--color-text-1);
   font-weight: 700;
 }
 
+.sp__words-card {
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border-1);
+}
+.sp__words-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-3);
+  margin-bottom: 10px;
+}
+.sp__words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sp__word {
+  padding: 6px 11px;
+  border-radius: 8px;
+  font-size: 13px;
+  border: 1px solid;
+}
+.sp__word-score {
+  opacity: 0.65;
+  font-size: 11px;
+  margin-left: 2px;
+}
+.sp__tip {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  font-size: 12px;
+  color: var(--color-text-2);
+}
 .sp__heard {
   margin: 0;
   padding: 10px 14px;
   background: var(--color-surface-1);
   border: 1px solid var(--color-border-1);
   border-radius: 14px;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--color-text-1);
-  font-weight: 600;
-  text-align: center;
-  width: 100%;
+  text-align: left;
 }
 .sp__heard-label {
   display: block;
@@ -686,54 +710,6 @@ watch(
   margin-bottom: 4px;
 }
 
-.sp__words {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  justify-content: center;
-  width: 100%;
-}
-.sp__word {
-  padding: 4px 8px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-}
-.sp__word.is-match {
-  background: color-mix(in oklch, var(--color-emerald) 18%, transparent);
-  color: var(--color-emerald);
-}
-.sp__word.is-wrong {
-  background: color-mix(in oklch, var(--color-rose) 18%, transparent);
-  color: var(--color-rose);
-}
-.sp__word.is-missing {
-  background: color-mix(in oklch, var(--color-amber) 18%, transparent);
-  color: var(--color-amber);
-  outline: 1px dashed color-mix(in oklch, var(--color-amber) 60%, transparent);
-}
-
-.sp__tip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: color-mix(in oklch, var(--color-amber) 14%, transparent);
-  border: 1px solid color-mix(in oklch, var(--color-amber) 35%, transparent);
-  color: var(--color-amber);
-  font-size: 12px;
-  font-weight: 600;
-  text-align: left;
-}
-
-.sp__result-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  width: 100%;
-}
-
 .sp__err {
   padding: 10px 14px;
   border-radius: 12px;
@@ -741,5 +717,50 @@ watch(
   border: 1px solid color-mix(in oklch, var(--color-rose) 35%, transparent);
   color: var(--color-rose);
   font-size: 12px;
+}
+
+/* Actions */
+.sp__actions {
+  padding: 0 0 20px;
+  display: flex;
+  gap: 10px;
+}
+.sp__cta {
+  flex: 1;
+  padding: 16px;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 700;
+  background: var(--grad-primary);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.18);
+  box-shadow:
+    0 10px 28px rgba(34, 211, 238, 0.42),
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.18) inset;
+}
+.sp__cta-stop {
+  background: linear-gradient(135deg, #fb7185, #ef4444);
+  box-shadow: 0 10px 28px rgba(251, 113, 133, 0.42);
+}
+.sp__cta-secondary {
+  flex: 1;
+  padding: 14px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-1);
+  color: var(--color-text-1);
+}
+.sp__stop-square {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: #fff;
 }
 </style>
