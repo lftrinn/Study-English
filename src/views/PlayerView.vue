@@ -325,6 +325,16 @@ const upNext = computed(() =>
                 marginTop: '16px',
               }"
             >{{ current.text }}</div>
+            <div
+              v-if="current.phonetic"
+              :style="{
+                fontSize: '14px',
+                color: 'var(--color-text-3)',
+                fontStyle: 'italic',
+                marginTop: '6px',
+                letterSpacing: '0.01em',
+              }"
+            >/{{ current.phonetic.replace(/^\/|\/$/g, '') }}/</div>
           </div>
           <div>
             <div :style="{ height: '1px', background: 'var(--color-border-1)', margin: '14px 0' }" />
@@ -461,145 +471,6 @@ const upNext = computed(() =>
         >
           <Icon :name="repeatIconName" :size="20" />
         </button>
-      </div>
-
-      <!-- Listening lab -->
-      <div class="glass" :style="{ margin: '24px 20px 0', padding: '16px' }">
-        <div
-          :style="{
-            fontSize: '11px',
-            fontWeight: 700,
-            color: 'var(--color-text-3)',
-            letterSpacing: '0.05em',
-            textTransform: 'uppercase',
-            marginBottom: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }"
-        >
-          <Icon name="sparkles" :size="12" :style="{ color: 'var(--color-cyan)' }" /> Listening lab
-        </div>
-        <div :style="{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }">
-          <!-- Repeat -->
-          <div :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
-            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', fontWeight: 600 }">Repeat each</div>
-            <div
-              :style="{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: 'var(--color-surface-1)',
-                border: '1px solid var(--color-border-1)',
-                borderRadius: '12px',
-                padding: '4px',
-              }"
-            >
-              <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeRepeat(-1)">
-                <Icon name="minus" :size="14" />
-              </button>
-              <span class="mono" :style="{ fontSize: '14px', fontWeight: 700 }">{{ player.repeatEach }}×</span>
-              <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeRepeat(1)">
-                <Icon name="plus" :size="14" />
-              </button>
-            </div>
-          </div>
-          <!-- Gap -->
-          <div :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
-            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', fontWeight: 600 }">Gap</div>
-            <div
-              :style="{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: 'var(--color-surface-1)',
-                border: '1px solid var(--color-border-1)',
-                borderRadius: '12px',
-                padding: '4px',
-              }"
-            >
-              <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeGap(-500)">
-                <Icon name="minus" :size="14" />
-              </button>
-              <span class="mono" :style="{ fontSize: '14px', fontWeight: 700 }">{{ (player.gap / 1000).toFixed(1) }}s</span>
-              <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeGap(500)">
-                <Icon name="plus" :size="14" />
-              </button>
-            </div>
-          </div>
-          <!-- Speed -->
-          <div :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
-            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', fontWeight: 600 }">Speed</div>
-            <div
-              :style="{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: 'var(--color-surface-1)',
-                border: '1px solid var(--color-border-1)',
-                borderRadius: '12px',
-                padding: '4px',
-              }"
-            >
-              <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeSpeed(-0.05)">
-                <Icon name="minus" :size="14" />
-              </button>
-              <span class="mono" :style="{ fontSize: '14px', fontWeight: 700 }">{{ player.speed.toFixed(2) }}×</span>
-              <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeSpeed(0.05)">
-                <Icon name="plus" :size="14" />
-              </button>
-            </div>
-          </div>
-          <!-- Mix voices toggle -->
-          <div :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
-            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', fontWeight: 600 }">Mix voices</div>
-            <button
-              class="btn tap"
-              :style="{
-                height: '36px',
-                borderRadius: '12px',
-                padding: '0 6px',
-                background: player.mixVoice ? 'var(--color-surface-3)' : 'var(--color-surface-1)',
-                border: player.mixVoice ? '1px solid var(--color-cyan)' : '1px solid var(--color-border-1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }"
-              @click="toggleMixVoice"
-            >
-              <span
-                :style="{
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  paddingLeft: '6px',
-                  color: player.mixVoice ? 'var(--color-cyan)' : 'var(--color-text-2)',
-                }"
-              >{{ player.mixVoice ? 'On' : 'Off' }}</span>
-              <span
-                :style="{
-                  width: '28px',
-                  height: '16px',
-                  borderRadius: '99px',
-                  background: player.mixVoice ? 'var(--color-cyan)' : 'var(--color-surface-3)',
-                  position: 'relative',
-                }"
-              >
-                <span
-                  :style="{
-                    position: 'absolute',
-                    top: '1px',
-                    left: player.mixVoice ? '13px' : '1px',
-                    width: '14px',
-                    height: '14px',
-                    borderRadius: '50%',
-                    background: '#fff',
-                    transition: 'left .15s ease',
-                  }"
-                />
-              </span>
-            </button>
-          </div>
-        </div>
       </div>
 
       <!-- Up next -->
