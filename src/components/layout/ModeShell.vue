@@ -7,6 +7,7 @@ const props = withDefaults(
     title: string;
     subtitle?: string;
     onClose?: () => void;
+    onMore?: () => void;
   }>(),
   {},
 );
@@ -20,6 +21,10 @@ function handleClose() {
   }
   if (window.history.length > 1) router.back();
   else router.replace('/');
+}
+
+function handleMore() {
+  props.onMore?.();
 }
 </script>
 
@@ -35,9 +40,15 @@ function handleClose() {
       </div>
       <div class="mode-shell__right">
         <slot name="right">
-          <button class="mode-shell__btn tap" :aria-label="'Thêm'">
+          <button
+            v-if="onMore"
+            class="mode-shell__btn tap"
+            :aria-label="'Thêm'"
+            @click="handleMore"
+          >
             <Icon name="more" :size="20" />
           </button>
+          <div v-else class="mode-shell__btn mode-shell__btn--placeholder" aria-hidden="true" />
         </slot>
       </div>
     </header>
@@ -74,6 +85,10 @@ function handleClose() {
   place-items: center;
   background: var(--color-surface-2);
   color: var(--color-text-1);
+}
+.mode-shell__btn--placeholder {
+  background: transparent;
+  pointer-events: none;
 }
 
 .mode-shell__title-block {

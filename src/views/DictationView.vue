@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import { usePracticeStore } from '@/stores/practiceStore';
 import { useChunkStore } from '@/stores/chunkStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useUiStore } from '@/stores/uiStore';
 import { speechService } from '@/services/speechService';
 import { answerCheckService } from '@/services/answerCheckService';
 import type { Chunk } from '@/types/chunk';
@@ -21,6 +22,7 @@ const router = useRouter();
 const practice = usePracticeStore();
 const chunks = useChunkStore();
 const settings = useSettingsStore();
+const ui = useUiStore();
 
 const value = ref('');
 const checked = ref(false);
@@ -146,6 +148,10 @@ function exit() {
   else router.replace('/');
 }
 
+function openDetail() {
+  if (current.value) ui.openChunkDetail(current.value.id);
+}
+
 watch(
   () => current.value?.id,
   () => {
@@ -175,7 +181,7 @@ const voiceLabel = computed(() => settings.selectedVoiceName ?? 'Aria · US');
 </script>
 
 <template>
-  <ModeShell title="Dictation Lab" :subtitle="subtitle" :on-close="exit">
+  <ModeShell title="Dictation Lab" :subtitle="subtitle" :on-close="exit" :on-more="openDetail">
     <template v-if="practice.status === 'active' && current">
       <div :style="{ padding: '0 20px' }">
         <ProgressBar

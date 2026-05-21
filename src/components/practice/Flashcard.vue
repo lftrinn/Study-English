@@ -32,6 +32,16 @@ const frontText = computed(() => (showEnFront.value ? props.chunk.text : props.c
 const backText = computed(() => (showEnFront.value ? props.chunk.meaning : props.chunk.text));
 const frontLabel = computed(() => (showEnFront.value ? 'English' : 'Vietnamese'));
 const backLabel = computed(() => (showEnFront.value ? 'Vietnamese' : 'English'));
+const frontPhonetic = computed(() =>
+  showEnFront.value && props.chunk.phonetic
+    ? props.chunk.phonetic.replace(/^\/|\/$/g, '')
+    : null,
+);
+const backPhonetic = computed(() =>
+  !showEnFront.value && props.chunk.phonetic
+    ? props.chunk.phonetic.replace(/^\/|\/$/g, '')
+    : null,
+);
 
 watch(
   () => props.chunk.id,
@@ -161,6 +171,16 @@ const backFaceStyle = computed(() => ({
               lineHeight: 1.3,
             }"
           >{{ frontText }}</div>
+          <div
+            v-if="frontPhonetic"
+            :style="{
+              fontSize: '14px',
+              color: 'var(--color-text-3)',
+              fontStyle: 'italic',
+              marginTop: '8px',
+              letterSpacing: '0.01em',
+            }"
+          >/{{ frontPhonetic }}/</div>
         </div>
         <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }">
           <span :style="{ fontSize: '11px', color: 'var(--color-text-3)' }">Tap để lật</span>
@@ -232,6 +252,16 @@ const backFaceStyle = computed(() => ({
             }"
           >{{ backText }}</div>
           <div
+            v-if="backPhonetic"
+            :style="{
+              fontSize: '14px',
+              color: 'var(--color-text-3)',
+              fontStyle: 'italic',
+              marginTop: '8px',
+              letterSpacing: '0.01em',
+            }"
+          >/{{ backPhonetic }}/</div>
+          <div
             v-if="chunk.tags && chunk.tags.length > 0"
             :style="{
               marginTop: '16px',
@@ -279,8 +309,9 @@ const backFaceStyle = computed(() => ({
 
 <style scoped>
 .flash {
-  width: 100%;
-  max-width: 340px;
+  width: min(100%, 340px);
+  height: 100%;
+  max-height: min(calc(100vw * 4 / 3 - 20px), 480px);
   aspect-ratio: 3 / 4;
   cursor: pointer;
   perspective: 1400px;
