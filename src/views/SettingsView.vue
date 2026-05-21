@@ -8,6 +8,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useProgressStore } from '@/stores/progressStore';
 import { useChunkStore } from '@/stores/chunkStore';
+import { useUiStore } from '@/stores/uiStore';
 import { speechService } from '@/services/speechService';
 import { storageService, type BackupShape } from '@/services/storageService';
 import type { Chunk } from '@/types/chunk';
@@ -21,6 +22,25 @@ import MiniSwitch from '@/components/common/MiniSwitch.vue';
 const settings = useSettingsStore();
 const progress = useProgressStore();
 const chunks = useChunkStore();
+const ui = useUiStore();
+
+const canInstallPwa = computed(() => Boolean(ui.installPromptEvent));
+const installStatus = ref<'idle' | 'installed' | 'dismissed'>('idle');
+
+async function installPwa() {
+  const evt = ui.installPromptEvent;
+  if (!evt) return;
+  try {
+    await evt.prompt();
+    const choice = await evt.userChoice;
+    installStatus.value = choice.outcome === 'accepted' ? 'installed' : 'dismissed';
+    if (choice.outcome === 'dismissed') settings.dismissInstallPrompt();
+  } catch {
+    /* ignore */
+  } finally {
+    ui.setInstallPromptEvent(null);
+  }
+}
 
 const voiceSheetOpen = ref(false);
 const speedSheetOpen = ref(false);
@@ -451,19 +471,30 @@ async function deleteCustom(c: Chunk) {
             <Icon name="download" :size="16" />
           </span>
           <div :style="{ flex: 1, textAlign: 'left' }">
-            <div :style="{ fontSize: '14px', fontWeight: 600 }">Export listening log</div>
-            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">Toàn bộ session</div>
+            <div :style="{ fontSize: '14px', fontWeight: 600 }">Export full backup</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">Progress + logs + custom chunks</div>
           </div>
           <Icon name="chevron-right" :size="16" :style="{ color: 'var(--color-text-4)' }" />
         </button>
 
-        <button class="btn tap settings__row" :style="{ borderBottom: '1px solid var(--color-border-1)' }">
+        <button
+          class="btn tap settings__row"
+          :style="{ borderBottom: '1px solid var(--color-border-1)', opacity: canInstallPwa ? 1 : 0.55 }"
+          :disabled="!canInstallPwa"
+          @click="installPwa"
+        >
           <span class="settings__icon" :style="{ background: 'color-mix(in oklch, #F59E0B 22%, transparent)', color: '#F59E0B' }">
             <Icon name="trophy" :size="16" />
           </span>
           <div :style="{ flex: 1, textAlign: 'left' }">
             <div :style="{ fontSize: '14px', fontWeight: 600 }">Install as PWA</div>
-            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">Thêm vào home screen</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">
+              {{ installStatus === 'installed'
+                ? 'Đã cài — mở từ home screen'
+                : canInstallPwa
+                  ? 'Thêm vào home screen'
+                  : 'Trình duyệt chưa hỗ trợ hoặc đã cài' }}
+            </div>
           </div>
           <Icon name="chevron-right" :size="16" :style="{ color: 'var(--color-text-4)' }" />
         </button>

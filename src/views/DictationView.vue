@@ -394,6 +394,11 @@ const voiceLabel = computed(() => settings.selectedVoiceName ?? 'Aria · US');
             }"
           >Đáp án</span>
           {{ current.text }}
+          <span
+            v-if="current.phonetic"
+            class="mono"
+            :style="{ display: 'block', marginTop: '4px', fontSize: '12px', color: 'var(--color-cyan)' }"
+          >{{ current.phonetic }}</span>
         </div>
       </div>
 

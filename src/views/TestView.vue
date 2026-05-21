@@ -57,15 +57,12 @@ const POOL_DEFS: Array<{ key: PoolKey; label: string; icon: string }> = [
   { key: 'all', label: 'All chunks', icon: 'library' },
 ];
 
-// Maps the design's question-type selection to the LearnQuestionType
-// pool used by QuizQuestion. 'speaking' falls back to listen-type — full
-// speaking inside test would need a different surface.
 const QTYPE_TO_LEARN: Record<QTypeKey, LearnQuestionType[]> = {
   meaning: ['mc-meaning'],
   english: ['mc-text'],
   listen: ['listen-mc-meaning'],
   type: ['type-text'],
-  speaking: ['listen-type'],
+  speaking: ['speak-repeat'],
 };
 
 function toggle<T>(list: T[], v: T): T[] {

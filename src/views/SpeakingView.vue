@@ -30,6 +30,7 @@ const phase = ref<Phase>('idle');
 const supported = computed(() => speechRecognitionService.isSupported());
 
 const recognized = ref('');
+const recognitionConfidence = ref(0);
 const result = ref<AnswerCheckResult | null>(null);
 const errorMsg = ref('');
 
@@ -39,16 +40,71 @@ let elapsedTimer: number | null = null;
 let recStartedAt = 0;
 
 const WAVE_BARS = 28;
+const waveLevels = ref<number[]>(Array.from({ length: WAVE_BARS }, () => 0.3));
+
+let audioContext: AudioContext | null = null;
+let audioAnalyser: AnalyserNode | null = null;
+let audioStream: MediaStream | null = null;
+let audioRafId = 0;
 
 const current = computed<Chunk | undefined>(() => practice.current);
 const accent = computed(() => chunks.topicById(current.value?.topic ?? '')?.color ?? '#22D3EE');
 
 const elapsedSec = computed(() => elapsedMs.value / 1000);
 
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const m = a.length;
+  const n = b.length;
+  let prev = new Array(n + 1).fill(0).map((_, i) => i);
+  let curr = new Array(n + 1).fill(0);
+  for (let i = 1; i <= m; i += 1) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return prev[n];
+}
+
+function tokenSimilarity(a: string, b: string): number {
+  if (!a && !b) return 1;
+  if (!a || !b) return 0;
+  const maxLen = Math.max(a.length, b.length);
+  const dist = levenshtein(a.toLowerCase(), b.toLowerCase());
+  return Math.max(0, 1 - dist / maxLen);
+}
+
 const overallScore = computed(() => {
   if (!result.value) return 0;
-  return Math.round(result.value.score * 100);
+  const tokens = result.value.diff;
+  if (tokens.length === 0) return 0;
+  let sum = 0;
+  for (const d of tokens) sum += diffTokenScore(d);
+  const avg = sum / tokens.length / 100;
+  const confidenceWeight = recognitionConfidence.value > 0
+    ? 0.4 + 0.6 * Math.min(1, recognitionConfidence.value)
+    : 1;
+  return Math.round(avg * confidenceWeight * 100);
 });
+
+function diffTokenScore(d: AnswerCheckResult['diff'][number]): number {
+  if (d.status === 'match') return 95;
+  if (d.status === 'missing') return 0;
+  if (!result.value) return 0;
+  const expectedTokens = result.value.expectedTokens;
+  const userTokens = result.value.userTokens;
+  const idx = result.value.diff.indexOf(d);
+  const exp = expectedTokens[idx];
+  const usr = userTokens[idx] ?? '';
+  if (!exp) return 30;
+  const sim = tokenSimilarity(exp, usr);
+  return Math.round(sim * 90);
+}
 const scoreColor = computed(() => {
   const s = overallScore.value;
   if (s >= 85) return 'var(--color-emerald)';
@@ -58,13 +114,11 @@ const scoreColor = computed(() => {
 
 const wordScores = computed(() => {
   if (!result.value) return [] as Array<{ token: string; score: number; status: string }>;
-  return result.value.diff.map((d) => {
-    let score = 0;
-    if (d.status === 'match') score = 95;
-    else if (d.status === 'missing') score = 0;
-    else score = 55;
-    return { token: d.token, score, status: d.status };
-  });
+  return result.value.diff.map((d) => ({
+    token: d.token,
+    score: diffTokenScore(d),
+    status: d.status,
+  }));
 });
 
 const summaryHeadline = computed(() => {
@@ -99,14 +153,66 @@ async function playTarget() {
   }
 }
 
+async function startWaveCapture() {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return;
+  try {
+    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    audioContext = new Ctx();
+    const source = audioContext.createMediaStreamSource(audioStream);
+    audioAnalyser = audioContext.createAnalyser();
+    audioAnalyser.fftSize = 64;
+    audioAnalyser.smoothingTimeConstant = 0.78;
+    source.connect(audioAnalyser);
+
+    const buffer = new Uint8Array(audioAnalyser.frequencyBinCount);
+    const loop = () => {
+      if (!audioAnalyser) return;
+      audioAnalyser.getByteFrequencyData(buffer);
+      const next: number[] = new Array(WAVE_BARS);
+      const step = Math.max(1, Math.floor(buffer.length / WAVE_BARS));
+      for (let i = 0; i < WAVE_BARS; i += 1) {
+        const v = buffer[i * step] ?? 0;
+        next[i] = 0.25 + 0.75 * (v / 255);
+      }
+      waveLevels.value = next;
+      audioRafId = window.requestAnimationFrame(loop);
+    };
+    audioRafId = window.requestAnimationFrame(loop);
+  } catch {
+    /* user denied or unsupported — fallback handled in waveHeight */
+  }
+}
+
+function stopWaveCapture() {
+  if (audioRafId) {
+    window.cancelAnimationFrame(audioRafId);
+    audioRafId = 0;
+  }
+  audioAnalyser?.disconnect();
+  audioAnalyser = null;
+  if (audioContext) {
+    void audioContext.close().catch(() => {});
+    audioContext = null;
+  }
+  if (audioStream) {
+    audioStream.getTracks().forEach((t) => t.stop());
+    audioStream = null;
+  }
+  waveLevels.value = Array.from({ length: WAVE_BARS }, () => 0.3);
+}
+
 function startRecording() {
   if (!current.value || !supported.value) return;
   errorMsg.value = '';
   recognized.value = '';
+  recognitionConfidence.value = 0;
   result.value = null;
   recStartedAt = Date.now();
   elapsedMs.value = 0;
   phase.value = 'recording';
+  void startWaveCapture();
 
   elapsedTimer = window.setInterval(() => {
     elapsedMs.value = Date.now() - recStartedAt;
@@ -116,12 +222,16 @@ function startRecording() {
     lang: 'en-US',
     onResult: (r) => {
       recognized.value = r.transcript;
+      if (Number.isFinite(r.confidence) && r.confidence > 0) {
+        recognitionConfidence.value = r.confidence;
+      }
     },
     onError: (m) => {
       errorMsg.value = m;
     },
     onEnd: () => {
       stopElapsed();
+      stopWaveCapture();
       if (phase.value === 'recording') evaluate();
     },
   });
@@ -129,6 +239,7 @@ function startRecording() {
   if (!recHandle) {
     errorMsg.value = 'not-supported';
     stopElapsed();
+    stopWaveCapture();
     phase.value = 'idle';
   }
 }
@@ -139,6 +250,7 @@ function stopRecording() {
     recHandle = null;
   }
   stopElapsed();
+  stopWaveCapture();
   if (recognized.value.trim().length > 0) {
     evaluate();
   } else if (phase.value === 'recording' && !errorMsg.value) {
@@ -152,6 +264,7 @@ function abort() {
     recHandle = null;
   }
   stopElapsed();
+  stopWaveCapture();
 }
 
 function stopElapsed() {
@@ -199,15 +312,17 @@ async function next() {
 
 function tryAgain() {
   recognized.value = '';
+  recognitionConfidence.value = 0;
   result.value = null;
   phase.value = 'idle';
 }
 
 function waveHeight(i: number): number {
   if (phase.value !== 'recording') return 0.3;
+  const live = waveLevels.value[i - 1];
+  if (typeof live === 'number' && live > 0.3) return live;
+  // Fallback animation when mic stream is unavailable (denied / unsupported).
   const sec = elapsedSec.value;
-  // Sin-based pseudo-random heights — matches design's
-  // `Math.sin(elapsed * 6 + i * 0.6)` mock waveform.
   return 0.4 + 0.6 * Math.abs(Math.sin(sec * 6 + i * 0.6));
 }
 
@@ -225,6 +340,7 @@ watch(
     if (phase.value === 'recording') abort();
     phase.value = 'idle';
     recognized.value = '';
+    recognitionConfidence.value = 0;
     result.value = null;
   },
 );
@@ -390,6 +506,10 @@ const subtitle = computed(() => {
               </div>
               <div v-if="overallScore < 85" class="sp__tip">
                 Tip: lặp từng cụm nhỏ trước khi đọc cả câu, nhấn vào trọng âm chính.
+                <span v-if="current?.phonetic" class="sp__tip-phonetic mono">{{ current.phonetic }}</span>
+              </div>
+              <div v-if="recognitionConfidence > 0" class="sp__confidence">
+                Độ tin cậy nhận diện: <b class="mono">{{ Math.round(recognitionConfidence * 100) }}%</b>
               </div>
             </div>
 
@@ -689,6 +809,21 @@ const subtitle = computed(() => {
   border: 1px solid rgba(245, 158, 11, 0.25);
   font-size: 12px;
   color: var(--color-text-2);
+}
+.sp__tip-phonetic {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--color-amber);
+  letter-spacing: 0.02em;
+}
+.sp__confidence {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--color-text-3);
+}
+.sp__confidence b {
+  color: var(--color-text-1);
 }
 .sp__heard {
   margin: 0;

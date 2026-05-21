@@ -504,6 +504,11 @@ watch(
             :style="{ fontSize: '13px', marginTop: '4px', color: 'var(--color-text-2)' }"
           >
             The answer is <b :style="{ color: 'var(--color-text-1)' }">{{ correctAnswerText }}</b>
+            <span
+              v-if="current?.phonetic"
+              class="mono"
+              :style="{ display: 'block', marginTop: '4px', fontSize: '12px', color: 'var(--color-amber)' }"
+            >{{ current.phonetic }}</span>
           </div>
           <div
             v-else

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { Chunk } from '@/types/chunk';
 import type { AnswerCheckResult, PracticeMode } from '@/types/practice';
 
 import { answerCheckService } from '@/services/answerCheckService';
 import { distractorService, type ChoiceOption } from '@/services/distractorService';
 import { speechService } from '@/services/speechService';
+import { speechRecognitionService, type RecognitionHandle } from '@/services/speechRecognitionService';
 import { useSettingsStore } from '@/stores/settingsStore';
 
 import TopicChip from '@/components/chunk/TopicChip.vue';
@@ -19,7 +20,8 @@ export type LearnQuestionType =
   | 'mc-text' // VI given, pick EN
   | 'type-text' // VI given, type EN
   | 'listen-mc-meaning' // audio given, pick VI
-  | 'listen-type'; // audio given, type EN
+  | 'listen-type' // audio given, type EN
+  | 'speak-repeat'; // EN shown, repeat aloud, scored by SpeechRecognition
 
 const props = defineProps<{
   chunk: Chunk;
@@ -50,6 +52,12 @@ const typed = ref('');
 const inputRef = ref<HTMLInputElement | null>(null);
 const checkResult = ref<AnswerCheckResult | null>(null);
 
+const speakPhase = ref<'idle' | 'recording' | 'done'>('idle');
+const speakHeard = ref('');
+const speakConfidence = ref(0);
+const speakError = ref('');
+let speakHandle: RecognitionHandle | null = null;
+
 const isChoiceType = computed(() =>
   props.type === 'mc-meaning' || props.type === 'mc-text' || props.type === 'listen-mc-meaning',
 );
@@ -57,6 +65,8 @@ const isTypeType = computed(() => props.type === 'type-text' || props.type === '
 const isAudioType = computed(() =>
   props.type === 'listen-mc-meaning' || props.type === 'listen-type',
 );
+const isSpeakType = computed(() => props.type === 'speak-repeat');
+const speakSupported = computed(() => speechRecognitionService.isSupported());
 
 const promptCaption = computed(() => {
   switch (props.type) {
@@ -69,6 +79,8 @@ const promptCaption = computed(() => {
       return 'Nghe rồi chọn nghĩa đúng';
     case 'listen-type':
       return 'Nghe rồi gõ chunk';
+    case 'speak-repeat':
+      return 'Đọc to chunk theo mẫu';
   }
   return '';
 });
@@ -79,7 +91,18 @@ const promptText = computed(() => {
   return '';
 });
 
-const submitted = computed(() => picked.value !== null || checkResult.value !== null);
+const submitted = computed(
+  () => picked.value !== null || checkResult.value !== null || speakPhase.value === 'done',
+);
+
+const MODE_MAP: Record<LearnQuestionType, PracticeMode> = {
+  'mc-meaning': 'multiple-choice',
+  'mc-text': 'multiple-choice',
+  'type-text': 'write',
+  'listen-mc-meaning': 'multiple-choice',
+  'listen-type': 'dictation',
+  'speak-repeat': 'speaking',
+};
 
 function buildOptions() {
   const direction = props.type === 'mc-text' ? 'pick-text' : 'pick-meaning';
@@ -105,17 +128,10 @@ async function playAudio() {
 function pick(opt: ChoiceOption) {
   if (submitted.value) return;
   picked.value = opt.label;
-  const modeMap: Record<LearnQuestionType, PracticeMode> = {
-    'mc-meaning': 'multiple-choice',
-    'mc-text': 'multiple-choice',
-    'type-text': 'write',
-    'listen-mc-meaning': 'multiple-choice',
-    'listen-type': 'dictation',
-  };
   emit('submit', {
     chunk: props.chunk,
     type: props.type,
-    mode: modeMap[props.type],
+    mode: MODE_MAP[props.type],
     userAnswer: opt.label,
     expectedAnswer:
       props.type === 'mc-text' ? props.chunk.text : props.chunk.meaning,
@@ -131,22 +147,84 @@ function submitTyped() {
     ignorePunctuation: true,
   });
   checkResult.value = r;
-  const modeMap: Record<LearnQuestionType, PracticeMode> = {
-    'mc-meaning': 'multiple-choice',
-    'mc-text': 'multiple-choice',
-    'type-text': 'write',
-    'listen-mc-meaning': 'multiple-choice',
-    'listen-type': 'dictation',
-  };
   emit('submit', {
     chunk: props.chunk,
     type: props.type,
-    mode: modeMap[props.type],
+    mode: MODE_MAP[props.type],
     userAnswer: typed.value,
     expectedAnswer: props.chunk.text,
     isCorrect: r.isCorrect,
     score: r.score,
   });
+}
+
+function startSpeak() {
+  if (submitted.value || !speakSupported.value) return;
+  speakError.value = '';
+  speakHeard.value = '';
+  speakConfidence.value = 0;
+  speakPhase.value = 'recording';
+  speakHandle = speechRecognitionService.recognize({
+    lang: 'en-US',
+    onResult: (r) => {
+      speakHeard.value = r.transcript;
+      if (Number.isFinite(r.confidence) && r.confidence > 0) {
+        speakConfidence.value = r.confidence;
+      }
+    },
+    onError: (m) => {
+      speakError.value = m;
+    },
+    onEnd: () => {
+      speakHandle = null;
+      if (speakPhase.value === 'recording') finishSpeak();
+    },
+  });
+  if (!speakHandle) {
+    speakError.value = 'not-supported';
+    speakPhase.value = 'idle';
+  }
+}
+
+function stopSpeak() {
+  if (speakHandle) {
+    speakHandle.abort();
+    speakHandle = null;
+  }
+  if (speakHeard.value.trim().length > 0) {
+    finishSpeak();
+  } else if (!speakError.value) {
+    speakPhase.value = 'idle';
+  }
+}
+
+function finishSpeak() {
+  const r = answerCheckService.check(props.chunk.text, speakHeard.value, {
+    ignoreCase: true,
+    ignorePunctuation: true,
+  });
+  checkResult.value = r;
+  speakPhase.value = 'done';
+  const confidenceWeight = speakConfidence.value > 0
+    ? 0.4 + 0.6 * Math.min(1, speakConfidence.value)
+    : 1;
+  const weighted = r.score * confidenceWeight;
+  emit('submit', {
+    chunk: props.chunk,
+    type: props.type,
+    mode: MODE_MAP[props.type],
+    userAnswer: speakHeard.value,
+    expectedAnswer: props.chunk.text,
+    isCorrect: r.isCorrect && speakConfidence.value > 0.4,
+    score: weighted,
+  });
+}
+
+function abortSpeak() {
+  if (speakHandle) {
+    speakHandle.abort();
+    speakHandle = null;
+  }
 }
 
 function next() {
@@ -157,6 +235,11 @@ function reset() {
   picked.value = null;
   typed.value = '';
   checkResult.value = null;
+  abortSpeak();
+  speakPhase.value = 'idle';
+  speakHeard.value = '';
+  speakConfidence.value = 0;
+  speakError.value = '';
 }
 
 watch(
@@ -175,6 +258,8 @@ onMounted(() => {
   if (isAudioType.value) void playAudio();
   if (isTypeType.value) void nextTick(() => inputRef.value?.focus());
 });
+
+onBeforeUnmount(() => abortSpeak());
 
 function optionState(opt: ChoiceOption): 'idle' | 'correct' | 'wrong' | 'reveal' {
   if (!submitted.value) return 'idle';
@@ -203,7 +288,18 @@ function optionState(opt: ChoiceOption): 'idle' | 'correct' | 'wrong' | 'reveal'
       <span class="qq__player-hint">Tap để nghe lại</span>
     </div>
 
-    <p v-else class="qq__prompt">{{ promptText }}</p>
+    <p v-else-if="!isSpeakType" class="qq__prompt">{{ promptText }}</p>
+
+    <!-- Speak target card -->
+    <div v-if="isSpeakType" class="qq__speak-target">
+      <div class="qq__speak-row">
+        <button class="qq__play tap" :aria-label="'Phát mẫu'" @click="playAudio">
+          <Icon name="volume" :size="20" />
+        </button>
+        <p class="qq__speak-text">{{ chunk.text }}</p>
+      </div>
+      <p v-if="chunk.phonetic" class="qq__speak-phonetic mono">{{ chunk.phonetic }}</p>
+    </div>
 
     <!-- Multiple choice options -->
     <div v-if="isChoiceType" class="qq__choices">
@@ -253,17 +349,56 @@ function optionState(opt: ChoiceOption): 'idle' | 'correct' | 'wrong' | 'reveal'
       </AppButton>
     </div>
 
+    <!-- Speak controls -->
+    <div v-else-if="isSpeakType" class="qq__speak">
+      <p v-if="!speakSupported" class="qq__speak-warn">
+        Trình duyệt không hỗ trợ Speech Recognition. Hãy thử Chrome/Edge.
+      </p>
+      <template v-else>
+        <AppButton
+          v-if="speakPhase === 'idle'"
+          variant="primary"
+          size="md"
+          block
+          @click="startSpeak"
+        >
+          <Icon name="mic" :size="14" />
+          Tap to record
+        </AppButton>
+        <AppButton
+          v-else-if="speakPhase === 'recording'"
+          variant="danger"
+          size="md"
+          block
+          @click="stopSpeak"
+        >
+          <Icon name="stop" :size="14" />
+          Stop
+        </AppButton>
+      </template>
+      <p v-if="speakError" class="qq__speak-err">Lỗi nhận diện: {{ speakError }}. Thử lại nhé.</p>
+    </div>
+
     <!-- Result + next -->
     <div v-if="submitted" class="qq__result">
-      <p v-if="isTypeType && checkResult" class="qq__result-line">
+      <p v-if="(isTypeType || isSpeakType) && checkResult" class="qq__result-line">
         <span class="qq__badge" :class="{ ok: checkResult.isCorrect, bad: !checkResult.isCorrect }">
           {{ checkResult.isCorrect ? 'Đúng rồi' : 'Cần sửa' }}
         </span>
-        <span class="qq__result-meta">{{ Math.round(checkResult.score * 100) }}% khớp từ</span>
+        <span class="qq__result-meta">
+          {{ Math.round(checkResult.score * 100) }}% khớp từ
+          <template v-if="isSpeakType && speakConfidence > 0">
+            · conf <span class="mono">{{ Math.round(speakConfidence * 100) }}%</span>
+          </template>
+        </span>
       </p>
-      <AnswerDiff v-if="isTypeType && checkResult" :result="checkResult" />
+      <AnswerDiff v-if="(isTypeType || isSpeakType) && checkResult" :result="checkResult" />
+      <p v-if="isSpeakType && speakHeard" class="qq__heard">
+        <span class="qq__heard-label">You said</span>
+        {{ speakHeard }}
+      </p>
 
-      <p v-if="isAudioType || isTypeType || picked" class="qq__expected">
+      <p v-if="isAudioType || isTypeType || isSpeakType || picked" class="qq__expected">
         <span class="qq__expected-label">Đáp án</span>
         {{ chunk.text }} <span class="qq__expected-vi">— {{ chunk.meaning }}</span>
       </p>
@@ -459,5 +594,71 @@ function optionState(opt: ChoiceOption): 'idle' | 'correct' | 'wrong' | 'reveal'
 .qq__expected-vi {
   color: var(--color-text-3);
   font-weight: 500;
+}
+
+.qq__speak-target {
+  padding: 14px;
+  border-radius: 16px;
+  background: color-mix(in oklch, var(--color-cyan) 10%, transparent);
+  border: 1px solid color-mix(in oklch, var(--color-cyan) 28%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.qq__speak-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.qq__speak-text {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--color-text-1);
+  flex: 1;
+}
+.qq__speak-phonetic {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-cyan);
+  letter-spacing: 0.02em;
+}
+.qq__speak {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.qq__speak-warn {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--color-amber) 14%, transparent);
+  border: 1px solid color-mix(in oklch, var(--color-amber) 35%, transparent);
+  font-size: 12px;
+  color: var(--color-amber);
+}
+.qq__speak-err {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-rose);
+}
+.qq__heard {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border-1);
+  font-size: 13px;
+  color: var(--color-text-2);
+}
+.qq__heard-label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-3);
+  font-weight: 700;
+  margin-bottom: 2px;
 }
 </style>
