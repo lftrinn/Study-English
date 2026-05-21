@@ -44,7 +44,10 @@ const elapsedLabel = computed(() => formatMs(elapsedMs.value));
 const finalLabel = computed(() => formatMs(finishedAt.value - startedAt.value));
 
 const bestTimeMs = computed(() => settings.getBestMatchTime(pairCount.value));
-const bestLabel = computed(() => (bestTimeMs.value ? formatMs(bestTimeMs.value) : '—'));
+const bestLabel = computed(() => {
+  if (!settings.hydrated) return '…';
+  return bestTimeMs.value ? formatMs(bestTimeMs.value) : '—';
+});
 const newRecord = computed(
   () =>
     bestTimeMs.value !== undefined &&

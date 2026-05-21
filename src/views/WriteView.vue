@@ -312,6 +312,19 @@ const subtitle = computed(() => {
               <span :style="{ color: 'var(--color-emerald)' }">{{ suggestion.to }}</span>
             </div>
           </div>
+          <div
+            v-if="current?.phonetic && wrongTokens.length > 0"
+            :style="{
+              marginTop: '10px',
+              padding: '8px 12px',
+              borderRadius: '10px',
+              background: 'color-mix(in oklch, var(--color-cyan) 10%, transparent)',
+              border: '1px solid color-mix(in oklch, var(--color-cyan) 28%, transparent)',
+              fontSize: '13px',
+              color: 'var(--color-cyan)',
+              fontFamily: 'var(--font-mono)',
+            }"
+          >{{ current.phonetic }}</div>
         </div>
       </div>
 

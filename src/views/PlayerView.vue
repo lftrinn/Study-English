@@ -139,6 +139,19 @@ function toggleMixVoice() {
   settings.mixVoice = player.mixVoice;
 }
 
+async function previewLabSettings() {
+  if (!current.value) return;
+  try {
+    await speechService.speak({
+      text: current.value.text,
+      voiceName: player.selectedVoiceName ?? settings.selectedVoiceName ?? undefined,
+      rate: player.speed,
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
 onMounted(async () => {
   player.syncFromSettings();
   scrollEl = document.querySelector('.scrollarea');
@@ -682,6 +695,28 @@ const upNext = computed(() =>
           </button>
         </div>
       </div>
+      <button
+        class="btn tap"
+        :style="{
+          marginTop: '16px',
+          width: '100%',
+          padding: '12px',
+          borderRadius: '14px',
+          background: 'var(--grad-primary)',
+          color: '#fff',
+          fontSize: '13px',
+          fontWeight: 700,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+        }"
+        :disabled="!current"
+        @click="previewLabSettings"
+      >
+        <Icon name="volume" :size="14" />
+        Nghe thử với cài đặt hiện tại
+      </button>
     </AppSheet>
 
     <!-- Full queue sheet -->

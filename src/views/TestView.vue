@@ -28,7 +28,7 @@ const player = usePlayerStore();
 type Phase = 'setup' | 'running' | 'result';
 const phase = ref<Phase>('setup');
 
-type QTypeKey = 'meaning' | 'english' | 'listen' | 'type';
+type QTypeKey = 'meaning' | 'english' | 'listen' | 'type' | 'speaking';
 type PoolKey = 'weak' | 'starred' | 'due' | 'all';
 
 const COUNT_OPTIONS = [5, 10, 15, 20] as const;
@@ -47,6 +47,7 @@ const QTYPE_DEFS: Array<{ key: QTypeKey; label: string; icon: string }> = [
   { key: 'english', label: 'Choose the English', icon: 'cards' },
   { key: 'listen', label: 'Listen and choose', icon: 'headphones' },
   { key: 'type', label: 'Type from Vietnamese', icon: 'edit' },
+  { key: 'speaking', label: 'Repeat speaking', icon: 'mic' },
 ];
 
 const POOL_DEFS: Array<{ key: PoolKey; label: string; icon: string }> = [
@@ -61,6 +62,7 @@ const QTYPE_TO_LEARN: Record<QTypeKey, LearnQuestionType[]> = {
   english: ['mc-text'],
   listen: ['listen-mc-meaning'],
   type: ['type-text'],
+  speaking: ['speak-repeat'],
 };
 
 function toggle<T>(list: T[], v: T): T[] {
@@ -297,13 +299,6 @@ function playMistakes() {
               />
             </button>
           </div>
-          <button
-            class="tv__speaking-link tap"
-            @click="router.push('/study/speaking')"
-          >
-            <Icon name="mic" :size="14" />
-            <span>Luyện phát âm? Mở Speaking Lab →</span>
-          </button>
         </section>
 
         <p class="tv__pool-hint">
@@ -592,19 +587,6 @@ function playMistakes() {
 }
 .tv__qtype-check {
   color: var(--color-cyan);
-}
-.tv__speaking-link {
-  margin-top: 10px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: transparent;
-  border: 1px dashed color-mix(in oklch, var(--color-cyan) 35%, transparent);
-  color: var(--color-cyan);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .tv__pool-hint {
