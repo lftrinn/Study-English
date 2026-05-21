@@ -32,8 +32,48 @@ export const usePlayerStore = defineStore('player', () => {
   const selectedVoiceName = ref<string | null>(null);
   const sessionPlayedCount = ref(0);
   const listeningMode = ref<ListeningMode>('normal');
+  const currentElapsedMs = ref(0);
+  const currentDurationMs = ref(0);
 
   let currentToken = 0;
+  let progressTimer: ReturnType<typeof setInterval> | null = null;
+  let chunkStartedAt = 0;
+  let pauseAccumMs = 0;
+  let pauseStartedAt = 0;
+
+  function estimateChunkDurationMs(text: string, rate: number): number {
+    // ~11 chars/sec at rate=1 for typical English TTS, clamped to a sane range.
+    const r = Math.max(0.5, rate);
+    return Math.max(500, Math.round((text.length / 11) * 1000 / r));
+  }
+
+  function stopProgressTick() {
+    if (progressTimer !== null) {
+      clearInterval(progressTimer);
+      progressTimer = null;
+    }
+    chunkStartedAt = 0;
+    pauseAccumMs = 0;
+    pauseStartedAt = 0;
+  }
+
+  function startProgressTick(durationMs: number) {
+    stopProgressTick();
+    currentDurationMs.value = durationMs;
+    currentElapsedMs.value = 0;
+    chunkStartedAt = Date.now();
+    progressTimer = setInterval(() => {
+      if (pauseStartedAt > 0) return;
+      const elapsed = Date.now() - chunkStartedAt - pauseAccumMs;
+      currentElapsedMs.value = Math.max(0, Math.min(currentDurationMs.value, elapsed));
+    }, 100);
+  }
+
+  function resetProgress() {
+    stopProgressTick();
+    currentElapsedMs.value = 0;
+    currentDurationMs.value = 0;
+  }
 
   const current = computed<Chunk | undefined>(() => queue.value[queueIndex.value]);
   const queueLength = computed(() => queue.value.length);
@@ -117,6 +157,10 @@ export const usePlayerStore = defineStore('player', () => {
     if (isPlaying.value && isPaused.value) {
       speechService.resume();
       isPaused.value = false;
+      if (pauseStartedAt > 0) {
+        pauseAccumMs += Date.now() - pauseStartedAt;
+        pauseStartedAt = 0;
+      }
       return;
     }
     if (isPlaying.value) return;
@@ -130,6 +174,9 @@ export const usePlayerStore = defineStore('player', () => {
     if (!isPlaying.value) return;
     speechService.pause();
     isPaused.value = true;
+    if (chunkStartedAt > 0 && pauseStartedAt === 0) {
+      pauseStartedAt = Date.now();
+    }
   }
 
   function stop() {
@@ -137,6 +184,7 @@ export const usePlayerStore = defineStore('player', () => {
     speechService.cancel();
     isPlaying.value = false;
     isPaused.value = false;
+    resetProgress();
   }
 
   function next() {
@@ -167,6 +215,7 @@ export const usePlayerStore = defineStore('player', () => {
   function restartPlayback() {
     currentToken += 1;
     speechService.cancel();
+    resetProgress();
     const token = ++currentToken;
     isPlaying.value = true;
     isPaused.value = false;
@@ -182,6 +231,7 @@ export const usePlayerStore = defineStore('player', () => {
       for (let i = 0; i < repeatEach.value; i += 1) {
         if (token !== currentToken) return;
         const voiceName = pickVoice();
+        startProgressTick(estimateChunkDurationMs(chunk.text, speed.value));
         try {
           await speechService.speak({
             text: chunk.text,
@@ -191,6 +241,9 @@ export const usePlayerStore = defineStore('player', () => {
           });
         } catch {
           if (token !== currentToken) return;
+        }
+        if (token === currentToken) {
+          currentElapsedMs.value = currentDurationMs.value;
         }
         if (token !== currentToken) return;
         if (i === 0) {
@@ -244,6 +297,8 @@ export const usePlayerStore = defineStore('player', () => {
     selectedVoiceName,
     sessionPlayedCount,
     listeningMode,
+    currentElapsedMs,
+    currentDurationMs,
     current,
     queueLength,
     hasNext,
