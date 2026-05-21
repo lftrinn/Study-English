@@ -325,6 +325,16 @@ const upNext = computed(() =>
                 marginTop: '16px',
               }"
             >{{ current.text }}</div>
+            <div
+              v-if="current.phonetic"
+              :style="{
+                fontSize: '14px',
+                color: 'var(--color-text-3)',
+                fontStyle: 'italic',
+                marginTop: '6px',
+                letterSpacing: '0.01em',
+              }"
+            >/{{ current.phonetic.replace(/^\/|\/$/g, '') }}/</div>
           </div>
           <div>
             <div :style="{ height: '1px', background: 'var(--color-border-1)', margin: '14px 0' }" />
