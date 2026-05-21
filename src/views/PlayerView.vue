@@ -33,6 +33,7 @@ const router = useRouter();
 const scrollY = ref(0);
 const queueOpen = ref(false);
 const voiceSheetOpen = ref(false);
+const labOpen = ref(false);
 let scrollEl: HTMLElement | null = null;
 
 const compact = computed(() => scrollY.value > 100);
@@ -106,6 +107,9 @@ function changeGap(deltaMs: number) {
 }
 function openCurrentDetail() {
   if (current.value) ui.openChunkDetail(current.value.id);
+}
+function openListeningLab() {
+  labOpen.value = true;
 }
 function dismissPlayer() {
   if (window.history.length > 1) router.back();
@@ -380,12 +384,12 @@ const upNext = computed(() =>
             display: 'grid',
             placeItems: 'center',
             background: 'var(--color-surface-2)',
-            color: 'var(--color-text-2)',
+            color: 'var(--color-cyan)',
           }"
-          @click="openCurrentDetail"
-          :aria-label="'Chi tiết chunk'"
+          @click="openListeningLab"
+          :aria-label="'Mở Listening Lab'"
         >
-          <Icon name="more" :size="18" />
+          <Icon name="sparkles" :size="18" />
         </button>
       </div>
 
@@ -688,6 +692,126 @@ const upNext = computed(() =>
     </div>
 
     <div class="tabbar-spacer" />
+
+    <!-- Listening Lab sheet -->
+    <AppSheet :open="labOpen" title="Listening Lab" @close="labOpen = false">
+      <div :style="{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }">
+        <div :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
+          <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', fontWeight: 600 }">Repeat each</div>
+          <div
+            :style="{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'var(--color-surface-1)',
+              border: '1px solid var(--color-border-1)',
+              borderRadius: '12px',
+              padding: '4px',
+            }"
+          >
+            <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeRepeat(-1)">
+              <Icon name="minus" :size="14" />
+            </button>
+            <span class="mono" :style="{ fontSize: '14px', fontWeight: 700 }">{{ player.repeatEach }}×</span>
+            <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeRepeat(1)">
+              <Icon name="plus" :size="14" />
+            </button>
+          </div>
+        </div>
+        <div :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
+          <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', fontWeight: 600 }">Gap</div>
+          <div
+            :style="{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'var(--color-surface-1)',
+              border: '1px solid var(--color-border-1)',
+              borderRadius: '12px',
+              padding: '4px',
+            }"
+          >
+            <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeGap(-500)">
+              <Icon name="minus" :size="14" />
+            </button>
+            <span class="mono" :style="{ fontSize: '14px', fontWeight: 700 }">{{ (player.gap / 1000).toFixed(1) }}s</span>
+            <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeGap(500)">
+              <Icon name="plus" :size="14" />
+            </button>
+          </div>
+        </div>
+        <div :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
+          <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', fontWeight: 600 }">Speed</div>
+          <div
+            :style="{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'var(--color-surface-1)',
+              border: '1px solid var(--color-border-1)',
+              borderRadius: '12px',
+              padding: '4px',
+            }"
+          >
+            <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeSpeed(-0.05)">
+              <Icon name="minus" :size="14" />
+            </button>
+            <span class="mono" :style="{ fontSize: '14px', fontWeight: 700 }">{{ player.speed.toFixed(2) }}×</span>
+            <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeSpeed(0.05)">
+              <Icon name="plus" :size="14" />
+            </button>
+          </div>
+        </div>
+        <div :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
+          <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', fontWeight: 600 }">Mix voices</div>
+          <button
+            class="btn tap"
+            :style="{
+              height: '36px',
+              borderRadius: '12px',
+              padding: '0 6px',
+              background: player.mixVoice ? 'var(--color-surface-3)' : 'var(--color-surface-1)',
+              border: player.mixVoice ? '1px solid var(--color-cyan)' : '1px solid var(--color-border-1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }"
+            @click="toggleMixVoice"
+          >
+            <span
+              :style="{
+                fontSize: '13px',
+                fontWeight: 600,
+                paddingLeft: '6px',
+                color: player.mixVoice ? 'var(--color-cyan)' : 'var(--color-text-2)',
+              }"
+            >{{ player.mixVoice ? 'On' : 'Off' }}</span>
+            <span
+              :style="{
+                width: '28px',
+                height: '16px',
+                borderRadius: '99px',
+                background: player.mixVoice ? 'var(--color-cyan)' : 'var(--color-surface-3)',
+                position: 'relative',
+              }"
+            >
+              <span
+                :style="{
+                  position: 'absolute',
+                  top: '1px',
+                  left: player.mixVoice ? '13px' : '1px',
+                  width: '14px',
+                  height: '14px',
+                  borderRadius: '50%',
+                  background: '#fff',
+                  transition: 'left .15s ease',
+                }"
+              />
+            </span>
+          </button>
+        </div>
+      </div>
+    </AppSheet>
 
     <!-- Full queue sheet -->
     <AppSheet :open="queueOpen" :title="`Queue · ${player.queueLength} chunks`" @close="queueOpen = false">
