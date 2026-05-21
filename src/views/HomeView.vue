@@ -89,8 +89,11 @@ function startPassive() {
 }
 
 function reviewWeak() {
-  const list = playlistService.buildMistakes(chunks.chunks, progress.progressMap, { limit: 20 });
-  gotoPlayer(list, 'review');
+  router.push({ path: '/study/learn', query: { source: 'mistakes' } });
+}
+
+function reviewDue() {
+  router.push({ path: '/study/learn', query: { source: 'review' } });
 }
 
 function interviewPractice() {
@@ -116,6 +119,31 @@ function startFlashcards() {
   router.push('/study/flashcard');
 }
 
+function startLearn() {
+  router.push('/study/learn');
+}
+
+function startWrite() {
+  const list = playlistService.buildStarred(chunks.chunks, progress.progressMap);
+  const queue = list.length > 0 ? list : chunks.chunks.slice(0, 12);
+  practice.start({ mode: 'write', chunks: queue });
+  router.push('/study/write');
+}
+
+function startDictation() {
+  const list = playlistService.buildStarred(chunks.chunks, progress.progressMap);
+  const queue = list.length > 0 ? list : chunks.chunks.slice(0, 10);
+  practice.start({ mode: 'dictation', chunks: queue });
+  router.push('/study/dictation');
+}
+
+const studyModes = [
+  { key: 'flashcard', icon: 'flashcard', label: 'Flashcard', run: startFlashcards, color: 'var(--color-emerald)' },
+  { key: 'learn', icon: 'sparkles', label: 'Learn', run: startLearn, color: 'var(--color-violet)' },
+  { key: 'write', icon: 'pencil', label: 'Write', run: startWrite, color: 'var(--color-amber)' },
+  { key: 'dictation', icon: 'ear', label: 'Dictation', run: startDictation, color: 'var(--color-cyan)' },
+] as const;
+
 function gotoTopic(topicId: string) {
   chunks.setTopic(topicId);
   router.push('/library');
@@ -136,7 +164,6 @@ const quickActions = [
   { key: 'review', icon: 'flame', label: 'Review yếu', hint: 'Ôn chunk hay sai', run: reviewWeak, color: 'var(--color-rose)' },
   { key: 'interview', icon: 'sparkles', label: 'Interview', hint: 'Luyện phỏng vấn', run: interviewPractice, color: 'var(--color-violet)' },
   { key: 'toeic', icon: 'trophy', label: 'TOEIC mini', hint: 'Test nhanh', run: toeicMini, color: 'var(--color-amber)' },
-  { key: 'flashcard', icon: 'flashcard', label: 'Flashcard', hint: 'Học bằng thẻ', run: startFlashcards, color: 'var(--color-emerald)' },
 ] as const;
 </script>
 
@@ -214,6 +241,23 @@ const quickActions = [
       </div>
     </div>
 
+    <!-- Study modes -->
+    <div>
+      <h2 class="home__section-title">Học cụm</h2>
+      <div class="home__modes">
+        <button
+          v-for="m in studyModes"
+          :key="m.key"
+          class="home__mode tap glass"
+          :style="{ '--c': m.color }"
+          @click="m.run"
+        >
+          <span class="home__mode-icon"><Icon :name="m.icon" :size="18" /></span>
+          <span class="home__mode-label">{{ m.label }}</span>
+        </button>
+      </div>
+    </div>
+
     <!-- Topic progress -->
     <div>
       <h2 class="home__section-title">Chủ đề</h2>
@@ -234,7 +278,12 @@ const quickActions = [
 
     <!-- Due for review -->
     <div>
-      <h2 class="home__section-title">Đến hạn ôn</h2>
+      <header class="home__section-row">
+        <h2 class="home__section-title">Đến hạn ôn</h2>
+        <button v-if="dueReviewChunks.length > 0" class="home__section-link tap" @click="reviewDue">
+          Ôn ngay <Icon name="arrow-right" :size="12" />
+        </button>
+      </header>
       <div class="home__due">
         <ChunkRow
           v-for="c in dueReviewChunks"
@@ -385,15 +434,58 @@ const quickActions = [
   color: color-mix(in oklch, var(--c) 90%, white);
   border-color: color-mix(in oklch, var(--c) 28%, transparent);
 }
-.home__action:nth-child(5) {
-  grid-column: span 2;
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;
+
+/* Study modes row */
+.home__modes {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
 }
-.home__action:nth-child(5) .home__action-icon {
-  width: 38px;
-  height: 38px;
+.home__mode {
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border-color: color-mix(in oklch, var(--c) 28%, transparent);
+}
+.home__mode-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklch, var(--c) 18%, transparent);
+  color: var(--c);
+}
+.home__mode-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-1);
+}
+
+.home__section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.home__section-row .home__section-title {
+  margin: 0;
+}
+.home__section-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--color-cyan) 14%, transparent);
+  border: 1px solid color-mix(in oklch, var(--color-cyan) 35%, transparent);
+  color: var(--color-cyan);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 .home__action-icon {
   width: 32px;

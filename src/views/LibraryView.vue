@@ -85,6 +85,23 @@ function startFlashcards() {
   router.push('/study/flashcard');
 }
 
+function startWrite() {
+  if (chunks.filtered.length === 0) return;
+  practice.start({ mode: 'write', chunks: [...chunks.filtered] });
+  router.push('/study/write');
+}
+
+function startDictation() {
+  if (chunks.filtered.length === 0) return;
+  practice.start({ mode: 'dictation', chunks: [...chunks.filtered] });
+  router.push('/study/dictation');
+}
+
+function startLearn() {
+  if (chunks.filtered.length === 0) return;
+  router.push('/study/learn');
+}
+
 function openDetail(chunk: Chunk) {
   ui.openChunkDetail(chunk.id);
 }
@@ -165,7 +182,7 @@ function toggleStar(chunk: Chunk) {
       </div>
     </header>
 
-    <div class="lib__actions">
+    <div class="lib__actions no-scrollbar">
       <AppButton variant="primary" size="sm" @click="playAll">
         <Icon name="play" :size="14" />
         Phát tất cả
@@ -177,6 +194,18 @@ function toggleStar(chunk: Chunk) {
       <AppButton variant="glass" size="sm" @click="startFlashcards">
         <Icon name="flashcard" :size="14" />
         Flashcard
+      </AppButton>
+      <AppButton variant="glass" size="sm" @click="startLearn">
+        <Icon name="sparkles" :size="14" />
+        Learn
+      </AppButton>
+      <AppButton variant="glass" size="sm" @click="startWrite">
+        <Icon name="pencil" :size="14" />
+        Write
+      </AppButton>
+      <AppButton variant="glass" size="sm" @click="startDictation">
+        <Icon name="ear" :size="14" />
+        Dictation
       </AppButton>
       <button
         v-if="chunks.searchKeyword || chunks.selectedTopic !== 'all' || chunks.selectedLevel !== 'all' || chunks.selectedSource !== 'all' || chunks.activeTab !== 'all'"
@@ -366,6 +395,8 @@ function toggleStar(chunk: Chunk) {
   align-items: center;
   gap: 8px;
   padding: 0 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 .lib__clear {
   margin-left: auto;
