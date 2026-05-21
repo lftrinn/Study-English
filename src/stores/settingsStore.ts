@@ -22,6 +22,8 @@ type PersistedSettings = {
   /** Best Match-mode finish times in ms keyed by pair count. */
   bestMatchTimes: Record<number, number>;
   installPromptDismissedAt: number | null;
+  spacedRepetition: boolean;
+  vietnameseHintPosition: 'below' | 'above' | 'inline';
 };
 
 const DEFAULTS: PersistedSettings = {
@@ -39,6 +41,8 @@ const DEFAULTS: PersistedSettings = {
   onboardingDone: false,
   bestMatchTimes: {},
   installPromptDismissedAt: null,
+  spacedRepetition: true,
+  vietnameseHintPosition: 'below',
 };
 
 function loadFromLocalStorage(): PersistedSettings {
@@ -77,6 +81,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const onboardingDone = ref<boolean>(DEFAULTS.onboardingDone);
   const bestMatchTimes = ref<Record<number, number>>({ ...DEFAULTS.bestMatchTimes });
   const installPromptDismissedAt = ref<number | null>(DEFAULTS.installPromptDismissedAt);
+  const spacedRepetition = ref<boolean>(DEFAULTS.spacedRepetition);
+  const vietnameseHintPosition = ref<'below' | 'above' | 'inline'>(DEFAULTS.vietnameseHintPosition);
 
   const hydrated = ref(false);
 
@@ -96,6 +102,8 @@ export const useSettingsStore = defineStore('settings', () => {
       onboardingDone: onboardingDone.value,
       bestMatchTimes: { ...bestMatchTimes.value },
       installPromptDismissedAt: installPromptDismissedAt.value,
+      spacedRepetition: spacedRepetition.value,
+      vietnameseHintPosition: vietnameseHintPosition.value,
     };
   }
 
@@ -116,6 +124,8 @@ export const useSettingsStore = defineStore('settings', () => {
     onboardingDone.value = s.onboardingDone;
     bestMatchTimes.value = { ...s.bestMatchTimes };
     installPromptDismissedAt.value = s.installPromptDismissedAt;
+    spacedRepetition.value = s.spacedRepetition;
+    vietnameseHintPosition.value = s.vietnameseHintPosition;
     hydrated.value = true;
   }
 
@@ -157,6 +167,8 @@ export const useSettingsStore = defineStore('settings', () => {
     onboardingDone.value = DEFAULTS.onboardingDone;
     bestMatchTimes.value = { ...DEFAULTS.bestMatchTimes };
     installPromptDismissedAt.value = DEFAULTS.installPromptDismissedAt;
+    spacedRepetition.value = DEFAULTS.spacedRepetition;
+    vietnameseHintPosition.value = DEFAULTS.vietnameseHintPosition;
   }
 
   // Persist on any change after hydration.
@@ -176,6 +188,8 @@ export const useSettingsStore = defineStore('settings', () => {
       onboardingDone,
       bestMatchTimes,
       installPromptDismissedAt,
+      spacedRepetition,
+      vietnameseHintPosition,
     ],
     () => {
       if (!hydrated.value) return;
@@ -199,6 +213,8 @@ export const useSettingsStore = defineStore('settings', () => {
     onboardingDone,
     bestMatchTimes,
     installPromptDismissedAt,
+    spacedRepetition,
+    vietnameseHintPosition,
     hydrated,
     hydrate,
     setTheme,

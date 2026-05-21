@@ -211,6 +211,37 @@ export const useProgressStore = defineStore('progress', () => {
     return streak;
   });
 
+  const bestStreak = computed(() => {
+    if (recentLogs.value.length === 0) return 0;
+    const dayKeys = new Set(recentLogs.value.map((l) => isoDayKey(l.playedAt)));
+    const today = new Date();
+    let best = 0;
+    let run = 0;
+    for (let i = 0; i < 90; i += 1) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      if (dayKeys.has(isoDayKey(d))) {
+        run += 1;
+        if (run > best) best = run;
+      } else {
+        run = 0;
+      }
+    }
+    return Math.max(best, streakDays.value);
+  });
+
+  const previousWeekTotal = computed(() => {
+    const today = new Date();
+    let count = 0;
+    for (let i = 7; i < 14; i += 1) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const key = isoDayKey(d);
+      count += recentLogs.value.filter((l) => isoDayKey(l.playedAt) === key).length;
+    }
+    return count;
+  });
+
   function topListenedChunkIds(limit = 5): string[] {
     return Array.from(progressMap.value.values())
       .filter((p) => p.listenCount > 0)
@@ -254,6 +285,8 @@ export const useProgressStore = defineStore('progress', () => {
     weeklyStats,
     todayListenCount,
     streakDays,
+    bestStreak,
+    previousWeekTotal,
     topListenedChunkIds,
     topicListenCount,
     clearAll,

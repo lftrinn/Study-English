@@ -11,9 +11,11 @@ import { speechService } from '@/services/speechService';
 import type { Chunk } from '@/types/chunk';
 import type { FlashcardDirection } from '@/types/practice';
 
+import ModeShell from '@/components/layout/ModeShell.vue';
 import Flashcard from '@/components/practice/Flashcard.vue';
-import AppButton from '@/components/common/AppButton.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
+import IconBtn from '@/components/common/IconBtn.vue';
+import ProgressBar from '@/components/common/ProgressBar.vue';
 import Icon from '@/components/common/Icon.vue';
 
 const router = useRouter();
@@ -28,7 +30,6 @@ const autoPlay = ref(false);
 let autoPlayTimer: number | null = null;
 
 const current = computed<Chunk | undefined>(() => practice.current);
-const progressPct = computed(() => practice.progressPct);
 
 function startWithFiltered() {
   const list = chunks.filtered.length > 0 ? chunks.filtered : chunks.chunks.slice(0, 20);
@@ -59,7 +60,7 @@ async function know() {
     isCorrect: true,
     userAnswer: undefined,
   });
-  next();
+  practice.advance();
 }
 async function stillLearning() {
   if (!current.value) return;
@@ -71,15 +72,7 @@ async function stillLearning() {
     isCorrect: false,
     userAnswer: undefined,
   });
-  next();
-}
-function next() {
   practice.advance();
-}
-
-function toggleStar() {
-  if (!current.value) return;
-  void progress.toggleStarred(current.value.id);
 }
 
 async function playAudio(chunk: Chunk) {
@@ -100,7 +93,8 @@ function toggleAutoPlay() {
 
 function exitSession() {
   practice.reset();
-  router.replace('/');
+  if (window.history.length > 1) router.back();
+  else router.replace('/');
 }
 
 function openDetail() {
@@ -108,9 +102,9 @@ function openDetail() {
   ui.openChunkDetail(current.value.id);
 }
 
-const starred = computed(() =>
-  current.value ? Boolean(progress.byId(current.value.id)?.starred) : false,
-);
+function toggleStar(c: Chunk) {
+  void progress.toggleStarred(c.id);
+}
 
 onMounted(() => {
   if (practice.status !== 'active' && chunks.chunks.length > 0) {
@@ -121,96 +115,210 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (autoPlayTimer !== null) window.clearTimeout(autoPlayTimer);
 });
+
+const subtitle = computed(() => {
+  if (practice.total === 0) return undefined;
+  return `${Math.min(practice.index + 1, practice.total)} / ${practice.total}`;
+});
 </script>
 
 <template>
-  <section class="fc">
-    <header class="fc__head safe-pt">
-      <button class="fc__back tap" :aria-label="'Quay lại'" @click="exitSession">
-        <Icon name="chevron-left" :size="20" />
-      </button>
-      <div class="fc__head-info">
-        <p class="text-caption text-text-3">Flashcard</p>
-        <p class="fc__progress-text">
-          {{ Math.min(practice.index + 1, practice.total) }} / {{ practice.total }}
-        </p>
-      </div>
-      <button class="fc__dir tap" :aria-label="'Đổi hướng'" @click="flipDirection">
-        {{ direction === 'en-to-vi' ? 'EN → VI' : 'VI → EN' }}
-      </button>
-    </header>
-
-    <div class="fc__progress-bar">
-      <div class="fc__progress-fill" :style="{ width: `${progressPct}%` }" />
-    </div>
-
+  <ModeShell title="Flashcards" :subtitle="subtitle" :on-close="exitSession">
     <template v-if="practice.status === 'active' && current">
-      <Flashcard :chunk="current" :direction="direction" @play="playAudio" />
-
-      <div class="fc__row">
-        <button class="fc__icon tap" :aria-label="'Shuffle'" @click="shuffleAndRestart">
-          <Icon name="shuffle" :size="18" />
-        </button>
-        <button
-          class="fc__icon tap"
-          :class="{ 'is-active': autoPlay }"
-          :aria-label="autoPlay ? 'Tắt auto' : 'Bật auto'"
-          @click="toggleAutoPlay"
+      <!-- Progress + direction -->
+      <div :style="{ padding: '0 20px' }">
+        <ProgressBar
+          :value="Math.min(practice.index + 1, practice.total)"
+          :max="practice.total"
+          :height="4"
+        />
+        <div
+          :style="{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginTop: '14px',
+          }"
         >
-          <Icon name="play" :size="16" />
-        </button>
-        <button class="fc__icon tap" :aria-label="'Chi tiết'" @click="openDetail">
-          <Icon name="message" :size="16" />
-        </button>
-        <button
-          class="fc__icon tap"
-          :class="{ 'is-active': starred }"
-          :aria-label="starred ? 'Bỏ sao' : 'Đánh dấu sao'"
-          @click="toggleStar"
-        >
-          <Icon :name="starred ? 'star-filled' : 'star'" :size="18" />
-        </button>
+          <div
+            :style="{
+              display: 'flex',
+              background: 'var(--color-surface-2)',
+              borderRadius: '999px',
+              padding: '3px',
+              gap: '2px',
+              border: '1px solid var(--color-border-1)',
+            }"
+          >
+            <button
+              v-for="opt in ([
+                { key: 'en-to-vi', label: 'EN → VI' },
+                { key: 'vi-to-en', label: 'VI → EN' },
+              ] as const)"
+              :key="opt.key"
+              class="btn tap"
+              :style="{
+                padding: '6px 14px',
+                borderRadius: '999px',
+                fontSize: '11px',
+                fontWeight: 700,
+                background: direction === opt.key ? 'var(--color-surface-3)' : 'transparent',
+                color: direction === opt.key ? 'var(--color-text-1)' : 'var(--color-text-3)',
+              }"
+              @click="direction = opt.key"
+            >
+              {{ opt.label }}
+            </button>
+          </div>
+          <div :style="{ display: 'flex', gap: '4px' }">
+            <IconBtn icon="shuffle" :size="36" :icon-size="16" @click="shuffleAndRestart" />
+            <IconBtn
+              :icon="autoPlay ? 'pause' : 'play'"
+              :active="autoPlay"
+              :size="36"
+              :icon-size="16"
+              @click="toggleAutoPlay"
+            />
+            <IconBtn icon="more" :size="36" :icon-size="16" @click="openDetail" />
+          </div>
+        </div>
       </div>
 
-      <div class="fc__cta">
-        <AppButton variant="glass" size="lg" block @click="stillLearning">
-          <Icon name="flame" :size="16" />
-          Cần ôn thêm
-        </AppButton>
-        <AppButton variant="primary" size="lg" block @click="know">
-          <Icon name="check" :size="16" />
-          Đã thuộc
-        </AppButton>
+      <!-- Card -->
+      <div
+        :style="{
+          flex: 1,
+          padding: '24px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }"
+      >
+        <Flashcard :chunk="current" :direction="direction" @play="playAudio" @toggle-star="toggleStar" />
+      </div>
+
+      <!-- Action buttons -->
+      <div :style="{ padding: '0 20px 20px' }">
+        <div :style="{ display: 'flex', gap: '10px' }">
+          <button
+            class="btn tap"
+            :style="{
+              flex: 1,
+              padding: '14px',
+              borderRadius: '18px',
+              fontSize: '14px',
+              fontWeight: 700,
+              background: 'linear-gradient(135deg, rgba(251,113,133,0.15), rgba(251,113,133,0.05))',
+              border: '1px solid color-mix(in oklch, var(--color-rose) 30%, transparent)',
+              color: 'var(--color-rose)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+            }"
+            @click="stillLearning"
+          >
+            <Icon name="close" :size="18" /> Cần ôn thêm
+          </button>
+          <button
+            class="btn tap"
+            :style="{
+              flex: 1,
+              padding: '14px',
+              borderRadius: '18px',
+              fontSize: '14px',
+              fontWeight: 700,
+              background: 'linear-gradient(135deg, rgba(52,211,153,0.18), rgba(52,211,153,0.05))',
+              border: '1px solid color-mix(in oklch, var(--color-emerald) 35%, transparent)',
+              color: 'var(--color-emerald)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+            }"
+            @click="know"
+          >
+            <Icon name="check" :size="18" /> Đã thuộc
+          </button>
+        </div>
+        <div
+          :style="{
+            textAlign: 'center',
+            fontSize: '11px',
+            color: 'var(--color-text-3)',
+            marginTop: '10px',
+          }"
+        >Tap card to flip · Swipe to navigate</div>
       </div>
     </template>
 
     <template v-else-if="practice.status === 'finished'">
-      <div class="fc__summary glass-strong">
-        <p class="text-caption text-text-3">Hoàn thành phiên</p>
-        <h2 class="text-title-2">Tốt lắm!</h2>
-        <div class="fc__summary-stats">
+      <div
+        class="glass-strong"
+        :style="{
+          margin: '14px 20px',
+          padding: '24px',
+          borderRadius: '28px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+        }"
+      >
+        <div
+          :style="{
+            fontSize: '11px',
+            fontWeight: 700,
+            color: 'var(--color-text-3)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+          }"
+        >Hoàn thành phiên</div>
+        <h2 :style="{ margin: 0, fontSize: '28px', fontWeight: 700, letterSpacing: '-0.02em' }">Tốt lắm!</h2>
+        <div
+          :style="{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '12px',
+          }"
+        >
           <div>
-            <p class="fc__summary-label">Đã thuộc</p>
-            <p class="fc__summary-value emerald">{{ practice.correctCount }}</p>
+            <p :style="{ margin: '0 0 2px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-3)', fontWeight: 700 }">Đã thuộc</p>
+            <p :style="{ margin: 0, fontSize: '28px', fontWeight: 700, color: 'var(--color-emerald)' }">{{ practice.correctCount }}</p>
           </div>
           <div>
-            <p class="fc__summary-label">Cần ôn</p>
-            <p class="fc__summary-value amber">{{ practice.wrongCount }}</p>
+            <p :style="{ margin: '0 0 2px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-3)', fontWeight: 700 }">Cần ôn</p>
+            <p :style="{ margin: 0, fontSize: '28px', fontWeight: 700, color: 'var(--color-amber)' }">{{ practice.wrongCount }}</p>
           </div>
           <div>
-            <p class="fc__summary-label">Tổng</p>
-            <p class="fc__summary-value">{{ practice.total }}</p>
+            <p :style="{ margin: '0 0 2px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-3)', fontWeight: 700 }">Tổng</p>
+            <p :style="{ margin: 0, fontSize: '28px', fontWeight: 700 }">{{ practice.total }}</p>
           </div>
         </div>
-        <div class="fc__summary-actions">
-          <AppButton variant="glass" size="md" @click="shuffleAndRestart">
-            <Icon name="shuffle" :size="14" />
-            Trộn và làm lại
-          </AppButton>
-          <AppButton variant="primary" size="md" @click="exitSession">
-            <Icon name="check" :size="14" />
-            Xong
-          </AppButton>
+        <div :style="{ display: 'flex', gap: '8px' }">
+          <button
+            class="btn tap glass"
+            :style="{ flex: 1, padding: '14px 0', borderRadius: '16px', fontSize: '14px', fontWeight: 700 }"
+            @click="shuffleAndRestart"
+          >
+            <Icon name="shuffle" :size="14" /> Làm lại
+          </button>
+          <button
+            class="btn tap"
+            :style="{
+              flex: 1,
+              padding: '14px 0',
+              borderRadius: '16px',
+              background: 'var(--grad-primary)',
+              color: '#fff',
+              fontSize: '14px',
+              fontWeight: 700,
+              textShadow: '0 1px 1.5px rgba(0,0,0,0.18)',
+              boxShadow: '0 10px 28px rgba(34,211,238,0.42), 0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(0,0,0,0.18) inset',
+            }"
+            @click="exitSession"
+          >
+            <Icon name="check" :size="14" /> Xong
+          </button>
         </div>
       </div>
     </template>
@@ -221,140 +329,22 @@ onBeforeUnmount(() => {
       title="Chưa có chunk để học"
       hint="Mở Library, chọn chủ đề rồi quay lại đây."
     >
-      <AppButton variant="primary" size="md" @click="startWithFiltered">
-        <Icon name="flashcard" :size="14" />
-        Bắt đầu với toàn bộ chunks
-      </AppButton>
+      <button
+        class="btn tap"
+        :style="{
+          padding: '12px 18px',
+          borderRadius: '14px',
+          background: 'var(--grad-primary)',
+          color: '#fff',
+          fontSize: '13px',
+          fontWeight: 700,
+          textShadow: '0 1px 1.5px rgba(0,0,0,0.18)',
+          boxShadow: '0 10px 28px rgba(34,211,238,0.42), 0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(0,0,0,0.18) inset',
+        }"
+        @click="startWithFiltered"
+      >
+        Bắt đầu
+      </button>
     </EmptyState>
-  </section>
+  </ModeShell>
 </template>
-
-<style scoped>
-.fc {
-  padding: 12px 16px 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-height: 100vh;
-  min-height: 100dvh;
-}
-
-.fc__head {
-  display: grid;
-  grid-template-columns: 40px 1fr auto;
-  align-items: center;
-  gap: 10px;
-  padding-top: max(env(safe-area-inset-top), 8px);
-}
-.fc__back,
-.fc__dir {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-1);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-.fc__dir {
-  width: auto;
-  padding: 0 14px;
-}
-.fc__head-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.fc__progress-text {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-1);
-}
-
-.fc__progress-bar {
-  height: 6px;
-  background: var(--color-surface-1);
-  border-radius: 999px;
-  overflow: hidden;
-}
-.fc__progress-fill {
-  height: 100%;
-  background: var(--grad-primary);
-  transition: width 0.3s var(--ease-out-soft, cubic-bezier(0.2, 0.8, 0.2, 1));
-}
-
-.fc__row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-.fc__icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.fc__icon.is-active {
-  color: var(--color-cyan);
-  background: color-mix(in oklch, var(--color-cyan) 18%, transparent);
-  border-color: color-mix(in oklch, var(--color-cyan) 35%, transparent);
-}
-
-.fc__cta {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.fc__summary {
-  padding: 24px;
-  border-radius: 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.fc__summary-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-.fc__summary-label {
-  margin: 0 0 2px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-text-3);
-  font-weight: 700;
-}
-.fc__summary-value {
-  margin: 0;
-  font-family: var(--font-ui);
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--color-text-1);
-}
-.fc__summary-value.emerald {
-  color: var(--color-emerald);
-}
-.fc__summary-value.amber {
-  color: var(--color-amber);
-}
-.fc__summary-actions {
-  display: flex;
-  gap: 8px;
-}
-</style>

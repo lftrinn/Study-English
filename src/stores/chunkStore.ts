@@ -32,8 +32,8 @@ export const useChunkStore = defineStore('chunks', () => {
   const loaded = ref(false);
 
   const selectedTopic = ref<string | 'all'>('all');
-  const selectedLevel = ref<ChunkLevel | 'all'>('all');
-  const selectedSource = ref<ChunkSource | 'all'>('all');
+  const selectedLevels = ref<ChunkLevel[]>([]);
+  const selectedSources = ref<ChunkSource[]>([]);
   const searchKeyword = ref('');
   const activeTab = ref<LibraryTab>('all');
 
@@ -79,8 +79,8 @@ export const useChunkStore = defineStore('chunks', () => {
     const progress = useProgressStore();
     return chunks.value.filter((c) => {
       if (selectedTopic.value !== 'all' && c.topic !== selectedTopic.value) return false;
-      if (selectedLevel.value !== 'all' && c.level !== selectedLevel.value) return false;
-      if (selectedSource.value !== 'all' && c.source !== selectedSource.value) return false;
+      if (selectedLevels.value.length > 0 && !selectedLevels.value.includes(c.level)) return false;
+      if (selectedSources.value.length > 0 && !selectedSources.value.includes(c.source)) return false;
       if (!matchesSearch(c, searchKeyword.value)) return false;
 
       const p = progress.byId(c.id);
@@ -103,11 +103,11 @@ export const useChunkStore = defineStore('chunks', () => {
   function setTopic(id: string | 'all') {
     selectedTopic.value = id;
   }
-  function setLevel(l: ChunkLevel | 'all') {
-    selectedLevel.value = l;
+  function setLevels(levels: ChunkLevel[]) {
+    selectedLevels.value = [...levels];
   }
-  function setSource(s: ChunkSource | 'all') {
-    selectedSource.value = s;
+  function setSources(sources: ChunkSource[]) {
+    selectedSources.value = [...sources];
   }
   function setSearch(kw: string) {
     searchKeyword.value = kw;
@@ -117,8 +117,8 @@ export const useChunkStore = defineStore('chunks', () => {
   }
   function clearFilters() {
     selectedTopic.value = 'all';
-    selectedLevel.value = 'all';
-    selectedSource.value = 'all';
+    selectedLevels.value = [];
+    selectedSources.value = [];
     searchKeyword.value = '';
     activeTab.value = 'all';
   }
@@ -143,8 +143,8 @@ export const useChunkStore = defineStore('chunks', () => {
     topics,
     loaded,
     selectedTopic,
-    selectedLevel,
-    selectedSource,
+    selectedLevels,
+    selectedSources,
     searchKeyword,
     activeTab,
     topicWithCounts,
@@ -155,8 +155,8 @@ export const useChunkStore = defineStore('chunks', () => {
     topicById,
     chunksByTopic,
     setTopic,
-    setLevel,
-    setSource,
+    setLevels,
+    setSources,
     setSearch,
     setTab,
     clearFilters,

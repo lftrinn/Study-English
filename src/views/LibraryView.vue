@@ -3,7 +3,7 @@
  * Literal port of screens-main.jsx LibraryScreen (lines 202-312) +
  * FilterSheetContent (lines 344-390). All inline styles preserved.
  */
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { useChunkStore } from '@/stores/chunkStore';
@@ -16,7 +16,9 @@ import type { Chunk, ChunkLevel, ChunkSource } from '@/types/chunk';
 
 import ChunkRow from '@/components/chunk/ChunkRow.vue';
 import ChunkFormSheet from '@/components/chunk/ChunkFormSheet.vue';
-import SkelChunkRow from '@/components/chunk/SkelChunkRow.vue';
+import LoadingLibrary from '@/components/common/LoadingLibrary.vue';
+import EmptyFiltered from '@/components/common/EmptyFiltered.vue';
+import EmptyLibrary from '@/components/common/EmptyLibrary.vue';
 import TopicIcon from '@/components/chunk/TopicIcon.vue';
 import AppSheet from '@/components/common/AppSheet.vue';
 import Icon from '@/components/common/Icon.vue';
@@ -32,8 +34,15 @@ const filterOpen = ref(false);
 const formOpen = ref(false);
 const editingChunk = ref<Chunk | undefined>(undefined);
 
-const levelFilters = ref<ChunkLevel[]>(['A1', 'A2']);
-const sourceFilters = ref<ChunkSource[]>(['frontend', 'interview']);
+const levelFilters = ref<ChunkLevel[]>([...chunks.selectedLevels]);
+const sourceFilters = ref<ChunkSource[]>([...chunks.selectedSources]);
+
+watch(filterOpen, (open) => {
+  if (open) {
+    levelFilters.value = [...chunks.selectedLevels];
+    sourceFilters.value = [...chunks.selectedSources];
+  }
+});
 
 const tabs: Array<{ key: LibraryTab; label: string }> = [
   { key: 'all', label: 'Tất cả' },
@@ -86,9 +95,13 @@ function setTopic(id: string | 'all') {
 }
 function clearAll() {
   chunks.clearFilters();
+  levelFilters.value = [];
+  sourceFilters.value = [];
   filterOpen.value = false;
 }
 function applyFilters() {
+  chunks.setLevels(levelFilters.value);
+  chunks.setSources(sourceFilters.value);
   filterOpen.value = false;
 }
 function toggleLevel(l: ChunkLevel) {
@@ -270,27 +283,20 @@ function openNewChunk() {
 
     <!-- Result list -->
     <div :style="{ padding: '16px 20px 0', display: 'flex', flexDirection: 'column', gap: '8px' }">
-      <SkelChunkRow v-if="!chunks.loaded" :count="6" />
+      <LoadingLibrary v-if="!chunks.loaded" />
       <template v-else>
-        <ChunkRow
-          v-for="c in filteredChunks"
-          :key="c.id"
-          :chunk="c"
-          @open="openDetail"
-          @play="playChunk"
-          @toggle-star="toggleStar"
-        />
-        <div
-          v-if="filteredChunks.length === 0"
-          :style="{
-            padding: '36px 24px',
-            textAlign: 'center',
-            color: 'var(--color-text-3)',
-            fontSize: '13px',
-          }"
-        >
-          Không có chunk nào khớp bộ lọc. <button class="btn tap" :style="{ color: 'var(--color-cyan)', fontWeight: 700, marginLeft: '6px' }" @click="clearAll">Xoá bộ lọc</button>
-        </div>
+        <EmptyLibrary v-if="chunks.chunks.length === 0" @seed="router.push('/onboarding')" @import="openNewChunk" />
+        <template v-else>
+          <ChunkRow
+            v-for="c in filteredChunks"
+            :key="c.id"
+            :chunk="c"
+            @open="openDetail"
+            @play="playChunk"
+            @toggle-star="toggleStar"
+          />
+          <EmptyFiltered v-if="filteredChunks.length === 0" @reset="clearAll" />
+        </template>
       </template>
     </div>
 

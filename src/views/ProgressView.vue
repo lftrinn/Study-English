@@ -10,17 +10,21 @@ import { useChunkStore } from '@/stores/chunkStore';
 import { useProgressStore } from '@/stores/progressStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useUiStore } from '@/stores/uiStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { storageService } from '@/services/storageService';
 import type { Chunk } from '@/types/chunk';
 
 import TopicIcon from '@/components/chunk/TopicIcon.vue';
 import Icon from '@/components/common/Icon.vue';
+import SectionHeader from '@/components/common/SectionHeader.vue';
+import ProgressBar from '@/components/common/ProgressBar.vue';
 
 const router = useRouter();
 const chunks = useChunkStore();
 const progress = useProgressStore();
 const player = usePlayerStore();
 const ui = useUiStore();
+const settings = useSettingsStore();
 
 const totalChunks = computed(() => chunks.chunks.length);
 const minutes = computed(() => Math.round((progress.totalListened * 3) / 60));
@@ -29,6 +33,17 @@ const lastWeekStats = computed(() => progress.weeklyStats);
 const weekTotal = computed(() => lastWeekStats.value.reduce((s, d) => s + d.listenCount, 0));
 const weekMax = computed(() => Math.max(1, ...lastWeekStats.value.map((d) => d.listenCount)));
 const todayIndex = computed(() => lastWeekStats.value.length - 1);
+
+const wowDelta = computed(() => {
+  const prev = progress.previousWeekTotal;
+  const cur = weekTotal.value;
+  if (prev === 0) return cur === 0 ? null : 100;
+  return Math.round(((cur - prev) / prev) * 100);
+});
+const remainingToExtend = computed(() => {
+  if (progress.todayListenCount >= settings.dailyGoal) return 0;
+  return Math.max(0, settings.dailyGoal - progress.todayListenCount);
+});
 
 const last14 = computed(() => {
   const out: { date: string; listened: boolean; isToday: boolean }[] = [];
@@ -143,7 +158,13 @@ function openDetail(c: Chunk) {
             <span :style="{ fontSize: '14px', color: 'var(--color-text-2)' }">ngày</span>
           </div>
           <div :style="{ fontSize: '12px', color: 'var(--color-text-3)' }">
-            Hôm nay đã nghe <span class="mono" :style="{ color: 'var(--color-text-1)' }">{{ progress.todayListenCount }}</span> chunk
+            Best: <span class="mono" :style="{ color: 'var(--color-text-1)' }">{{ progress.bestStreak }}</span>
+            <template v-if="remainingToExtend > 0">
+              · Nghe thêm <span class="mono" :style="{ color: 'var(--color-text-1)' }">{{ remainingToExtend }}</span> chunk để extend
+            </template>
+            <template v-else>
+              · Đã đạt goal hôm nay
+            </template>
           </div>
         </div>
       </div>
@@ -181,6 +202,23 @@ function openDetail(c: Chunk) {
             <span class="mono">{{ weekTotal }}</span>
             <span :style="{ fontSize: '13px', color: 'var(--color-text-3)' }"> chunks</span>
           </div>
+        </div>
+        <div v-if="wowDelta !== null" :style="{ textAlign: 'right' }">
+          <div
+            :style="{
+              fontSize: '11px',
+              color: wowDelta >= 0 ? 'var(--color-emerald)' : 'var(--color-rose)',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              justifyContent: 'flex-end',
+            }"
+          >
+            <Icon :name="wowDelta >= 0 ? 'arrow-up' : 'arrow-down'" :size="12" />
+            <span class="mono">{{ Math.abs(wowDelta) }}%</span>
+          </div>
+          <div :style="{ fontSize: '11px', color: 'var(--color-text-3)' }">vs. tuần trước</div>
         </div>
       </div>
       <div :style="{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '120px', padding: '0 4px' }">
@@ -241,11 +279,8 @@ function openDetail(c: Chunk) {
     </div>
 
     <!-- Topic breakdown -->
-    <div :style="{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '0 20px', marginTop: '22px', marginBottom: '12px' }">
-      <div>
-        <h2 :style="{ margin: 0, fontSize: '18px', fontWeight: 700, letterSpacing: '-0.01em' }">Theo chủ đề</h2>
-        <div :style="{ fontSize: '12px', color: 'var(--color-text-3)', marginTop: '2px' }">Mastered / total</div>
-      </div>
+    <div :style="{ marginTop: '22px' }">
+      <SectionHeader title="Theo chủ đề" subtitle="Mastered / total" />
     </div>
     <div class="glass" :style="{ margin: '0 20px', padding: '6px 14px' }">
       <div
@@ -279,19 +314,14 @@ function openDetail(c: Chunk) {
               {{ t.mastered }}/{{ t.total }}
             </span>
           </div>
-          <div :style="{ width: '100%', height: '4px', background: 'var(--color-surface-2)', borderRadius: '999px', overflow: 'hidden' }">
-            <div :style="{ width: `${t.pct}%`, height: '100%', background: t.color, borderRadius: '999px', transition: 'width .35s ease' }" />
-          </div>
+          <ProgressBar :value="t.pct" :max="100" :height="4" :color="t.color" />
         </div>
       </div>
     </div>
 
     <!-- Most listened -->
-    <div :style="{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '0 20px', marginTop: '24px', marginBottom: '12px' }">
-      <div>
-        <h2 :style="{ margin: 0, fontSize: '18px', fontWeight: 700, letterSpacing: '-0.01em' }">Nghe nhiều nhất</h2>
-        <div :style="{ fontSize: '12px', color: 'var(--color-text-3)', marginTop: '2px' }">Top trong thư viện</div>
-      </div>
+    <div :style="{ marginTop: '24px' }">
+      <SectionHeader title="Nghe nhiều nhất" subtitle="Top trong thư viện" />
     </div>
     <div :style="{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: '6px' }">
       <div

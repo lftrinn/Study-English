@@ -33,6 +33,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Settings', tab: 'settings' },
   },
   {
+    path: '/study/passive',
+    name: 'passive',
+    component: () => import('@/views/PassiveView.vue'),
+    meta: { title: 'Passive Lab', tab: null, hideChrome: true },
+  },
+  {
     path: '/study/flashcard',
     name: 'flashcard',
     component: () => import('@/views/FlashcardView.vue'),

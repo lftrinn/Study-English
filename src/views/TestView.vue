@@ -374,37 +374,49 @@ function playMistakes() {
 
     <!-- Result -->
     <template v-else>
-      <AppCard variant="glass-strong" padding="lg" class="tv__result">
-        <p class="text-caption text-text-3">Kết quả</p>
-        <h2 class="text-title-2">{{ accuracy >= 80 ? 'Xuất sắc!' : accuracy >= 60 ? 'Khá ổn' : 'Cần cố hơn' }}</h2>
-
+      <!-- Emerald hero card -->
+      <div
+        class="glass-strong tv__result-hero"
+        :style="{
+          background: 'linear-gradient(160deg, rgba(52,211,153,0.18), rgba(34,211,238,0.06)), var(--color-surface-2)',
+          border: '1px solid color-mix(in oklch, var(--color-emerald) 30%, transparent)',
+        }"
+      >
         <div class="tv__ring">
-          <ProgressRing :value="accuracy / 100" :size="140" :stroke="10" :show-label="false" />
+          <ProgressRing :value="accuracy / 100" :size="140" :stroke="10" :color="'#34D399'" :show-label="false" />
           <div class="tv__ring-inner">
-            <span class="tv__ring-pct">{{ accuracy }}%</span>
+            <span class="tv__ring-pct mono">{{ accuracy }}<span class="tv__ring-pct-unit">%</span></span>
             <span class="tv__ring-label">accuracy</span>
           </div>
         </div>
-
-        <div class="tv__stats">
-          <div>
-            <p class="tv__stat-label">Đúng</p>
-            <p class="tv__stat-value emerald">{{ practice.correctCount }}</p>
-          </div>
-          <div>
-            <p class="tv__stat-label">Sai</p>
-            <p class="tv__stat-value rose">{{ practice.wrongCount }}</p>
-          </div>
-          <div>
-            <p class="tv__stat-label">Thời gian</p>
-            <p class="tv__stat-value mono">{{ elapsedLabel }}</p>
-          </div>
+        <div class="tv__result-headline">
+          <span class="grad-text">{{ accuracy >= 80 ? 'Strong work!' : accuracy >= 60 ? 'Solid effort' : 'Keep going' }}</span>
         </div>
-      </AppCard>
+        <div class="tv__result-sub">
+          <span class="mono" :style="{ color: 'var(--color-emerald)' }">{{ practice.correctCount }}</span> correct ·
+          <span class="mono" :style="{ color: 'var(--color-rose)' }">{{ practice.wrongCount }}</span> to revisit
+        </div>
+      </div>
+
+      <!-- 3-up stats grid -->
+      <div class="tv__stats-grid">
+        <div class="tv__stat-tile glass">
+          <div class="tv__stat-tile-value" :style="{ color: '#34D399' }">{{ practice.correctCount }}</div>
+          <div class="tv__stat-tile-label">Đúng</div>
+        </div>
+        <div class="tv__stat-tile glass">
+          <div class="tv__stat-tile-value" :style="{ color: '#FB7185' }">{{ practice.wrongCount }}</div>
+          <div class="tv__stat-tile-label">Sai</div>
+        </div>
+        <div class="tv__stat-tile glass">
+          <div class="tv__stat-tile-value mono" :style="{ color: '#22D3EE' }">{{ elapsedLabel }}</div>
+          <div class="tv__stat-tile-label">Thời gian</div>
+        </div>
+      </div>
 
       <div v-if="wrongChunks.length > 0" class="tv__mistakes">
         <header class="tv__mistakes-head">
-          <h3 class="tv__mistakes-title">Chunk cần ôn lại</h3>
+          <h3 class="tv__mistakes-title">Chunks to revisit</h3>
           <p class="tv__mistakes-count">{{ wrongChunks.length }}</p>
         </header>
         <article
@@ -412,23 +424,42 @@ function playMistakes() {
           :key="c.id"
           class="tv__mistake glass"
         >
-          <TopicChip :topic-id="c.topic" :show-icon="true" />
+          <div
+            class="tv__mistake-icon"
+            :style="{
+              background: `color-mix(in oklch, ${chunks.topicById(c.topic)?.color ?? '#22D3EE'} 22%, transparent)`,
+              color: chunks.topicById(c.topic)?.color ?? '#22D3EE',
+            }"
+          >
+            <TopicIcon :name="c.topic" :size="16" />
+          </div>
           <div class="tv__mistake-text">
             <p class="tv__mistake-en">{{ c.text }}</p>
             <p class="tv__mistake-vi">{{ c.meaning }}</p>
           </div>
+          <button
+            class="btn tap tv__mistake-play"
+            :aria-label="'Phát chunk'"
+            @click="player.setQueue([c], { mode: 'review' }); void player.play(); router.push('/player')"
+          >
+            <Icon name="play" :size="12" :style="{ color: 'var(--color-cyan)' }" />
+          </button>
         </article>
 
-        <div class="tv__actions">
-          <AppButton variant="glass" size="md" block @click="playMistakes">
-            <Icon name="play" :size="14" />
-            Phát playlist sai
-          </AppButton>
-          <AppButton variant="primary" size="md" block @click="reviewMistakes">
-            <Icon name="sparkles" :size="14" />
-            Ôn lại bằng Learn
-          </AppButton>
-        </div>
+        <button
+          class="btn tap tv__cta-primary"
+          @click="reviewMistakes"
+        >
+          <Icon name="refresh" :size="16" />
+          Review mistakes
+        </button>
+        <button
+          class="btn tap glass tv__cta-secondary"
+          @click="playMistakes"
+        >
+          <Icon name="play" :size="14" />
+          Play mistake playlist
+        </button>
       </div>
 
       <EmptyState
@@ -618,12 +649,14 @@ function playMistakes() {
 }
 
 /* Result */
-.tv__result {
+.tv__result-hero {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   align-items: center;
   text-align: center;
+  padding: 24px;
+  border-radius: 28px;
 }
 .tv__ring {
   position: relative;
@@ -640,50 +673,56 @@ function playMistakes() {
   gap: 2px;
 }
 .tv__ring-pct {
-  font-family: var(--font-ui);
   font-size: 36px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--color-text-1);
+}
+.tv__ring-pct-unit {
+  font-size: 16px;
+  color: var(--color-text-3);
+  margin-left: 2px;
 }
 .tv__ring-label {
   font-size: 10px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-text-3);
   font-weight: 700;
 }
-.tv__stats {
-  width: 100%;
+.tv__result-headline {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.tv__result-sub {
+  font-size: 13px;
+  color: var(--color-text-2);
+}
+
+.tv__stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
 }
-.tv__stat-label {
-  margin: 0 0 2px;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-3);
-  font-weight: 700;
+.tv__stat-tile {
+  padding: 12px 0;
+  text-align: center;
+  border-radius: 14px;
 }
-.tv__stat-value {
-  margin: 0;
-  font-family: var(--font-ui);
-  font-size: 26px;
+.tv__stat-tile-value {
+  font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.02em;
   color: var(--color-text-1);
 }
-.tv__stat-value.emerald {
-  color: var(--color-emerald);
-}
-.tv__stat-value.rose {
-  color: var(--color-rose);
-}
-.tv__stat-value.mono {
-  font-family: var(--font-mono);
-  font-size: 22px;
+.tv__stat-tile-label {
+  font-size: 10px;
+  color: var(--color-text-3);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 2px;
 }
 
 .tv__mistakes {
@@ -719,7 +758,25 @@ function playMistakes() {
   padding: 12px 14px;
   border-left: 3px solid var(--color-rose);
 }
+.tv__mistake-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.tv__mistake-play {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--color-surface-3);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
 .tv__mistake-text {
+  flex: 1;
   min-width: 0;
 }
 .tv__mistake-en {
@@ -738,6 +795,36 @@ function playMistakes() {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: 8px;
+}
+
+.tv__cta-primary {
+  margin-top: 8px;
+  padding: 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--grad-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.18);
+  box-shadow:
+    0 10px 28px rgba(34, 211, 238, 0.42),
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.18) inset;
+}
+.tv__cta-secondary {
+  padding: 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .tv__final-actions {

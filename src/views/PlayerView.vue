@@ -17,6 +17,10 @@ import TopicIcon from '@/components/chunk/TopicIcon.vue';
 import LevelPill from '@/components/chunk/LevelPill.vue';
 import AppSheet from '@/components/common/AppSheet.vue';
 import Icon from '@/components/common/Icon.vue';
+import PlayBtn from '@/components/common/PlayBtn.vue';
+import WaveBars from '@/components/common/WaveBars.vue';
+import ProgressBar from '@/components/common/ProgressBar.vue';
+import StatusDot from '@/components/common/StatusDot.vue';
 
 const player = usePlayerStore();
 const settings = useSettingsStore();
@@ -94,9 +98,12 @@ function changeSpeed(delta: number) {
   player.setSpeed(Math.round((player.speed + delta) * 100) / 100);
   settings.defaultSpeed = player.speed;
 }
-function changeGap(delta: number) {
-  player.setGap(player.gap + delta);
+function changeGap(deltaMs: number) {
+  player.setGap(player.gap + deltaMs);
   settings.defaultGap = player.gap;
+}
+function openCurrentDetail() {
+  if (current.value) ui.openChunkDetail(current.value.id);
 }
 function changeRepeat(delta: number) {
   player.setRepeatEach(player.repeatEach + delta);
@@ -168,15 +175,7 @@ const upNext = computed(() =>
                 color: accent,
               }"
             >
-              <span
-                v-if="isPlaying"
-                :style="{ display: 'inline-flex', alignItems: 'center', height: '14px' }"
-              >
-                <span class="wave-bar" :style="{ height: '14px' }" />
-                <span class="wave-bar" :style="{ height: '14px' }" />
-                <span class="wave-bar" :style="{ height: '14px' }" />
-                <span class="wave-bar" :style="{ height: '14px' }" />
-              </span>
+              <WaveBars v-if="isPlaying" :color="accent" :size="14" />
               <TopicIcon v-else :name="current.topic" :size="16" />
             </div>
             <div :style="{ flex: 1, minWidth: 0 }">
@@ -186,22 +185,7 @@ const upNext = computed(() =>
               </div>
             </div>
           </div>
-          <button
-            class="btn tap"
-            :style="{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              background: 'var(--grad-primary)',
-              color: '#0B0F22',
-              display: 'grid',
-              placeItems: 'center',
-              boxShadow: '0 8px 30px rgba(34,211,238,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset',
-            }"
-            @click="togglePlay"
-          >
-            <Icon :name="isPlaying ? 'pause' : 'play'" :size="16" :style="{ marginLeft: isPlaying ? '0' : '1px' }" />
-          </button>
+          <PlayBtn :playing="isPlaying" :size="40" @click="togglePlay" />
         </template>
         <template v-else>
           <button
@@ -354,14 +338,9 @@ const upNext = computed(() =>
         <div :style="{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }">
           <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', fontWeight: 600, display: 'flex', justifyContent: 'space-between' }">
             <span>Loop <span class="mono">1/{{ player.repeatEach }}</span></span>
-            <span :style="{ display: 'inline-flex', alignItems: 'center', gap: '6px' }">
-              <span class="dot" :class="`dot-${currentProgress?.status ?? 'new'}`" />
-              {{ statusLabel }}
-            </span>
+            <StatusDot :status="currentProgress?.status ?? 'new'" with-label />
           </div>
-          <div :style="{ width: '100%', height: '4px', background: 'var(--color-surface-2)', borderRadius: '999px', overflow: 'hidden' }">
-            <div :style="{ width: '60%', height: '100%', background: accent, borderRadius: '999px', transition: 'width .35s ease' }" />
-          </div>
+          <ProgressBar :value="60" :height="4" :color="accent" />
           <div :style="{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--color-text-3)' }">
             <span class="mono">0:00</span>
             <span class="mono">0:02</span>
@@ -378,7 +357,8 @@ const upNext = computed(() =>
             background: 'var(--color-surface-2)',
             color: 'var(--color-text-2)',
           }"
-          @click="player.stop"
+          @click="openCurrentDetail"
+          :aria-label="'Chi tiết chunk'"
         >
           <Icon name="more" :size="18" />
         </button>
@@ -422,22 +402,7 @@ const upNext = computed(() =>
         >
           <Icon name="prev" :size="26" />
         </button>
-        <button
-          class="btn tap"
-          :style="{
-            width: '72px',
-            height: '72px',
-            borderRadius: '50%',
-            display: 'grid',
-            placeItems: 'center',
-            color: '#0B0F22',
-            background: 'var(--grad-primary)',
-            boxShadow: '0 8px 30px rgba(34,211,238,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset',
-          }"
-          @click="togglePlay"
-        >
-          <Icon :name="isPlaying ? 'pause' : 'play'" :size="30" :style="{ marginLeft: isPlaying ? '0' : '2px' }" />
-        </button>
+        <PlayBtn :playing="isPlaying" :size="72" @click="togglePlay" />
         <button
           class="btn tap"
           :style="{
@@ -524,11 +489,11 @@ const upNext = computed(() =>
                 padding: '4px',
               }"
             >
-              <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeGap(-100)">
+              <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeGap(-500)">
                 <Icon name="minus" :size="14" />
               </button>
               <span class="mono" :style="{ fontSize: '14px', fontWeight: 700 }">{{ (player.gap / 1000).toFixed(1) }}s</span>
-              <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeGap(100)">
+              <button class="btn tap" :style="{ width: '28px', height: '28px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="changeGap(500)">
                 <Icon name="plus" :size="14" />
               </button>
             </div>

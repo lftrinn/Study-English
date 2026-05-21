@@ -16,6 +16,7 @@ import AppSheet from '@/components/common/AppSheet.vue';
 import ChunkFormSheet from '@/components/chunk/ChunkFormSheet.vue';
 import TopicChip from '@/components/chunk/TopicChip.vue';
 import Icon from '@/components/common/Icon.vue';
+import MiniSwitch from '@/components/common/MiniSwitch.vue';
 
 const settings = useSettingsStore();
 const progress = useProgressStore();
@@ -26,7 +27,15 @@ const speedSheetOpen = ref(false);
 const gapSheetOpen = ref(false);
 const repeatSheetOpen = ref(false);
 const goalSheetOpen = ref(false);
+const hintSheetOpen = ref(false);
 const confirmClearOpen = ref(false);
+
+const HINT_POSITION_LABELS: Record<'below' | 'above' | 'inline', string> = {
+  below: 'Phía dưới English',
+  above: 'Phía trên English',
+  inline: 'Cùng dòng (—)',
+};
+const hintPositionLabel = computed(() => HINT_POSITION_LABELS[settings.vietnameseHintPosition]);
 const formOpen = ref(false);
 const editingChunk = ref<Chunk | undefined>(undefined);
 const englishVoices = ref<SpeechSynthesisVoice[]>([]);
@@ -273,7 +282,7 @@ async function deleteCustom(c: Chunk) {
           </div>
           <Icon name="chevron-right" :size="16" :style="{ color: 'var(--color-text-4)' }" />
         </button>
-        <button class="btn tap settings__row" @click="goalSheetOpen = true">
+        <button class="btn tap settings__row" :style="{ borderBottom: '1px solid var(--color-border-1)' }" @click="goalSheetOpen = true">
           <span class="settings__icon" :style="{ background: 'color-mix(in oklch, #FB7185 22%, transparent)', color: '#FB7185' }">
             <Icon name="target" :size="16" />
           </span>
@@ -286,6 +295,16 @@ async function deleteCustom(c: Chunk) {
           </div>
           <Icon name="chevron-right" :size="16" :style="{ color: 'var(--color-text-4)' }" />
         </button>
+        <div class="settings__row">
+          <span class="settings__icon" :style="{ background: 'color-mix(in oklch, #A78BFA 22%, transparent)', color: '#A78BFA' }">
+            <Icon name="brain" :size="16" />
+          </span>
+          <div :style="{ flex: 1, textAlign: 'left' }">
+            <div :style="{ fontSize: '14px', fontWeight: 600 }">Spaced repetition</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">Smart review · SM-2 algorithm</div>
+          </div>
+          <MiniSwitch v-model="settings.spacedRepetition" accent="var(--color-violet)" />
+        </div>
       </div>
     </div>
 
@@ -293,7 +312,7 @@ async function deleteCustom(c: Chunk) {
     <div :style="{ marginBottom: '18px' }">
       <div :style="{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-3)', letterSpacing: '.04em', textTransform: 'uppercase', padding: '0 20px 8px' }">Appearance</div>
       <div class="glass" :style="{ margin: '0 20px' }">
-        <div class="settings__row">
+        <div class="settings__row" :style="{ borderBottom: '1px solid var(--color-border-1)' }">
           <span class="settings__icon" :style="{ background: 'color-mix(in oklch, #22D3EE 22%, transparent)', color: '#22D3EE' }">
             <Icon :name="settings.theme === 'dark' ? 'moon' : 'sun'" :size="16" />
           </span>
@@ -332,6 +351,18 @@ async function deleteCustom(c: Chunk) {
             </button>
           </div>
         </div>
+        <button class="btn tap settings__row" @click="hintSheetOpen = true">
+          <span class="settings__icon" :style="{ background: 'color-mix(in oklch, #34D399 22%, transparent)', color: '#34D399' }">
+            <Icon name="globe" :size="16" />
+          </span>
+          <div :style="{ flex: 1, textAlign: 'left' }">
+            <div :style="{ fontSize: '14px', fontWeight: 600 }">Vị trí nghĩa Việt</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">
+              {{ hintPositionLabel }}
+            </div>
+          </div>
+          <Icon name="chevron-right" :size="16" :style="{ color: 'var(--color-text-4)' }" />
+        </button>
       </div>
     </div>
 
@@ -526,6 +557,32 @@ async function deleteCustom(c: Chunk) {
         <span class="mono" :style="{ fontSize: '24px', fontWeight: 700 }">{{ settings.dailyGoal }}</span>
         <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustGoal(5)">
           <Icon name="plus" :size="14" />
+        </button>
+      </div>
+    </AppSheet>
+
+    <AppSheet :open="hintSheetOpen" title="Vị trí nghĩa Việt" @close="hintSheetOpen = false">
+      <div :style="{ display: 'flex', flexDirection: 'column', gap: '8px' }">
+        <button
+          v-for="opt in (['below', 'above', 'inline'] as const)"
+          :key="opt"
+          class="btn tap"
+          :style="{
+            padding: '14px',
+            borderRadius: '14px',
+            textAlign: 'left',
+            background: settings.vietnameseHintPosition === opt ? 'var(--color-surface-3)' : 'var(--color-surface-1)',
+            border: settings.vietnameseHintPosition === opt ? '1px solid var(--color-cyan)' : '1px solid var(--color-border-1)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            fontSize: '14px',
+            fontWeight: 600,
+          }"
+          @click="settings.vietnameseHintPosition = opt; hintSheetOpen = false"
+        >
+          <span :style="{ flex: 1 }">{{ HINT_POSITION_LABELS[opt] }}</span>
+          <Icon v-if="settings.vietnameseHintPosition === opt" name="check" :size="18" :style="{ color: 'var(--color-cyan)' }" />
         </button>
       </div>
     </AppSheet>

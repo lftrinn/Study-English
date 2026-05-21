@@ -19,6 +19,12 @@ import TopicIcon from '@/components/chunk/TopicIcon.vue';
 import LevelPill from '@/components/chunk/LevelPill.vue';
 import Icon from '@/components/common/Icon.vue';
 import ProgressRing from '@/components/common/ProgressRing.vue';
+import IconBlock from '@/components/common/IconBlock.vue';
+import PlayBtn from '@/components/common/PlayBtn.vue';
+import WaveBars from '@/components/common/WaveBars.vue';
+import ProgressBar from '@/components/common/ProgressBar.vue';
+import StatusDot from '@/components/common/StatusDot.vue';
+import EmptyDue from '@/components/common/EmptyDue.vue';
 
 const router = useRouter();
 const chunks = useChunkStore();
@@ -99,8 +105,14 @@ function runAction(id: string) {
   if (id === 'passive') {
     const list = playlistService.buildLowListen(chunks.chunks, progress.progressMap, { threshold: 5, limit: 30 });
     const queue = list.length > 0 ? list : chunks.chunks.slice(0, 20);
+    if (queue.length === 0) {
+      router.push('/library');
+      return;
+    }
     player.setShuffle(true);
-    gotoPlayer(queue);
+    player.setQueue(queue, { mode: 'passive' });
+    void player.play();
+    router.push('/study/passive');
   } else if (id === 'flashcard') {
     const list = playlistService.buildMistakes(chunks.chunks, progress.progressMap, { limit: 20 });
     const queue = list.length > 0 ? list : chunks.chunks.slice(0, 20);
@@ -124,11 +136,13 @@ function playChunk(c: Chunk) {
 }
 
 const quickActions = computed(() => [
-  { id: 'passive', label: 'Passive Listening', sub: 'Nghe khi rảnh', icon: 'headphones', grad: 'linear-gradient(135deg,#22D3EE,#3B82F6)' },
-  { id: 'flashcard', label: 'Ôn chunk yếu', sub: `${progress.weakChunkIds.length} cần ôn`, icon: 'refresh', grad: 'linear-gradient(135deg,#A78BFA,#EC4899)' },
-  { id: 'learn', label: 'Luyện phỏng vấn', sub: 'Câu hỏi hỗn hợp', icon: 'brain', grad: 'linear-gradient(135deg,#F59E0B,#FB7185)' },
-  { id: 'test', label: 'TOEIC Mini Test', sub: '10 câu hỏi', icon: 'target', grad: 'linear-gradient(135deg,#34D399,#22D3EE)' },
+  { id: 'passive', label: 'Passive Listening', sub: 'Nghe khi rảnh', icon: 'headphones', color: '#22D3EE' },
+  { id: 'flashcard', label: 'Ôn chunk yếu', sub: `${progress.weakChunkIds.length} cần ôn`, icon: 'refresh', color: '#A78BFA' },
+  { id: 'learn', label: 'Luyện phỏng vấn', sub: 'Câu hỏi hỗn hợp', icon: 'brain', color: '#F59E0B' },
+  { id: 'test', label: 'TOEIC Mini Test', sub: '10 câu hỏi', icon: 'target', color: '#34D399' },
 ]);
+
+const playerIsPlayingActive = computed(() => player.isPlaying && !player.isPaused);
 
 function statusToLabel(s: string): string {
   switch (s) {
@@ -238,21 +252,7 @@ function statusToLabel(s: string): string {
         }"
         @click="continueLearning"
       >
-        <div
-          :style="{
-            width: '56px',
-            height: '56px',
-            borderRadius: '18px',
-            background: 'var(--grad-primary)',
-            display: 'grid',
-            placeItems: 'center',
-            flexShrink: 0,
-            boxShadow: '0 8px 24px rgba(34,211,238,0.35)',
-            color: '#0B0F22',
-          }"
-        >
-          <Icon name="play" :size="26" :style="{ marginLeft: '2px' }" />
-        </div>
+        <PlayBtn :size="56" @click="continueLearning" />
         <div :style="{ flex: 1, minWidth: 0 }">
           <div
             :style="{
@@ -286,9 +286,7 @@ function statusToLabel(s: string): string {
               gap: '8px',
             }"
           >
-            <span :style="{ display: 'inline-flex', alignItems: 'center', gap: '2px', color: 'var(--color-cyan)', height: '12px' }">
-              <span v-for="i in 4" :key="i" :style="{ display: 'inline-block', width: '3px', height: '5.4px', background: 'currentColor', borderRadius: '2px', opacity: 0.4 }" />
-            </span>
+            <WaveBars color="var(--color-cyan)" :size="12" :playing="playerIsPlayingActive" />
             <span><span class="mono">{{ progress.todayListenCount }}</span> / <span class="mono">{{ settings.dailyGoal }}</span> chunks</span>
           </div>
         </div>
@@ -319,20 +317,7 @@ function statusToLabel(s: string): string {
           }"
           @click="runAction(a.id)"
         >
-          <div
-            :style="{
-              width: '36px',
-              height: '36px',
-              borderRadius: '12px',
-              background: a.grad,
-              display: 'grid',
-              placeItems: 'center',
-              boxShadow: '0 6px 16px rgba(0,0,0,0.25)',
-              color: '#0B0F22',
-            }"
-          >
-            <Icon :name="a.icon" :size="18" />
-          </div>
+          <IconBlock :icon="a.icon" :color="a.color" :size="40" />
           <div>
             <div :style="{ fontSize: '14px', fontWeight: 700, marginBottom: '2px' }">{{ a.label }}</div>
             <div :style="{ fontSize: '11px', color: 'var(--color-text-3)' }">{{ a.sub }}</div>
@@ -486,22 +471,17 @@ function statusToLabel(s: string): string {
                 gap: '6px',
               }"
             >
-              <span class="dot" :class="`dot-${progress.byId(c.id)?.status ?? 'new'}`" />
+              <StatusDot :status="progress.byId(c.id)?.status ?? 'new'" />
               <span>{{ statusToLabel(progress.byId(c.id)?.status ?? 'new') }} · <span class="mono">{{ progress.byId(c.id)?.listenCount ?? 0 }}</span> listens</span>
             </div>
           </div>
           <LevelPill :level="c.level" />
         </div>
 
-        <div
+        <EmptyDue
           v-if="dueChunks.length === 0"
-          :style="{
-            padding: '24px',
-            textAlign: 'center',
-            color: 'var(--color-text-3)',
-            fontSize: '13px',
-          }"
-        >Chưa có chunk đến hạn ôn — cứ tiếp tục nghe.</div>
+          @passive="runAction('passive')"
+        />
       </div>
     </div>
   </div>
