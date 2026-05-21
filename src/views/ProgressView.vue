@@ -1,542 +1,369 @@
 <script setup lang="ts">
+/**
+ * Literal port of screens-player.jsx ProgressScreen (lines 257-396).
+ * Inline styles copied verbatim; data hooks wired to live stores.
+ */
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { useChunkStore } from '@/stores/chunkStore';
 import { useProgressStore } from '@/stores/progressStore';
-import { useSettingsStore } from '@/stores/settingsStore';
-import { useUiStore } from '@/stores/uiStore';
 import { usePlayerStore } from '@/stores/playerStore';
+import { useUiStore } from '@/stores/uiStore';
 import { storageService } from '@/services/storageService';
 import type { Chunk } from '@/types/chunk';
 
-import AppCard from '@/components/common/AppCard.vue';
-import ProgressRing from '@/components/common/ProgressRing.vue';
-import ChunkRow from '@/components/chunk/ChunkRow.vue';
 import TopicIcon from '@/components/chunk/TopicIcon.vue';
-import EmptyState from '@/components/common/EmptyState.vue';
-import AppButton from '@/components/common/AppButton.vue';
 import Icon from '@/components/common/Icon.vue';
 
 const router = useRouter();
 const chunks = useChunkStore();
 const progress = useProgressStore();
-const settings = useSettingsStore();
-const ui = useUiStore();
 const player = usePlayerStore();
-
-const weekly = computed(() => progress.weeklyStats);
-const weeklyMax = computed(() => Math.max(1, ...weekly.value.map((d) => d.listenCount)));
-
-const dayLabel: Record<number, string> = { 0: 'CN', 1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7' };
+const ui = useUiStore();
 
 const totalChunks = computed(() => chunks.chunks.length);
-const masteredPct = computed(() =>
-  totalChunks.value === 0 ? 0 : progress.masteredCount / totalChunks.value,
+const minutes = computed(() => Math.round((progress.totalListened * 3) / 60));
+
+const lastWeekStats = computed(() => progress.weeklyStats);
+const weekTotal = computed(() => lastWeekStats.value.reduce((s, d) => s + d.listenCount, 0));
+const weekMax = computed(() => Math.max(1, ...lastWeekStats.value.map((d) => d.listenCount)));
+const todayIndex = computed(() => lastWeekStats.value.length - 1);
+
+const last14 = computed(() => {
+  const out: { date: string; listened: boolean; isToday: boolean }[] = [];
+  const today = new Date();
+  for (let i = 13; i >= 0; i -= 1) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const has = progress.recentLogs.some((l) => l.playedAt.slice(0, 10) === key);
+    out.push({ date: key, listened: has, isToday: i === 0 });
+  }
+  return out;
+});
+
+const topicRows = computed(() =>
+  chunks.topicWithCounts
+    .filter((t) => (t.count ?? 0) > 0)
+    .slice(0, 6)
+    .map((t) => {
+      const total = t.count ?? 0;
+      const mastered = Array.from(progress.progressMap.values()).filter(
+        (p) => p.status === 'mastered' && chunks.byId(p.chunkId)?.topic === t.id,
+      ).length;
+      const pct = total > 0 ? (mastered / total) * 100 : 0;
+      return { ...t, total, mastered, pct };
+    }),
 );
 
-const topChunks = computed<Chunk[]>(() =>
+const mostListened = computed<Chunk[]>(() =>
   progress
-    .topListenedChunkIds(5)
+    .topListenedChunkIds(4)
     .map((id) => chunks.byId(id))
     .filter((c): c is Chunk => Boolean(c)),
 );
 
-const neverListened = computed<Chunk[]>(() =>
-  chunks.chunks
-    .filter((c) => (progress.byId(c.id)?.listenCount ?? 0) === 0)
-    .slice(0, 5),
-);
+const stats = computed(() => [
+  {
+    label: 'Mastered',
+    value: progress.masteredCount,
+    sub: 'chunks',
+    color: '#34D399',
+    icon: 'trophy' as const,
+  },
+  {
+    label: 'Learning',
+    value: progress.learningCount,
+    sub: 'active',
+    color: '#F59E0B',
+    icon: 'brain' as const,
+  },
+  {
+    label: 'Weak',
+    value: progress.weakChunkIds.length,
+    sub: 'cần ôn',
+    color: '#FB7185',
+    icon: 'wave' as const,
+  },
+  {
+    label: 'Minutes',
+    value: minutes.value,
+    sub: 'đã nghe',
+    color: '#22D3EE',
+    icon: 'clock' as const,
+  },
+]);
 
-const dueReview = computed<Chunk[]>(() =>
-  progress.dueReviewChunkIds
-    .map((id) => chunks.byId(id))
-    .filter((c): c is Chunk => Boolean(c))
-    .slice(0, 6),
-);
+const DAY_LABEL: Record<number, string> = { 0: 'CN', 1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7' };
 
-const topicProgress = computed(() =>
-  chunks.topicWithCounts
-    .map((t) => ({
-      ...t,
-      listened: progress.topicListenCount(t.id),
-    }))
-    .filter((t) => (t.count ?? 0) > 0)
-    .sort((a, b) => b.listened - a.listened)
-    .slice(0, 6),
-);
-
-async function exportBackup() {
+async function exportProgress() {
   try {
     const data = await storageService.exportBackup();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const date = new Date().toISOString().slice(0, 10);
     a.href = url;
-    a.download = `chunk-listening-lab-backup-${date}.json`;
+    a.download = `chunk-listening-lab-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   } catch {
-    // ignore
+    /* ignore */
   }
 }
 
-function openDetail(chunk: Chunk) {
-  ui.openChunkDetail(chunk.id);
-}
-function playChunk(chunk: Chunk) {
-  player.setQueue([chunk], { mode: 'normal' });
+function playChunk(c: Chunk) {
+  player.setQueue([c], { mode: 'normal' });
   void player.play();
   router.push('/player');
 }
-function toggleStar(chunk: Chunk) {
-  void progress.toggleStarred(chunk.id);
+function openDetail(c: Chunk) {
+  ui.openChunkDetail(c.id);
 }
 </script>
 
 <template>
-  <section class="prg">
-    <header class="prg__head safe-pt">
-      <p class="text-caption text-text-3">Tiến độ</p>
-      <h1 class="text-title-1">Progress</h1>
-    </header>
-
-    <!-- Streak hero with amber radial -->
-    <div class="prg__hero glass-strong">
-      <div class="prg__hero-row">
-        <span class="prg__hero-icon">
-          <Icon name="flame" :size="28" />
-        </span>
-        <div class="prg__hero-info">
-          <p class="text-caption text-text-3">Streak</p>
-          <p class="prg__hero-value mono">
-            {{ progress.streakDays }}<span class="prg__hero-unit">ngày</span>
-          </p>
-        </div>
-        <div class="prg__hero-mastered">
-          <ProgressRing :value="masteredPct" :size="48" :stroke="5" :show-label="false" />
-          <p class="prg__hero-sub">
-            {{ progress.masteredCount }}<span class="prg__hero-unit">/{{ totalChunks }} đã thuộc</span>
-          </p>
-        </div>
-      </div>
-      <div class="prg__hero-days">
-        <span
-          v-for="(d, i) in weekly"
-          :key="d.date"
-          class="prg__hero-day"
-          :class="{ 'is-on': d.listenCount > 0, 'is-today': i === weekly.length - 1 }"
-        >
-          {{ dayLabel[new Date(d.date).getDay()] }}
-        </span>
-      </div>
+  <div class="scrollarea" :style="{ paddingTop: '56px' }">
+    <div :style="{ padding: '8px 20px 14px' }">
+      <h1 :style="{ margin: 0, fontSize: '28px', fontWeight: 700, letterSpacing: '-0.02em' }">Progress</h1>
+      <div :style="{ fontSize: '13px', color: 'var(--color-text-3)', marginTop: '2px' }">Hành trình listening lab của bạn</div>
     </div>
 
-    <!-- Stat tiles -->
-    <div class="prg__tiles">
-      <AppCard padding="md" class="prg__tile">
-        <p class="prg__tile-label">Đang học</p>
-        <p class="prg__tile-value amber">{{ progress.learningCount }}</p>
-      </AppCard>
-      <AppCard padding="md" class="prg__tile">
-        <p class="prg__tile-label">Yếu</p>
-        <p class="prg__tile-value rose">{{ progress.weakChunkIds.length }}</p>
-      </AppCard>
-      <AppCard padding="md" class="prg__tile">
-        <p class="prg__tile-label">Sao</p>
-        <p class="prg__tile-value amber">{{ progress.starredCount }}</p>
-      </AppCard>
-      <AppCard padding="md" class="prg__tile">
-        <p class="prg__tile-label">Đã nghe</p>
-        <p class="prg__tile-value cyan">{{ progress.totalListened }}</p>
-      </AppCard>
+    <!-- Streak hero -->
+    <div class="glass-strong" :style="{ margin: '0 20px', padding: '20px', position: 'relative', overflow: 'hidden' }">
+      <div :style="{ position: 'absolute', inset: 0, background: 'radial-gradient(60% 50% at 90% 0%, rgba(251,146,60,0.18), transparent)', pointerEvents: 'none' }" />
+      <div :style="{ display: 'flex', alignItems: 'center', gap: '14px', position: 'relative' }">
+        <div :style="{ width: '64px', height: '64px', borderRadius: '20px', background: 'linear-gradient(135deg, #F59E0B, #FB7185)', display: 'grid', placeItems: 'center', boxShadow: '0 10px 30px rgba(251,146,60,.35)', color: '#fff' }">
+          <Icon name="flame" :size="32" />
+        </div>
+        <div :style="{ flex: 1 }">
+          <div :style="{ fontSize: '12px', color: 'var(--color-text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em' }">Streak hiện tại</div>
+          <div :style="{ display: 'flex', alignItems: 'baseline', gap: '6px' }">
+            <span class="mono" :style="{ fontSize: '36px', fontWeight: 700 }">{{ progress.streakDays }}</span>
+            <span :style="{ fontSize: '14px', color: 'var(--color-text-2)' }">ngày</span>
+          </div>
+          <div :style="{ fontSize: '12px', color: 'var(--color-text-3)' }">
+            Hôm nay đã nghe <span class="mono" :style="{ color: 'var(--color-text-1)' }">{{ progress.todayListenCount }}</span> chunk
+          </div>
+        </div>
+      </div>
+      <div :style="{ display: 'flex', gap: '6px', marginTop: '14px' }">
+        <div
+          v-for="(d, i) in last14"
+          :key="i"
+          :style="{
+            flex: 1,
+            height: '28px',
+            borderRadius: '8px',
+            background: d.listened
+              ? 'linear-gradient(135deg, #F59E0B, #FB7185)'
+              : d.isToday
+                ? 'var(--color-surface-3)'
+                : 'var(--color-surface-1)',
+            border: d.isToday ? '1px dashed var(--color-cyan)' : '1px solid var(--color-border-1)',
+            display: 'grid',
+            placeItems: 'center',
+            color: '#fff',
+          }"
+        >
+          <Icon v-if="d.listened" name="check" :size="12" />
+          <span v-else-if="d.isToday" :style="{ width: '6px', height: '6px', borderRadius: '3px', background: 'var(--color-cyan)' }" />
+        </div>
+      </div>
     </div>
 
     <!-- Weekly chart -->
-    <AppCard variant="glass-strong" padding="lg" class="prg__chart">
-      <header class="prg__section-head">
-        <p class="text-caption text-text-3">Tuần này</p>
-        <p class="prg__section-meta">Mục tiêu {{ settings.dailyGoal }}/ngày</p>
-      </header>
-      <div class="prg__chart-bars">
-        <div v-for="d in weekly" :key="d.date" class="prg__bar">
-          <div class="prg__bar-track">
-            <div
-              class="prg__bar-fill"
-              :style="{ height: `${(d.listenCount / weeklyMax) * 100}%` }"
-            />
+    <div class="glass" :style="{ margin: '14px 20px 0', padding: '18px' }">
+      <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }">
+        <div>
+          <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em' }">Tuần này</div>
+          <div :style="{ fontSize: '22px', fontWeight: 700, marginTop: '2px' }">
+            <span class="mono">{{ weekTotal }}</span>
+            <span :style="{ fontSize: '13px', color: 'var(--color-text-3)' }"> chunks</span>
           </div>
-          <span class="prg__bar-count">{{ d.listenCount }}</span>
-          <span class="prg__bar-label">{{ dayLabel[new Date(d.date).getDay()] }}</span>
         </div>
       </div>
-    </AppCard>
-
-    <!-- Topic listen counts -->
-    <div>
-      <h2 class="prg__section-title">Theo chủ đề</h2>
-      <div class="prg__topics">
+      <div :style="{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '120px', padding: '0 4px' }">
         <div
-          v-for="t in topicProgress"
-          :key="t.id"
-          class="prg__topic glass"
-          :style="{ '--c': t.color }"
+          v-for="(d, i) in lastWeekStats"
+          :key="d.date"
+          :style="{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', height: '100%' }"
         >
-          <span class="prg__topic-icon"><TopicIcon :name="t.id" :size="18" /></span>
-          <div class="prg__topic-info">
-            <p class="prg__topic-name">{{ t.name }}</p>
-            <p class="prg__topic-count">{{ t.listened }} / {{ t.count }}</p>
+          <div
+            :style="{
+              width: '100%',
+              height: `${(d.listenCount / weekMax) * (120 - 24)}px`,
+              minHeight: '4px',
+              background: i === todayIndex ? 'var(--grad-primary)' : 'var(--color-surface-3)',
+              borderRadius: '6px',
+              transition: 'height .4s ease',
+              position: 'relative',
+            }"
+          >
+            <div
+              v-if="i === todayIndex"
+              :style="{ position: 'absolute', top: '-16px', left: '50%', transform: 'translateX(-50%)', fontSize: '10px', fontWeight: 700, color: 'var(--color-cyan)' }"
+            >{{ d.listenCount }}</div>
+          </div>
+          <div :style="{ fontSize: '10px', color: 'var(--color-text-3)', fontWeight: 600 }">
+            {{ DAY_LABEL[new Date(d.date).getDay()] }}
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Top listened -->
-    <div>
-      <h2 class="prg__section-title">Nghe nhiều nhất</h2>
-      <div class="prg__list">
-        <ChunkRow
-          v-for="c in topChunks"
-          :key="c.id"
-          :chunk="c"
-          @open="openDetail"
-          @play="playChunk"
-          @toggle-star="toggleStar"
+    <!-- Stats grid 2×2 -->
+    <div :style="{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '14px 20px 0' }">
+      <div
+        v-for="s in stats"
+        :key="s.label"
+        class="glass"
+        :style="{ padding: '14px', position: 'relative', overflow: 'hidden' }"
+      >
+        <div
+          :style="{
+            position: 'absolute',
+            top: '-10px',
+            right: '-10px',
+            width: '60px',
+            height: '60px',
+            borderRadius: '50%',
+            background: `radial-gradient(circle, color-mix(in oklch, ${s.color} 25%, transparent), transparent 65%)`,
+          }"
         />
-        <EmptyState
-          v-if="topChunks.length === 0"
-          icon="ear"
-          title="Chưa có chunk nào được nghe"
-          hint="Hãy mở Player và phát một playlist."
-        />
+        <div :style="{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: s.color }">
+          <Icon :name="s.icon" :size="14" />
+          <span :style="{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '.04em' }">{{ s.label }}</span>
+        </div>
+        <div class="mono" :style="{ fontSize: '24px', fontWeight: 700 }">{{ s.value.toLocaleString() }}</div>
+        <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">{{ s.sub }}</div>
       </div>
     </div>
 
-    <!-- Due review -->
-    <div>
-      <h2 class="prg__section-title">Đến hạn ôn</h2>
-      <div class="prg__list">
-        <ChunkRow
-          v-for="c in dueReview"
-          :key="c.id"
-          :chunk="c"
-          @open="openDetail"
-          @play="playChunk"
-          @toggle-star="toggleStar"
-        />
-        <EmptyState
-          v-if="dueReview.length === 0"
-          icon="clock"
-          title="Chưa có chunk nào đến hạn"
-          hint="Spaced repetition sẽ nhắc khi tới hạn ôn."
-        />
+    <!-- Topic breakdown -->
+    <div :style="{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '0 20px', marginTop: '22px', marginBottom: '12px' }">
+      <div>
+        <h2 :style="{ margin: 0, fontSize: '18px', fontWeight: 700, letterSpacing: '-0.01em' }">Theo chủ đề</h2>
+        <div :style="{ fontSize: '12px', color: 'var(--color-text-3)', marginTop: '2px' }">Mastered / total</div>
+      </div>
+    </div>
+    <div class="glass" :style="{ margin: '0 20px', padding: '6px 14px' }">
+      <div
+        v-for="(t, i) in topicRows"
+        :key="t.id"
+        :style="{
+          padding: '12px 0',
+          borderBottom: i < topicRows.length - 1 ? '1px solid var(--color-border-1)' : 'none',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+        }"
+      >
+        <div
+          :style="{
+            width: '32px',
+            height: '32px',
+            borderRadius: '10px',
+            display: 'grid',
+            placeItems: 'center',
+            background: `color-mix(in oklch, ${t.color} 20%, transparent)`,
+            color: t.color,
+          }"
+        >
+          <TopicIcon :name="t.id" :size="16" />
+        </div>
+        <div :style="{ flex: 1 }">
+          <div :style="{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }">
+            <span :style="{ fontSize: '13px', fontWeight: 600 }">{{ t.name }}</span>
+            <span class="mono" :style="{ fontSize: '12px', color: 'var(--color-text-3)' }">
+              {{ t.mastered }}/{{ t.total }}
+            </span>
+          </div>
+          <div :style="{ width: '100%', height: '4px', background: 'var(--color-surface-2)', borderRadius: '999px', overflow: 'hidden' }">
+            <div :style="{ width: `${t.pct}%`, height: '100%', background: t.color, borderRadius: '999px', transition: 'width .35s ease' }" />
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Never listened -->
-    <div>
-      <h2 class="prg__section-title">Chưa nghe lần nào</h2>
-      <div class="prg__list">
-        <ChunkRow
-          v-for="c in neverListened"
-          :key="c.id"
-          :chunk="c"
-          @open="openDetail"
-          @play="playChunk"
-          @toggle-star="toggleStar"
-        />
-        <EmptyState
-          v-if="neverListened.length === 0"
-          icon="check"
-          title="Đã nghe hết các chunk!"
-          hint="Tuyệt vời. Hãy tập trung ôn các chunk yếu."
-        />
+    <!-- Most listened -->
+    <div :style="{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '0 20px', marginTop: '24px', marginBottom: '12px' }">
+      <div>
+        <h2 :style="{ margin: 0, fontSize: '18px', fontWeight: 700, letterSpacing: '-0.01em' }">Nghe nhiều nhất</h2>
+        <div :style="{ fontSize: '12px', color: 'var(--color-text-3)', marginTop: '2px' }">Top trong thư viện</div>
       </div>
     </div>
-
-    <!-- Export -->
-    <div class="prg__export">
-      <AppButton variant="glass" size="md" @click="exportBackup">
-        <Icon name="download" :size="14" />
-        Xuất tiến độ (JSON)
-      </AppButton>
+    <div :style="{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: '6px' }">
+      <div
+        v-for="(c, i) in mostListened"
+        :key="c.id"
+        class="glass tap"
+        :style="{
+          padding: '10px 12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          cursor: 'pointer',
+        }"
+        @click="openDetail(c)"
+      >
+        <span class="mono" :style="{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-3)', width: '22px' }">{{ i + 1 }}</span>
+        <div :style="{ flex: 1, minWidth: 0 }">
+          <div :style="{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }">{{ c.text }}</div>
+          <div :style="{ fontSize: '11px', color: 'var(--color-text-3)' }">{{ chunks.topicById(c.topic)?.name }}</div>
+        </div>
+        <button
+          class="btn tap"
+          :style="{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: '12px',
+            color: 'var(--color-text-2)',
+          }"
+          @click.stop="playChunk(c)"
+        >
+          <Icon name="headphones" :size="12" />
+          <span class="mono" :style="{ fontWeight: 700 }">{{ progress.byId(c.id)?.listenCount ?? 0 }}</span>
+        </button>
+      </div>
+      <div
+        v-if="mostListened.length === 0"
+        :style="{ padding: '24px', textAlign: 'center', color: 'var(--color-text-3)', fontSize: '13px' }"
+      >Chưa có chunk nào được nghe</div>
     </div>
-  </section>
+
+    <div :style="{ padding: '20px' }">
+      <button
+        class="btn tap glass"
+        :style="{
+          width: '100%',
+          padding: '14px',
+          borderRadius: '16px',
+          fontSize: '13px',
+          fontWeight: 700,
+          color: 'var(--color-text-2)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+        }"
+        @click="exportProgress"
+      >
+        <Icon name="download" :size="16" /> Xuất tiến độ
+      </button>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.prg {
-  padding: 16px 16px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.prg__head {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-top: max(env(safe-area-inset-top), 12px);
-}
-
-.prg__section-title {
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-3);
-}
-.prg__section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-.prg__section-meta {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--color-text-3);
-}
-
-.prg__hero {
-  position: relative;
-  padding: 18px;
-  border-radius: 22px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.prg__hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    180px 180px at 90% 0%,
-    color-mix(in oklch, var(--color-amber) 18%, transparent),
-    transparent 70%
-  );
-  pointer-events: none;
-}
-.prg__hero > * {
-  position: relative;
-  z-index: 1;
-}
-.prg__hero-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.prg__hero-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 18px;
-  background: var(--grad-warm);
-  color: white;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 18px 36px -16px color-mix(in oklch, var(--color-orange) 60%, transparent);
-}
-.prg__hero-info {
+.scrollarea {
   flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
 }
-.prg__hero-value {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 32px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--color-text-1);
-  line-height: 1;
-}
-.prg__hero-unit {
-  font-size: 12px;
-  font-family: var(--font-ui);
-  font-weight: 600;
-  margin-left: 6px;
-  color: var(--color-text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.prg__hero-mastered {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  text-align: right;
-}
-.prg__hero-sub {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--color-text-1);
-  line-height: 1.1;
-}
-.prg__hero-days {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-}
-.prg__hero-day {
-  height: 28px;
-  border-radius: 8px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--color-text-3);
-}
-.prg__hero-day.is-on {
-  background: color-mix(in oklch, var(--color-amber) 18%, transparent);
-  border-color: color-mix(in oklch, var(--color-amber) 40%, transparent);
-  color: var(--color-amber);
-}
-.prg__hero-day.is-today {
-  background: color-mix(in oklch, var(--color-cyan) 18%, transparent);
-  border-color: color-mix(in oklch, var(--color-cyan) 45%, transparent);
-  color: var(--color-cyan);
-}
-
-.prg__tiles {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-}
-.prg__tile {
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  align-items: center;
-}
-.prg__tile-label {
-  margin: 0;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-3);
-  font-weight: 700;
-}
-.prg__tile-value {
-  margin: 0;
-  font-family: var(--font-ui);
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--color-text-1);
-}
-.prg__tile-value.amber {
-  color: var(--color-amber);
-}
-.prg__tile-value.rose {
-  color: var(--color-rose);
-}
-.prg__tile-value.cyan {
-  color: var(--color-cyan);
-}
-
-/* Chart */
-.prg__chart-bars {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-  align-items: end;
-  height: 120px;
-}
-.prg__bar {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  height: 100%;
-}
-.prg__bar-track {
-  flex: 1;
-  width: 100%;
-  background: var(--color-surface-1);
-  border-radius: 10px 10px 6px 6px;
-  position: relative;
-  overflow: hidden;
-}
-.prg__bar-fill {
-  position: absolute;
-  inset: auto 0 0 0;
-  background: var(--grad-primary);
-  border-radius: 10px 10px 6px 6px;
-  transition: height 0.4s var(--ease-out-soft, cubic-bezier(0.2, 0.8, 0.2, 1));
-  min-height: 4px;
-}
-.prg__bar-count {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--color-text-2);
-}
-.prg__bar-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--color-text-3);
-}
-
-/* Topics */
-.prg__topics {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-.prg__topic {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-color: color-mix(in oklch, var(--c) 24%, transparent);
-}
-.prg__topic-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: color-mix(in oklch, var(--c) 18%, transparent);
-  color: var(--c);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.prg__topic-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.prg__topic-name {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-text-1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.prg__topic-count {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--color-text-3);
-}
-
-.prg__list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.prg__export {
-  display: flex;
-  justify-content: center;
+.scrollarea::-webkit-scrollbar {
+  display: none;
 }
 </style>

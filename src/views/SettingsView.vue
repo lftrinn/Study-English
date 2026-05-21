@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * Literal port of screens-player.jsx SettingsScreen (lines 417-518).
+ * Row + Group + MiniSwitch + ThemeToggle anatomies copied verbatim.
+ */
 import { computed, onMounted, ref } from 'vue';
 
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -8,8 +12,6 @@ import { speechService } from '@/services/speechService';
 import { storageService, type BackupShape } from '@/services/storageService';
 import type { Chunk } from '@/types/chunk';
 
-import AppCard from '@/components/common/AppCard.vue';
-import AppButton from '@/components/common/AppButton.vue';
 import AppSheet from '@/components/common/AppSheet.vue';
 import ChunkFormSheet from '@/components/chunk/ChunkFormSheet.vue';
 import TopicChip from '@/components/chunk/TopicChip.vue';
@@ -20,6 +22,10 @@ const progress = useProgressStore();
 const chunks = useChunkStore();
 
 const voiceSheetOpen = ref(false);
+const speedSheetOpen = ref(false);
+const gapSheetOpen = ref(false);
+const repeatSheetOpen = ref(false);
+const goalSheetOpen = ref(false);
 const confirmClearOpen = ref(false);
 const formOpen = ref(false);
 const editingChunk = ref<Chunk | undefined>(undefined);
@@ -29,26 +35,17 @@ const importStatus = ref<{ kind: 'idle' | 'success' | 'error'; message?: string 
   kind: 'idle',
 });
 
-function openNewChunk() {
-  editingChunk.value = undefined;
-  formOpen.value = true;
-}
-function openEditChunk(c: Chunk) {
-  editingChunk.value = c;
-  formOpen.value = true;
-}
-async function deleteCustom(c: Chunk) {
-  await chunks.deleteCustomChunkById(c.id);
-}
+const currentVoiceLabel = computed(() => settings.selectedVoiceName ?? 'Mặc định trình duyệt');
+const voiceHint = computed(() => {
+  const v = englishVoices.value.find((x) => x.name === settings.selectedVoiceName);
+  if (!v) return 'Aria · US · Female · Clear';
+  return `${v.name} · ${v.lang}${v.localService ? ' · local' : ''}`;
+});
 
 onMounted(async () => {
   await speechService.ensureVoicesLoaded();
   englishVoices.value = speechService.getEnglishVoices();
 });
-
-const currentVoiceLabel = computed(
-  () => settings.selectedVoiceName ?? 'Mặc định trình duyệt',
-);
 
 function setTheme(t: 'dark' | 'light') {
   settings.setTheme(t);
@@ -66,18 +63,17 @@ async function previewVoice(name: string, e: Event) {
       rate: settings.defaultSpeed,
     });
   } catch {
-    // ignore
+    /* ignore */
   }
 }
-
 function adjustSpeed(delta: number) {
-  const next = Math.round((settings.defaultSpeed + delta) * 10) / 10;
-  settings.defaultSpeed = Math.max(0.5, Math.min(2, next));
+  const v = Math.round((settings.defaultSpeed + delta) * 10) / 10;
+  settings.defaultSpeed = Math.max(0.5, Math.min(2, v));
 }
 function adjustGap(delta: number) {
   settings.defaultGap = Math.max(0, Math.min(5000, settings.defaultGap + delta));
 }
-function adjustRepeatEach(delta: number) {
+function adjustRepeat(delta: number) {
   settings.defaultRepeatEach = Math.max(1, Math.min(10, settings.defaultRepeatEach + delta));
 }
 function adjustGoal(delta: number) {
@@ -90,16 +86,14 @@ async function exportData() {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const date = new Date().toISOString().slice(0, 10);
     a.href = url;
-    a.download = `chunk-listening-lab-backup-${date}.json`;
+    a.download = `chunk-listening-lab-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   } catch {
-    // ignore
+    /* ignore */
   }
 }
-
 function triggerImport() {
   fileInput.value?.click();
 }
@@ -112,627 +106,468 @@ async function onFile(e: Event) {
     const parsed = JSON.parse(text) as BackupShape;
     await storageService.importBackup(parsed);
     await progress.hydrate();
-    importStatus.value = {
-      kind: 'success',
-      message: `Đã import ${parsed.progress?.length ?? 0} progress + ${
-        parsed.listeningLogs?.length ?? 0
-      } log.`,
-    };
+    importStatus.value = { kind: 'success', message: `Imported ${parsed.progress?.length ?? 0} progress entries.` };
   } catch (err) {
-    importStatus.value = {
-      kind: 'error',
-      message: err instanceof Error ? err.message : 'Import lỗi',
-    };
+    importStatus.value = { kind: 'error', message: err instanceof Error ? err.message : 'Import lỗi' };
   } finally {
     input.value = '';
   }
 }
-
 async function clearAllData() {
   await progress.clearAll();
   settings.resetAll();
   confirmClearOpen.value = false;
 }
+function openNewChunk() {
+  editingChunk.value = undefined;
+  formOpen.value = true;
+}
+function openEditChunk(c: Chunk) {
+  editingChunk.value = c;
+  formOpen.value = true;
+}
+async function deleteCustom(c: Chunk) {
+  await chunks.deleteCustomChunkById(c.id);
+}
 </script>
 
 <template>
-  <section class="set">
-    <header class="set__head safe-pt">
-      <p class="text-caption text-text-3">Cài đặt</p>
-      <h1 class="text-title-1">Settings</h1>
-    </header>
+  <div class="scrollarea" :style="{ paddingTop: '56px' }">
+    <div :style="{ padding: '8px 20px 18px' }">
+      <h1 :style="{ margin: 0, fontSize: '28px', fontWeight: 700, letterSpacing: '-0.02em' }">Settings</h1>
+      <div :style="{ fontSize: '13px', color: 'var(--color-text-3)', marginTop: '2px' }">Tinh chỉnh listening lab</div>
+    </div>
 
     <!-- Profile card -->
-    <AppCard variant="glass-strong" padding="md" class="set__profile">
-      <span class="set__avatar mono">B</span>
-      <div class="set__profile-info">
-        <p class="set__profile-name">Học viên ẩn danh</p>
-        <p class="set__profile-sub">
-          Cấp độ {{ settings.level }} · {{ chunks.chunks.length }} chunks ·
-          {{ progress.starredCount }} sao
-        </p>
+    <div
+      class="glass-strong"
+      :style="{ margin: '0 20px 18px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }"
+    >
+      <div
+        :style="{
+          width: '52px',
+          height: '52px',
+          borderRadius: '50%',
+          background: 'var(--grad-primary)',
+          display: 'grid',
+          placeItems: 'center',
+          fontSize: '20px',
+          fontWeight: 700,
+          color: '#0B0F22',
+        }"
+      >B</div>
+      <div :style="{ flex: 1 }">
+        <div :style="{ fontSize: '15px', fontWeight: 700 }">Bạn · Frontend Dev</div>
+        <div :style="{ fontSize: '12px', color: 'var(--color-text-3)' }">
+          Cấp {{ settings.level }} · Mục tiêu {{ settings.dailyGoal }}/ngày · {{ chunks.chunks.length }} chunks
+        </div>
       </div>
-      <button class="set__profile-edit tap" :aria-label="'Sửa hồ sơ'">
+      <button
+        class="btn tap"
+        :style="{ padding: '8px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }"
+        :aria-label="'Sửa hồ sơ'"
+      >
         <Icon name="edit" :size="16" />
       </button>
-    </AppCard>
+    </div>
 
-    <!-- Theme -->
-    <AppCard variant="glass-strong" padding="md">
-      <div class="set__row">
-        <div>
-          <p class="set__label">Giao diện</p>
-          <p class="set__hint">Chuyển dark/light. Mặc định dark.</p>
-        </div>
-        <div class="set__theme">
-          <button
-            class="set__theme-btn tap"
-            :class="{ 'is-active': settings.theme === 'dark' }"
-            @click="setTheme('dark')"
-          >
-            <Icon name="moon" :size="16" /> Dark
-          </button>
-          <button
-            class="set__theme-btn tap"
-            :class="{ 'is-active': settings.theme === 'light' }"
-            @click="setTheme('light')"
-          >
-            <Icon name="sun" :size="16" /> Light
-          </button>
-        </div>
-      </div>
-    </AppCard>
-
-    <!-- Voice -->
-    <AppCard padding="md">
-      <button class="set__row set__row--btn tap" @click="voiceSheetOpen = true">
-        <div>
-          <p class="set__label">Giọng đọc</p>
-          <p class="set__hint">{{ currentVoiceLabel }}</p>
-        </div>
-        <Icon name="chevron-right" :size="18" />
-      </button>
-      <hr class="set__divider" />
-      <div class="set__row">
-        <div>
-          <p class="set__label">Mix voice mỗi chunk</p>
-          <p class="set__hint">Random giọng để bạn quen với nhiều accent.</p>
-        </div>
-        <label class="set__switch">
-          <input type="checkbox" v-model="settings.mixVoice" />
-          <span class="set__switch-track" :class="{ 'is-on': settings.mixVoice }">
-            <span class="set__switch-thumb" />
-          </span>
-        </label>
-      </div>
-    </AppCard>
-
-    <!-- Playback defaults -->
-    <AppCard padding="md" class="set__playback">
-      <p class="set__label">Mặc định phát</p>
-      <div class="set__tuners">
-        <div class="set__tuner">
-          <p class="set__tuner-label">Tốc độ</p>
-          <div class="set__tuner-row">
-            <button class="set__tuner-btn tap" @click="adjustSpeed(-0.1)">
-              <Icon name="minus" :size="14" />
-            </button>
-            <span class="set__tuner-value">{{ settings.defaultSpeed.toFixed(1) }}×</span>
-            <button class="set__tuner-btn tap" @click="adjustSpeed(0.1)">
-              <Icon name="plus" :size="14" />
-            </button>
-          </div>
-        </div>
-        <div class="set__tuner">
-          <p class="set__tuner-label">Gap (ms)</p>
-          <div class="set__tuner-row">
-            <button class="set__tuner-btn tap" @click="adjustGap(-100)">
-              <Icon name="minus" :size="14" />
-            </button>
-            <span class="set__tuner-value">{{ settings.defaultGap }}</span>
-            <button class="set__tuner-btn tap" @click="adjustGap(100)">
-              <Icon name="plus" :size="14" />
-            </button>
-          </div>
-        </div>
-        <div class="set__tuner">
-          <p class="set__tuner-label">Lặp mỗi chunk</p>
-          <div class="set__tuner-row">
-            <button class="set__tuner-btn tap" @click="adjustRepeatEach(-1)">
-              <Icon name="minus" :size="14" />
-            </button>
-            <span class="set__tuner-value">×{{ settings.defaultRepeatEach }}</span>
-            <button class="set__tuner-btn tap" @click="adjustRepeatEach(1)">
-              <Icon name="plus" :size="14" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </AppCard>
-
-    <!-- Daily goal -->
-    <AppCard padding="md">
-      <div class="set__row">
-        <div>
-          <p class="set__label">Mục tiêu hôm nay</p>
-          <p class="set__hint">{{ settings.dailyGoal }} chunks / ngày</p>
-        </div>
-        <div class="set__tuner-row">
-          <button class="set__tuner-btn tap" @click="adjustGoal(-5)">
-            <Icon name="minus" :size="14" />
-          </button>
-          <span class="set__tuner-value">{{ settings.dailyGoal }}</span>
-          <button class="set__tuner-btn tap" @click="adjustGoal(5)">
-            <Icon name="plus" :size="14" />
-          </button>
-        </div>
-      </div>
-    </AppCard>
-
-    <!-- Data -->
-    <AppCard padding="md">
-      <p class="set__label">Dữ liệu</p>
-      <div class="set__data-row">
-        <AppButton variant="glass" size="md" @click="exportData">
-          <Icon name="download" :size="14" />
-          Xuất backup
-        </AppButton>
-        <AppButton variant="glass" size="md" @click="triggerImport">
-          <Icon name="upload" :size="14" />
-          Nhập backup
-        </AppButton>
-      </div>
-      <input
-        ref="fileInput"
-        type="file"
-        accept="application/json"
-        class="set__file-input"
-        @change="onFile"
-      />
-      <p
-        v-if="importStatus.kind !== 'idle'"
-        class="set__import-status"
-        :class="importStatus.kind"
-      >
-        {{ importStatus.message }}
-      </p>
-      <hr class="set__divider" />
-      <AppButton variant="danger" size="md" block @click="confirmClearOpen = true">
-        <Icon name="trash" :size="14" />
-        Xoá toàn bộ dữ liệu local
-      </AppButton>
-    </AppCard>
-
-    <!-- Custom chunks -->
-    <AppCard padding="md">
-      <div class="set__row">
-        <div>
-          <p class="set__label">Chunks tự tạo</p>
-          <p class="set__hint">{{ chunks.customChunks.length }} chunk · lưu trong IndexedDB</p>
-        </div>
-        <AppButton variant="primary" size="sm" @click="openNewChunk">
-          <Icon name="plus" :size="14" /> Thêm
-        </AppButton>
-      </div>
-      <div v-if="chunks.customChunks.length > 0" class="set__custom-list">
-        <article
-          v-for="c in chunks.customChunks"
-          :key="c.id"
-          class="set__custom"
+    <!-- AUDIO -->
+    <div :style="{ marginBottom: '18px' }">
+      <div :style="{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-3)', letterSpacing: '.04em', textTransform: 'uppercase', padding: '0 20px 8px' }">Audio</div>
+      <div class="glass" :style="{ margin: '0 20px' }">
+        <button
+          class="btn tap settings__row"
+          :style="{ borderBottom: '1px solid var(--color-border-1)' }"
+          @click="voiceSheetOpen = true"
         >
-          <div class="set__custom-info">
-            <TopicChip :topic-id="c.topic" :show-icon="true" />
-            <p class="set__custom-en">{{ c.text }}</p>
-            <p class="set__custom-vi">{{ c.meaning }}</p>
+          <span class="settings__icon" :style="{ background: 'color-mix(in oklch, #22D3EE 22%, transparent)', color: '#22D3EE' }">
+            <Icon name="mic" :size="16" />
+          </span>
+          <div :style="{ flex: 1, textAlign: 'left' }">
+            <div :style="{ fontSize: '14px', fontWeight: 600 }">Default voice</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">{{ voiceHint }}</div>
           </div>
-          <div class="set__custom-actions">
-            <button class="set__custom-btn tap" :aria-label="'Sửa'" @click="openEditChunk(c)">
-              <Icon name="pencil" :size="14" />
-            </button>
-            <button class="set__custom-btn rose tap" :aria-label="'Xoá'" @click="deleteCustom(c)">
-              <Icon name="trash" :size="14" />
-            </button>
+          <Icon name="chevron-right" :size="16" :style="{ color: 'var(--color-text-4)' }" />
+        </button>
+
+        <div class="settings__row" :style="{ borderBottom: '1px solid var(--color-border-1)' }">
+          <span class="settings__icon" :style="{ background: 'color-mix(in oklch, #A78BFA 22%, transparent)', color: '#A78BFA' }">
+            <Icon name="speaker" :size="16" />
+          </span>
+          <div :style="{ flex: 1, textAlign: 'left' }">
+            <div :style="{ fontSize: '14px', fontWeight: 600 }">Mix voices</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">Đổi giọng mỗi chunk</div>
           </div>
-        </article>
+          <button
+            class="btn tap"
+            :aria-pressed="settings.mixVoice"
+            :style="{
+              width: '42px',
+              height: '26px',
+              borderRadius: '99px',
+              background: settings.mixVoice ? 'var(--color-cyan)' : 'var(--color-surface-3)',
+              position: 'relative',
+              transition: 'background .15s',
+            }"
+            @click.stop="settings.mixVoice = !settings.mixVoice"
+          >
+            <span :style="{
+              position: 'absolute',
+              top: '3px',
+              left: settings.mixVoice ? '19px' : '3px',
+              width: '20px',
+              height: '20px',
+              borderRadius: '50%',
+              background: '#fff',
+              transition: 'left .15s ease',
+              boxShadow: '0 2px 4px rgba(0,0,0,.2)',
+            }" />
+          </button>
+        </div>
+
+        <button
+          class="btn tap settings__row"
+          :style="{ borderBottom: '1px solid var(--color-border-1)' }"
+          @click="speedSheetOpen = true"
+        >
+          <span class="settings__icon" :style="{ background: 'color-mix(in oklch, #F59E0B 22%, transparent)', color: '#F59E0B' }">
+            <Icon name="bolt" :size="16" />
+          </span>
+          <div :style="{ flex: 1, textAlign: 'left' }">
+            <div :style="{ fontSize: '14px', fontWeight: 600 }">Default speed</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">
+              <span class="mono">{{ settings.defaultSpeed.toFixed(2) }}×</span> · normal
+            </div>
+          </div>
+          <Icon name="chevron-right" :size="16" :style="{ color: 'var(--color-text-4)' }" />
+        </button>
+
+        <button class="btn tap settings__row" @click="gapSheetOpen = true">
+          <span class="settings__icon" :style="{ background: 'color-mix(in oklch, #34D399 22%, transparent)', color: '#34D399' }">
+            <Icon name="clock" :size="16" />
+          </span>
+          <div :style="{ flex: 1, textAlign: 'left' }">
+            <div :style="{ fontSize: '14px', fontWeight: 600 }">Gap between chunks</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">
+              <span class="mono">{{ settings.defaultGap }}ms</span>
+            </div>
+          </div>
+          <Icon name="chevron-right" :size="16" :style="{ color: 'var(--color-text-4)' }" />
+        </button>
       </div>
-    </AppCard>
+    </div>
 
-    <!-- PWA hint -->
-    <AppCard padding="md">
-      <p class="set__label">Cài đặt PWA</p>
-      <p class="set__hint">
-        iOS: bấm <strong>Share</strong> trong Safari → <strong>Add to Home Screen</strong>.
-        Android/Desktop Chrome: thanh địa chỉ sẽ hiện nút <strong>Install</strong>.
-      </p>
-    </AppCard>
+    <!-- PRACTICE -->
+    <div :style="{ marginBottom: '18px' }">
+      <div :style="{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-3)', letterSpacing: '.04em', textTransform: 'uppercase', padding: '0 20px 8px' }">Practice</div>
+      <div class="glass" :style="{ margin: '0 20px' }">
+        <button class="btn tap settings__row" :style="{ borderBottom: '1px solid var(--color-border-1)' }" @click="repeatSheetOpen = true">
+          <span class="settings__icon" :style="{ background: 'color-mix(in oklch, #60A5FA 22%, transparent)', color: '#60A5FA' }">
+            <Icon name="repeat" :size="16" />
+          </span>
+          <div :style="{ flex: 1, textAlign: 'left' }">
+            <div :style="{ fontSize: '14px', fontWeight: 600 }">Lặp mỗi chunk</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">
+              <span class="mono">×{{ settings.defaultRepeatEach }}</span>
+            </div>
+          </div>
+          <Icon name="chevron-right" :size="16" :style="{ color: 'var(--color-text-4)' }" />
+        </button>
+        <button class="btn tap settings__row" @click="goalSheetOpen = true">
+          <span class="settings__icon" :style="{ background: 'color-mix(in oklch, #FB7185 22%, transparent)', color: '#FB7185' }">
+            <Icon name="target" :size="16" />
+          </span>
+          <div :style="{ flex: 1, textAlign: 'left' }">
+            <div :style="{ fontSize: '14px', fontWeight: 600 }">Mục tiêu hàng ngày</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">
+              <span class="mono">{{ settings.dailyGoal }}</span> chunks ·
+              <span :style="{ color: 'var(--color-emerald)' }">on track</span>
+            </div>
+          </div>
+          <Icon name="chevron-right" :size="16" :style="{ color: 'var(--color-text-4)' }" />
+        </button>
+      </div>
+    </div>
 
-    <ChunkFormSheet :open="formOpen" :initial="editingChunk" @close="formOpen = false" />
+    <!-- APPEARANCE -->
+    <div :style="{ marginBottom: '18px' }">
+      <div :style="{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-3)', letterSpacing: '.04em', textTransform: 'uppercase', padding: '0 20px 8px' }">Appearance</div>
+      <div class="glass" :style="{ margin: '0 20px' }">
+        <div class="settings__row">
+          <span class="settings__icon" :style="{ background: 'color-mix(in oklch, #22D3EE 22%, transparent)', color: '#22D3EE' }">
+            <Icon :name="settings.theme === 'dark' ? 'moon' : 'sun'" :size="16" />
+          </span>
+          <div :style="{ flex: 1, textAlign: 'left' }">
+            <div :style="{ fontSize: '14px', fontWeight: 600 }">Giao diện</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">
+              {{ settings.theme === 'dark' ? 'Midnight lab' : 'Bright lab' }}
+            </div>
+          </div>
+          <div
+            :style="{
+              display: 'flex',
+              background: 'var(--color-surface-1)',
+              borderRadius: '999px',
+              padding: '3px',
+              gap: '2px',
+              border: '1px solid var(--color-border-1)',
+            }"
+          >
+            <button
+              v-for="k in (['dark', 'light'] as const)"
+              :key="k"
+              class="btn tap"
+              :style="{
+                width: '30px',
+                height: '24px',
+                borderRadius: '999px',
+                display: 'grid',
+                placeItems: 'center',
+                background: settings.theme === k ? 'var(--color-surface-3)' : 'transparent',
+                color: settings.theme === k ? 'var(--color-cyan)' : 'var(--color-text-3)',
+              }"
+              @click="setTheme(k)"
+            >
+              <Icon :name="k === 'dark' ? 'moon' : 'sun'" :size="13" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <!-- About -->
-    <AppCard padding="md">
-      <p class="set__label">Về Chunk Listening Lab</p>
-      <p class="set__hint">
-        Mobile-first PWA giúp bạn học English bằng cụm từ tái sử dụng cho phỏng vấn FE, standup,
-        và TOEIC. Local-first, không tài khoản, không backend.
-      </p>
-    </AppCard>
+    <!-- CUSTOM CHUNKS -->
+    <div :style="{ marginBottom: '18px' }">
+      <div :style="{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-3)', letterSpacing: '.04em', textTransform: 'uppercase', padding: '0 20px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }">
+        <span>Custom chunks</span>
+        <button
+          class="btn tap"
+          :style="{
+            fontSize: '11px',
+            color: 'var(--color-cyan)',
+            fontWeight: 700,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '2px 6px',
+          }"
+          @click="openNewChunk"
+        ><Icon name="plus" :size="12" />Thêm</button>
+      </div>
+      <div class="glass" :style="{ margin: '0 20px' }" v-if="chunks.customChunks.length > 0">
+        <div
+          v-for="(c, i) in chunks.customChunks"
+          :key="c.id"
+          class="settings__row"
+          :style="{ borderBottom: i < chunks.customChunks.length - 1 ? '1px solid var(--color-border-1)' : 'none' }"
+        >
+          <TopicChip :topic-id="c.topic" :show-icon="true" size="sm" />
+          <div :style="{ flex: 1, textAlign: 'left', minWidth: 0 }">
+            <div :style="{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }">{{ c.text }}</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }">{{ c.meaning }}</div>
+          </div>
+          <button class="btn tap" :style="{ padding: '6px', color: 'var(--color-text-3)' }" @click="openEditChunk(c)">
+            <Icon name="edit" :size="14" />
+          </button>
+          <button class="btn tap" :style="{ padding: '6px', color: 'var(--color-rose)' }" @click="deleteCustom(c)">
+            <Icon name="trash" :size="14" />
+          </button>
+        </div>
+      </div>
+      <div
+        v-else
+        :style="{ padding: '12px 20px', fontSize: '12px', color: 'var(--color-text-3)', textAlign: 'center' }"
+      >Chưa có chunk tự tạo.</div>
+    </div>
 
-    <!-- Voice sheet -->
+    <!-- DATA -->
+    <div :style="{ marginBottom: '18px' }">
+      <div :style="{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-3)', letterSpacing: '.04em', textTransform: 'uppercase', padding: '0 20px 8px' }">Data</div>
+      <div class="glass" :style="{ margin: '0 20px' }">
+        <button class="btn tap settings__row" :style="{ borderBottom: '1px solid var(--color-border-1)' }" @click="triggerImport">
+          <span class="settings__icon" :style="{ background: 'color-mix(in oklch, #60A5FA 22%, transparent)', color: '#60A5FA' }">
+            <Icon name="upload" :size="16" />
+          </span>
+          <div :style="{ flex: 1, textAlign: 'left' }">
+            <div :style="{ fontSize: '14px', fontWeight: 600 }">Import backup</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">JSON file</div>
+          </div>
+          <Icon name="chevron-right" :size="16" :style="{ color: 'var(--color-text-4)' }" />
+        </button>
+        <input ref="fileInput" type="file" accept="application/json" :style="{ display: 'none' }" @change="onFile" />
+
+        <button class="btn tap settings__row" :style="{ borderBottom: '1px solid var(--color-border-1)' }" @click="exportData">
+          <span class="settings__icon" :style="{ background: 'color-mix(in oklch, #34D399 22%, transparent)', color: '#34D399' }">
+            <Icon name="download" :size="16" />
+          </span>
+          <div :style="{ flex: 1, textAlign: 'left' }">
+            <div :style="{ fontSize: '14px', fontWeight: 600 }">Export listening log</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">Toàn bộ session</div>
+          </div>
+          <Icon name="chevron-right" :size="16" :style="{ color: 'var(--color-text-4)' }" />
+        </button>
+
+        <button class="btn tap settings__row" :style="{ borderBottom: '1px solid var(--color-border-1)' }">
+          <span class="settings__icon" :style="{ background: 'color-mix(in oklch, #F59E0B 22%, transparent)', color: '#F59E0B' }">
+            <Icon name="trophy" :size="16" />
+          </span>
+          <div :style="{ flex: 1, textAlign: 'left' }">
+            <div :style="{ fontSize: '14px', fontWeight: 600 }">Install as PWA</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">Thêm vào home screen</div>
+          </div>
+          <Icon name="chevron-right" :size="16" :style="{ color: 'var(--color-text-4)' }" />
+        </button>
+
+        <button class="btn tap settings__row" @click="confirmClearOpen = true">
+          <span class="settings__icon" :style="{ background: 'color-mix(in oklch, #FB7185 22%, transparent)', color: '#FB7185' }">
+            <Icon name="trash" :size="16" />
+          </span>
+          <div :style="{ flex: 1, textAlign: 'left' }">
+            <div :style="{ fontSize: '14px', fontWeight: 600 }">Clear local data</div>
+            <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">Không hoàn tác được</div>
+          </div>
+          <Icon name="chevron-right" :size="16" :style="{ color: 'var(--color-text-4)' }" />
+        </button>
+
+        <p
+          v-if="importStatus.kind !== 'idle'"
+          :style="{
+            margin: 0,
+            padding: '10px 14px',
+            fontSize: '12px',
+            color: importStatus.kind === 'success' ? 'var(--color-emerald)' : 'var(--color-rose)',
+            borderTop: '1px solid var(--color-border-1)',
+          }"
+        >{{ importStatus.message }}</p>
+      </div>
+    </div>
+
+    <div :style="{ padding: '0 20px 20px', textAlign: 'center', fontSize: '11px', color: 'var(--color-text-4)' }">
+      Chunk Listening Lab · v1.0.0
+    </div>
+
+    <!-- Sheets -->
     <AppSheet :open="voiceSheetOpen" title="Chọn giọng đọc" @close="voiceSheetOpen = false">
-      <div class="voices">
-        <p v-if="englishVoices.length === 0" class="text-body text-text-3">
-          Không tìm thấy giọng tiếng Anh nào trên thiết bị này.
+      <div :style="{ display: 'flex', flexDirection: 'column', gap: '6px' }">
+        <p v-if="englishVoices.length === 0" :style="{ fontSize: '13px', color: 'var(--color-text-3)' }">
+          Không tìm thấy giọng English.
         </p>
         <button
           v-for="v in englishVoices"
           :key="v.name"
-          class="voices__row tap"
-          :class="{ 'is-active': settings.selectedVoiceName === v.name }"
+          class="btn tap"
+          :style="{
+            display: 'grid',
+            gridTemplateColumns: '38px 1fr auto 34px',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '10px 12px',
+            borderRadius: '14px',
+            background: settings.selectedVoiceName === v.name ? 'color-mix(in oklch, var(--color-cyan) 14%, transparent)' : 'var(--color-surface-1)',
+            border: settings.selectedVoiceName === v.name ? '1px solid color-mix(in oklch, var(--color-cyan) 40%, transparent)' : '1px solid var(--color-border-1)',
+            textAlign: 'left',
+          }"
           @click="pickVoice(v.name)"
         >
-          <span class="voices__main">
-            <span class="voices__name">{{ v.name }}</span>
-            <span class="voices__lang">{{ v.lang }}</span>
+          <span :style="{ width: '38px', height: '38px', borderRadius: '12px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)', display: 'grid', placeItems: 'center' }">
+            <Icon name="mic" :size="16" />
           </span>
-          <button class="voices__preview tap" :aria-label="'Nghe thử'" @click="(e) => previewVoice(v.name, e)">
-            <Icon name="play" :size="14" />
+          <span :style="{ minWidth: 0 }">
+            <span :style="{ display: 'block', fontSize: '14px', fontWeight: 700 }">{{ v.name }}</span>
+            <span :style="{ display: 'block', fontSize: '11px', color: 'var(--color-text-3)', fontFamily: 'var(--font-mono)' }">{{ v.lang }}</span>
+          </span>
+          <span :style="{ fontSize: '11px', color: settings.selectedVoiceName === v.name ? 'var(--color-cyan)' : 'var(--color-text-3)', fontWeight: 700 }">
+            {{ settings.selectedVoiceName === v.name ? 'Đang dùng' : '' }}
+          </span>
+          <button class="btn tap" :style="{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--color-surface-2)', display: 'grid', placeItems: 'center', color: 'var(--color-text-2)' }" @click="(e) => previewVoice(v.name, e)">
+            <Icon name="play" :size="12" />
           </button>
         </button>
       </div>
     </AppSheet>
 
-    <!-- Confirm clear -->
+    <AppSheet :open="speedSheetOpen" title="Default speed" @close="speedSheetOpen = false">
+      <div :style="{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', borderRadius: '12px', background: 'var(--color-surface-1)' }">
+        <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustSpeed(-0.1)">
+          <Icon name="minus" :size="14" />
+        </button>
+        <span class="mono" :style="{ fontSize: '24px', fontWeight: 700 }">{{ settings.defaultSpeed.toFixed(2) }}×</span>
+        <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustSpeed(0.1)">
+          <Icon name="plus" :size="14" />
+        </button>
+      </div>
+    </AppSheet>
+    <AppSheet :open="gapSheetOpen" title="Gap (ms)" @close="gapSheetOpen = false">
+      <div :style="{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', borderRadius: '12px', background: 'var(--color-surface-1)' }">
+        <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustGap(-100)">
+          <Icon name="minus" :size="14" />
+        </button>
+        <span class="mono" :style="{ fontSize: '24px', fontWeight: 700 }">{{ settings.defaultGap }}</span>
+        <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustGap(100)">
+          <Icon name="plus" :size="14" />
+        </button>
+      </div>
+    </AppSheet>
+    <AppSheet :open="repeatSheetOpen" title="Lặp mỗi chunk" @close="repeatSheetOpen = false">
+      <div :style="{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', borderRadius: '12px', background: 'var(--color-surface-1)' }">
+        <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustRepeat(-1)">
+          <Icon name="minus" :size="14" />
+        </button>
+        <span class="mono" :style="{ fontSize: '24px', fontWeight: 700 }">×{{ settings.defaultRepeatEach }}</span>
+        <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustRepeat(1)">
+          <Icon name="plus" :size="14" />
+        </button>
+      </div>
+    </AppSheet>
+    <AppSheet :open="goalSheetOpen" title="Mục tiêu hàng ngày" @close="goalSheetOpen = false">
+      <div :style="{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', borderRadius: '12px', background: 'var(--color-surface-1)' }">
+        <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustGoal(-5)">
+          <Icon name="minus" :size="14" />
+        </button>
+        <span class="mono" :style="{ fontSize: '24px', fontWeight: 700 }">{{ settings.dailyGoal }}</span>
+        <button class="btn tap" :style="{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--color-surface-2)', color: 'var(--color-text-2)' }" @click="adjustGoal(5)">
+          <Icon name="plus" :size="14" />
+        </button>
+      </div>
+    </AppSheet>
+
     <AppSheet :open="confirmClearOpen" title="Xoá dữ liệu?" @close="confirmClearOpen = false">
-      <p class="text-body text-text-2">
-        Hành động này sẽ xoá tất cả progress, log, cài đặt cá nhân khỏi thiết bị này. Không thể
-        hoàn tác.
+      <p :style="{ fontSize: '14px', color: 'var(--color-text-2)' }">
+        Hành động này sẽ xoá tất cả progress, log, cài đặt cá nhân khỏi thiết bị này. Không thể hoàn tác.
       </p>
       <template #actions>
-        <AppButton variant="glass" size="md" block @click="confirmClearOpen = false">Huỷ</AppButton>
-        <AppButton variant="danger" size="md" block @click="clearAllData">Xoá tất cả</AppButton>
+        <button class="btn tap glass" :style="{ flex: 1, padding: '14px 0', borderRadius: '16px', fontSize: '14px', fontWeight: 700 }" @click="confirmClearOpen = false">Huỷ</button>
+        <button class="btn tap" :style="{ flex: 1, padding: '14px 0', borderRadius: '16px', fontSize: '14px', fontWeight: 700, background: 'var(--color-rose)', color: '#fff' }" @click="clearAllData">Xoá hết</button>
       </template>
     </AppSheet>
-  </section>
+
+    <ChunkFormSheet :open="formOpen" :initial="editingChunk" @close="formOpen = false" />
+  </div>
 </template>
 
 <style scoped>
-.set {
-  padding: 16px 16px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.set__head {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-top: max(env(safe-area-inset-top), 12px);
-  margin-bottom: 6px;
-}
-
-/* Profile card */
-.set__profile {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.set__avatar {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--grad-primary);
-  color: white;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-mono);
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  box-shadow: 0 12px 24px -10px rgba(34, 211, 238, 0.45);
-}
-.set__profile-info {
+.scrollarea {
   flex: 1;
-  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
 }
-.set__profile-name {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text-1);
-}
-.set__profile-sub {
-  margin: 2px 0 0;
-  font-size: 12px;
-  color: var(--color-text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.set__profile-edit {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.set__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.set__row--btn {
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  color: inherit;
-}
-.set__label {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-1);
-}
-.set__hint {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: var(--color-text-3);
-}
-
-.set__divider {
-  border: 0;
-  border-top: 1px solid var(--color-border-1);
-  margin: 14px 0;
-}
-
-/* Theme buttons */
-.set__theme {
-  display: flex;
-  gap: 6px;
-}
-.set__theme-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-2);
-  font-size: 12px;
-  font-weight: 600;
-}
-.set__theme-btn.is-active {
-  color: var(--color-cyan);
-  background: color-mix(in oklch, var(--color-cyan) 18%, transparent);
-  border-color: color-mix(in oklch, var(--color-cyan) 35%, transparent);
-}
-
-/* Switch */
-.set__switch {
-  position: relative;
-  display: inline-block;
-}
-.set__switch input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  margin: 0;
-}
-.set__switch-track {
-  display: inline-block;
-  width: 44px;
-  height: 26px;
-  border-radius: 999px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  position: relative;
-  transition: background 0.18s ease;
-}
-.set__switch-track.is-on {
-  background: var(--color-cyan);
-  border-color: var(--color-cyan);
-}
-.set__switch-thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: white;
-  transition: transform 0.18s var(--ease-out-soft, cubic-bezier(0.2, 0.8, 0.2, 1));
-}
-.set__switch-track.is-on .set__switch-thumb {
-  transform: translateX(18px);
-}
-
-/* Tuners */
-.set__tuners {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-top: 10px;
-}
-.set__tuner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-.set__tuner-label {
-  margin: 0;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-3);
-  font-weight: 700;
-}
-.set__tuner-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.set__tuner-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.set__tuner-value {
-  min-width: 48px;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-/* Data row */
-.set__data-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 10px;
-}
-.set__file-input {
+.scrollarea::-webkit-scrollbar {
   display: none;
 }
-.set__import-status {
-  margin: 8px 0 0;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 12px;
-}
-.set__import-status.success {
-  background: color-mix(in oklch, var(--color-emerald) 14%, transparent);
-  color: var(--color-emerald);
-  border: 1px solid color-mix(in oklch, var(--color-emerald) 35%, transparent);
-}
-.set__import-status.error {
-  background: color-mix(in oklch, var(--color-rose) 14%, transparent);
-  color: var(--color-rose);
-  border: 1px solid color-mix(in oklch, var(--color-rose) 35%, transparent);
-}
-
-/* Custom chunks list */
-.set__custom-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 12px;
-}
-.set__custom {
+.settings__row {
+  width: 100%;
+  padding: 13px 14px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
+  gap: 12px;
+  background: transparent;
 }
-.set__custom-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-.set__custom-en {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text-1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.set__custom-vi {
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.set__custom-actions {
-  display: flex;
-  gap: 6px;
-}
-.set__custom-btn {
+.settings__icon {
   width: 32px;
   height: 32px;
-  border-radius: 10px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.set__custom-btn.rose {
-  color: var(--color-rose);
-  border-color: color-mix(in oklch, var(--color-rose) 30%, transparent);
-}
-
-/* Voices sheet */
-.voices {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 4px 0 12px;
-}
-.voices__row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: var(--color-surface-1);
-  border: 1px solid var(--color-border-1);
-}
-.voices__row.is-active {
-  background: color-mix(in oklch, var(--color-cyan) 14%, transparent);
-  border-color: color-mix(in oklch, var(--color-cyan) 40%, transparent);
-}
-.voices__main {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-.voices__name {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-1);
-}
-.voices__lang {
-  font-size: 11px;
-  font-family: var(--font-mono);
-  color: var(--color-text-3);
-}
-.voices__preview {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--color-surface-2);
-  border: 1px solid var(--color-border-1);
-  color: var(--color-text-2);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
 }
 </style>
