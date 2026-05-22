@@ -2,6 +2,8 @@
 import { onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import AppShell from '@/components/layout/AppShell.vue';
+import DesktopShell from '@/components/layout/DesktopShell.vue';
+import { useViewport } from '@/composables/useViewport';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useChunkStore } from '@/stores/chunkStore';
 import { useProgressStore } from '@/stores/progressStore';
@@ -15,6 +17,7 @@ const progress = useProgressStore();
 const ui = useUiStore();
 const player = usePlayerStore();
 const router = useRouter();
+const { isDesktop } = useViewport();
 
 function onBeforeInstall(e: Event) {
   e.preventDefault();
@@ -50,5 +53,6 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <AppShell />
+  <DesktopShell v-if="isDesktop" />
+  <AppShell v-else />
 </template>
