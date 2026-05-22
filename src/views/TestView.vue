@@ -217,7 +217,7 @@ function playMistakes() {
 </script>
 
 <template>
-  <ModeShell title="Mini Test" :subtitle="headerSubtitle" :on-close="exit">
+  <ModeShell title="Mini Test" :subtitle="headerSubtitle" :on-close="exit" stage-width="wide">
     <!-- Setup -->
     <template v-if="phase === 'setup'">
       <div class="tv__scroll">

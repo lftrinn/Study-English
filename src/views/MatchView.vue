@@ -183,7 +183,7 @@ const headerSubtitle = computed(() => {
 </script>
 
 <template>
-  <ModeShell title="Match" :subtitle="headerSubtitle" :on-close="exit">
+  <ModeShell title="Match" :subtitle="headerSubtitle" :on-close="exit" stage-width="wide">
     <!-- Setup -->
     <template v-if="phase === 'setup'">
       <div class="mv__pad">

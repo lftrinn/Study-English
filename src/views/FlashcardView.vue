@@ -123,7 +123,7 @@ const subtitle = computed(() => {
 </script>
 
 <template>
-  <ModeShell title="Flashcards" :subtitle="subtitle" :on-close="exitSession" :on-more="openDetail">
+  <ModeShell title="Flashcards" :subtitle="subtitle" :on-close="exitSession" :on-more="openDetail" stage-width="narrow">
     <template v-if="practice.status === 'active' && current">
       <!-- Progress + direction -->
       <div :style="{ padding: '0 20px' }">
