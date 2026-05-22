@@ -6,7 +6,8 @@
     "topic": "tickets",
     "level": "A2",
     "source": "frontend",
-    "tags": ["standup", "progress"]
+    "tags": ["standup", "progress"],
+    "phonetic": "aɪm ˈwɜːkɪŋ ɒn ðɪs ˈtɪkɪt"
   },
   {
     "id": "fe-002",
@@ -15,7 +16,8 @@
     "topic": "standup",
     "level": "A2",
     "source": "frontend",
-    "tags": ["progress"]
+    "tags": ["progress"],
+    "phonetic": "ɪt ɪz əˈbaʊt ˈfɪfti pəˈsent kəmˈpliːt"
   },
   {
     "id": "fe-003",
@@ -24,7 +26,8 @@
     "topic": "standup",
     "level": "A1",
     "source": "frontend",
-    "tags": ["commitment"]
+    "tags": ["commitment"],
+    "phonetic": "aɪ wɪl ˈfɪnɪʃ ɪt təˈdeɪ"
   },
   {
     "id": "fe-004",
@@ -33,7 +36,8 @@
     "topic": "api",
     "level": "A2",
     "source": "frontend",
-    "tags": ["debug"]
+    "tags": ["debug"],
+    "phonetic": "aɪ niːd tə tʃek ðiː ˌeɪ piː ˈaɪ rɪˈspɒns"
   },
   {
     "id": "fe-005",
@@ -42,7 +46,8 @@
     "topic": "bugs",
     "level": "B1",
     "source": "frontend",
-    "tags": ["repro"]
+    "tags": ["repro"],
+    "phonetic": "ðiː ˈɪʃuː ˈhæpənz wen ðə ˈjuːzə klɪks seɪv"
   },
   {
     "id": "fe-006",
@@ -51,7 +56,8 @@
     "topic": "bugs",
     "level": "B1",
     "source": "frontend",
-    "tags": ["clarify"]
+    "tags": ["clarify"],
+    "phonetic": "aɪ niːd tə kənˈfɜːm ðiː ɪkˈspektɪd bɪˈheɪvjə"
   },
   {
     "id": "fe-007",
@@ -60,7 +66,8 @@
     "topic": "client",
     "level": "A1",
     "source": "frontend",
-    "tags": ["polite"]
+    "tags": ["polite"],
+    "phonetic": "kʊd jʊ rɪˈpiːt ðæt pliːz"
   },
   {
     "id": "fe-008",
@@ -69,7 +76,8 @@
     "topic": "client",
     "level": "B1",
     "source": "frontend",
-    "tags": ["polite"]
+    "tags": ["polite"],
+    "phonetic": "let mi kənˈfɜːm maɪ ˌʌndəˈstændɪŋ"
   },
   {
     "id": "fe-009",
@@ -78,7 +86,8 @@
     "topic": "tickets",
     "level": "B1",
     "source": "frontend",
-    "tags": ["deploy"]
+    "tags": ["deploy"],
+    "phonetic": "aɪl pʊʃ ðə fɪks tə ˈsteɪdʒɪŋ"
   },
   {
     "id": "fe-010",
@@ -87,7 +96,8 @@
     "topic": "standup",
     "level": "B1",
     "source": "frontend",
-    "tags": ["coordination"]
+    "tags": ["coordination"],
+    "phonetic": "kæn wi sɪŋk ɒn ðɪs ˈɑːftə ðə ˈmiːtɪŋ"
   },
   {
     "id": "fe-011",
@@ -96,7 +106,8 @@
     "topic": "client",
     "level": "B1",
     "source": "frontend",
-    "tags": ["presentation"]
+    "tags": ["presentation"],
+    "phonetic": "aɪd laɪk tə wɔːk jʊ θruː ðə tʃeɪndʒ"
   },
   {
     "id": "fe-012",
@@ -105,7 +116,8 @@
     "topic": "api",
     "level": "B1",
     "source": "frontend",
-    "tags": ["error"]
+    "tags": ["error"],
+    "phonetic": "ðiː ˈendpɔɪnt rɪˈtɜːnz ə fɔːr əʊ wʌn ˈsʌmtaɪmz"
   },
   {
     "id": "fe-013",
@@ -114,7 +126,8 @@
     "topic": "healthcare",
     "level": "B1",
     "source": "frontend",
-    "tags": ["blocker"]
+    "tags": ["blocker"],
+    "phonetic": "aɪm blɒkt ɒn ðə ˈpeɪʃənt ˈdeɪtə fləʊ"
   },
   {
     "id": "fe-014",
@@ -123,7 +136,8 @@
     "topic": "standup",
     "level": "A1",
     "source": "frontend",
-    "tags": ["meeting"]
+    "tags": ["meeting"],
+    "phonetic": "let mi ʃeə maɪ skriːn"
   },
   {
     "id": "fe-015",
@@ -132,7 +146,8 @@
     "topic": "client",
     "level": "A2",
     "source": "frontend",
-    "tags": ["casual"]
+    "tags": ["casual"],
+    "phonetic": "ˈsɒri maɪ ˈɪntənet wɒz ˈlæɡɪŋ"
   },
   {
     "id": "fe-016",
@@ -141,7 +156,8 @@
     "topic": "tickets",
     "level": "A2",
     "source": "frontend",
-    "tags": ["progress"]
+    "tags": ["progress"],
+    "phonetic": "aɪ pɪkt ʌp ðɪs ˈtɪkɪt ˈjestədeɪ"
   },
   {
     "id": "fe-017",
@@ -150,7 +166,8 @@
     "topic": "standup",
     "level": "B1",
     "source": "frontend",
-    "tags": ["blocker"]
+    "tags": ["blocker"],
+    "phonetic": "aɪm ˈweɪtɪŋ fə ðə dɪˈzaɪn frəm ðiː ˌjuː ˈaɪ tiːm"
   },
   {
     "id": "fe-018",
@@ -159,7 +176,8 @@
     "topic": "tickets",
     "level": "B1",
     "source": "frontend",
-    "tags": ["commitment", "review"]
+    "tags": ["commitment", "review"],
+    "phonetic": "aɪl reɪz ə ˌpiː ˈɑː baɪ end əv deɪ"
   },
   {
     "id": "fe-019",
@@ -168,7 +186,8 @@
     "topic": "client",
     "level": "B1",
     "source": "frontend",
-    "tags": ["clarify"]
+    "tags": ["clarify"],
+    "phonetic": "kʊd jʊ ɪˈlæbəreɪt ɒn ðɪs rɪˈkwaɪəmənt"
   },
   {
     "id": "fe-020",
@@ -177,7 +196,8 @@
     "topic": "bugs",
     "level": "B1",
     "source": "frontend",
-    "tags": ["repro"]
+    "tags": ["repro"],
+    "phonetic": "aɪ kən ˌriːprəˈdjuːs ðə bʌɡ ɒn ˈsteɪdʒɪŋ"
   },
   {
     "id": "fe-021",
@@ -186,7 +206,8 @@
     "topic": "api",
     "level": "B1",
     "source": "frontend",
-    "tags": ["debug"]
+    "tags": ["debug"],
+    "phonetic": "ðə ˈpeɪləʊd lʊks kəˈrekt ɒn maɪ saɪd"
   },
   {
     "id": "fe-022",
@@ -195,7 +216,8 @@
     "topic": "bugs",
     "level": "B1",
     "source": "frontend",
-    "tags": ["debug"]
+    "tags": ["debug"],
+    "phonetic": "let mi ˈdʌbl tʃek ðə ˈnetwɜːk tæb"
   },
   {
     "id": "fe-023",
@@ -204,7 +226,8 @@
     "topic": "tickets",
     "level": "B1",
     "source": "frontend",
-    "tags": ["deploy"]
+    "tags": ["deploy"],
+    "phonetic": "aɪl rəʊl bæk ðə tʃeɪndʒ"
   },
   {
     "id": "fe-024",
@@ -213,6 +236,7 @@
     "topic": "client",
     "level": "B1",
     "source": "frontend",
-    "tags": ["clarify"]
+    "tags": ["clarify"],
+    "phonetic": "aɪ niːd ə kwɪk ˌklærɪfɪˈkeɪʃən ɒn ðə spek"
   }
 ]

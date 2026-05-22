@@ -6,7 +6,8 @@
     "topic": "toeic",
     "level": "A2",
     "source": "toeic",
-    "tags": ["scheduling"]
+    "tags": ["scheduling"],
+    "phonetic": "wɒt taɪm wʊd wɜːk fə juː"
   },
   {
     "id": "te-002",
@@ -15,7 +16,8 @@
     "topic": "toeic",
     "level": "A2",
     "source": "toeic",
-    "tags": ["email"]
+    "tags": ["email"],
+    "phonetic": "pliːz faɪnd ðiː əˈtætʃt faɪl"
   },
   {
     "id": "te-003",
@@ -24,7 +26,8 @@
     "topic": "toeic",
     "level": "B1",
     "source": "toeic",
-    "tags": ["scheduling"]
+    "tags": ["scheduling"],
+    "phonetic": "aɪd laɪk tə ˌriːˈʃedjuːl aʊə ˈmiːtɪŋ"
   },
   {
     "id": "te-004",
@@ -33,7 +36,8 @@
     "topic": "toeic",
     "level": "A2",
     "source": "toeic",
-    "tags": ["business"]
+    "tags": ["business"],
+    "phonetic": "ðiː ˈɔːdə wɪl bi ʃɪpt təˈmɒrəʊ"
   },
   {
     "id": "te-005",
@@ -42,7 +46,8 @@
     "topic": "toeic",
     "level": "B1",
     "source": "toeic",
-    "tags": ["announcement"]
+    "tags": ["announcement"],
+    "phonetic": "wi ɑː pliːzd tʊ əˈnaʊns ə njuː ˈprɒdʌkt"
   },
   {
     "id": "te-006",
@@ -51,7 +56,8 @@
     "topic": "toeic",
     "level": "B1",
     "source": "toeic",
-    "tags": ["email"]
+    "tags": ["email"],
+    "phonetic": "pliːz kənˈfɜːm jɔːr əˈtendəns baɪ ˈfraɪdeɪ"
   },
   {
     "id": "te-007",
@@ -60,7 +66,8 @@
     "topic": "toeic",
     "level": "A2",
     "source": "toeic",
-    "tags": ["schedule"]
+    "tags": ["schedule"],
+    "phonetic": "ðə ˈtreɪnɪŋ wɪl stɑːt ət naɪn ʃɑːp"
   },
   {
     "id": "te-008",
@@ -69,7 +76,8 @@
     "topic": "toeic",
     "level": "B1",
     "source": "toeic",
-    "tags": ["polite"]
+    "tags": ["polite"],
+    "phonetic": "wi əˈpɒlədʒaɪz fə ðiː ˌɪnkənˈviːniəns"
   },
   {
     "id": "te-009",
@@ -78,7 +86,8 @@
     "topic": "toeic",
     "level": "B1",
     "source": "toeic",
-    "tags": ["email"]
+    "tags": ["email"],
+    "phonetic": "kʊd jʊ ˈfɔːwəd ðɪs ˈiːmeɪl tə jɔː ˈmænɪdʒə"
   },
   {
     "id": "te-010",
@@ -87,7 +96,8 @@
     "topic": "toeic",
     "level": "B1",
     "source": "toeic",
-    "tags": ["schedule"]
+    "tags": ["schedule"],
+    "phonetic": "ðə ˈmiːtɪŋ həz biːn pəʊstˈpəʊnd"
   },
   {
     "id": "te-011",
@@ -96,7 +106,8 @@
     "topic": "toeic",
     "level": "A2",
     "source": "toeic",
-    "tags": ["polite"]
+    "tags": ["polite"],
+    "phonetic": "aɪl ɡet bæk tə juː ˈʃɔːtli"
   },
   {
     "id": "te-012",
@@ -105,7 +116,8 @@
     "topic": "toeic",
     "level": "A2",
     "source": "toeic",
-    "tags": ["polite", "email"]
+    "tags": ["polite", "email"],
+    "phonetic": "θæŋk juː fə ˈriːtʃɪŋ aʊt"
   },
   {
     "id": "te-013",
@@ -114,7 +126,8 @@
     "topic": "toeic",
     "level": "A2",
     "source": "toeic",
-    "tags": ["request"]
+    "tags": ["request"],
+    "phonetic": "kʊd jʊ ɡɪv mi ə hænd"
   },
   {
     "id": "te-014",
@@ -123,7 +136,8 @@
     "topic": "toeic",
     "level": "A2",
     "source": "toeic",
-    "tags": ["polite"]
+    "tags": ["polite"],
+    "phonetic": "aɪl kiːp jʊ ˈpəʊstɪd"
   },
   {
     "id": "te-015",
@@ -132,6 +146,7 @@
     "topic": "toeic",
     "level": "A2",
     "source": "toeic",
-    "tags": ["polite"]
+    "tags": ["polite"],
+    "phonetic": "let mi nəʊ ɪf jʊ həv ˈeni ˈkwestʃənz"
   }
 ]

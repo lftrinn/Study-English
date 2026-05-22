@@ -6,7 +6,8 @@
     "topic": "javascript",
     "level": "A2",
     "source": "javascript",
-    "tags": ["async"]
+    "tags": ["async"],
+    "phonetic": "ðɪs ˈfʌŋkʃən rɪˈtɜːnz ə ˈprɒmɪs"
   },
   {
     "id": "js-002",
@@ -15,7 +16,8 @@
     "topic": "javascript",
     "level": "A2",
     "source": "javascript",
-    "tags": ["async"]
+    "tags": ["async"],
+    "phonetic": "wi niːd tʊ əˈweɪt ðə rɪˈspɒns"
   },
   {
     "id": "js-003",
@@ -24,7 +26,8 @@
     "topic": "javascript",
     "level": "B1",
     "source": "javascript",
-    "tags": ["mutation"]
+    "tags": ["mutation"],
+    "phonetic": "ðiː əˈreɪ ɪz mjuːˈteɪtɪd ɪn pleɪs"
   },
   {
     "id": "js-004",
@@ -33,7 +36,8 @@
     "topic": "javascript",
     "level": "A2",
     "source": "javascript",
-    "tags": ["syntax"]
+    "tags": ["syntax"],
+    "phonetic": "lets diːˈstrʌktʃə ðə prɒps"
   },
   {
     "id": "js-005",
@@ -42,7 +46,8 @@
     "topic": "javascript",
     "level": "A2",
     "source": "javascript",
-    "tags": ["fp"]
+    "tags": ["fp"],
+    "phonetic": "ðɪs ɪz ə saɪd ɪˈfekt"
   },
   {
     "id": "js-006",
@@ -51,7 +56,8 @@
     "topic": "javascript",
     "level": "A2",
     "source": "javascript",
-    "tags": ["error"]
+    "tags": ["error"],
+    "phonetic": "ðə ˈveəriəbl ɪz nɒt dɪˈfaɪnd jet"
   },
   {
     "id": "js-007",
@@ -60,7 +66,8 @@
     "topic": "javascript",
     "level": "B1",
     "source": "javascript",
-    "tags": ["async"]
+    "tags": ["async"],
+    "phonetic": "ðɪs ˈkɔːlbæk ɪz ɪnˈvəʊkt eɪˈsɪŋkrənəsli"
   },
   {
     "id": "js-008",
@@ -69,7 +76,8 @@
     "topic": "javascript",
     "level": "B1",
     "source": "javascript",
-    "tags": ["performance"]
+    "tags": ["performance"],
+    "phonetic": "wi ʃʊd dɪˈbaʊns ðə sɜːtʃ ˈɪnpʊt"
   },
   {
     "id": "js-009",
@@ -78,7 +86,8 @@
     "topic": "javascript",
     "level": "B1",
     "source": "javascript",
-    "tags": ["scope"]
+    "tags": ["scope"],
+    "phonetic": "ðə ˈkləʊʒə ˈkæptʃəz ðɪs ˈveəriəbl"
   },
   {
     "id": "js-010",
@@ -87,6 +96,7 @@
     "topic": "javascript",
     "level": "B1",
     "source": "javascript",
-    "tags": ["array"]
+    "tags": ["array"],
+    "phonetic": "ðɪs əˈreɪ ˈmeθəd dʌz nɒt mjuːˈteɪt ðiː əˈrɪdʒənl"
   }
 ]

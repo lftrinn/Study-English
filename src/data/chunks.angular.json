@@ -6,7 +6,8 @@
     "topic": "angular",
     "level": "A2",
     "source": "angular",
-    "tags": ["testing"]
+    "tags": ["testing"],
+    "phonetic": "aɪl æd ə ˈjuːnɪt test fə ðɪs keɪs"
   },
   {
     "id": "ng-002",
@@ -15,7 +16,8 @@
     "topic": "angular",
     "level": "B1",
     "source": "angular",
-    "tags": ["component"]
+    "tags": ["component"],
+    "phonetic": "wi kən ræp ðɪs ɪn ə ʃeəd kəmˈpəʊnənt"
   },
   {
     "id": "ng-003",
@@ -24,7 +26,8 @@
     "topic": "angular",
     "level": "B1",
     "source": "angular",
-    "tags": ["performance"]
+    "tags": ["performance"],
+    "phonetic": "ðə tʃeɪndʒ dɪˈtekʃən rʌnz tuː ˈɒfn hɪə"
   },
   {
     "id": "ng-004",
@@ -33,7 +36,8 @@
     "topic": "angular",
     "level": "B1",
     "source": "angular",
-    "tags": ["performance"]
+    "tags": ["performance"],
+    "phonetic": "lets swɪtʃ ðɪs tʊ ɒn pʊʃ"
   },
   {
     "id": "ng-005",
@@ -42,7 +46,8 @@
     "topic": "angular",
     "level": "B1",
     "source": "angular",
-    "tags": ["architecture"]
+    "tags": ["architecture"],
+    "phonetic": "aɪl muːv ðɪs ˈlɒdʒɪk ˈɪntʊ ə ˈsɜːvɪs"
   },
   {
     "id": "ng-006",
@@ -51,7 +56,8 @@
     "topic": "angular",
     "level": "B1",
     "source": "angular",
-    "tags": ["rxjs"]
+    "tags": ["rxjs"],
+    "phonetic": "ðiː əbˈzɜːvəbl dʌz nɒt kəmˈpliːt hɪə"
   },
   {
     "id": "ng-007",
@@ -60,7 +66,8 @@
     "topic": "angular",
     "level": "B1",
     "source": "angular",
-    "tags": ["rxjs", "memory"]
+    "tags": ["rxjs", "memory"],
+    "phonetic": "wi ʃʊd ˌʌnsəbˈskraɪb wen ðə kəmˈpəʊnənt ɪz dɪˈstrɔɪd"
   },
   {
     "id": "ng-008",
@@ -69,7 +76,8 @@
     "topic": "angular",
     "level": "B1",
     "source": "angular",
-    "tags": ["rxjs"]
+    "tags": ["rxjs"],
+    "phonetic": "traɪ ˈjuːzɪŋ teɪk ənˈtɪl dɪˈstrɔɪd ɪnˈsted"
   },
   {
     "id": "ng-009",
@@ -78,7 +86,8 @@
     "topic": "angular",
     "level": "A2",
     "source": "angular",
-    "tags": ["review"]
+    "tags": ["review"],
+    "phonetic": "kʊd jʊ rɪˈvjuː maɪ pʊl rɪˈkwest"
   },
   {
     "id": "ng-010",
@@ -87,7 +96,8 @@
     "topic": "angular",
     "level": "B1",
     "source": "angular",
-    "tags": ["refactor"]
+    "tags": ["refactor"],
+    "phonetic": "aɪl kənˈvɜːt ðɪs tʊ ə ˈstændələʊn kəmˈpəʊnənt"
   },
   {
     "id": "ng-011",
@@ -96,7 +106,8 @@
     "topic": "angular",
     "level": "B1",
     "source": "angular",
-    "tags": ["di"]
+    "tags": ["di"],
+    "phonetic": "ðiː ɪnˈdʒektə ˈkɒntekst ɪz rɒŋ hɪə"
   },
   {
     "id": "ng-012",
@@ -105,6 +116,7 @@
     "topic": "angular",
     "level": "B1",
     "source": "angular",
-    "tags": ["signals"]
+    "tags": ["signals"],
+    "phonetic": "wi kən juːz ˈsɪɡnəlz fə dɪˈraɪvd steɪt"
   }
 ]
