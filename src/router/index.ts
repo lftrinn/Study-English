@@ -92,6 +92,54 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/OnboardingView.vue'),
     meta: { title: 'Welcome', tab: null, hideChrome: true },
   },
+  {
+    path: '/toeic',
+    name: 'toeic-hub',
+    component: () => import('@/views/toeic/ToeicHubView.vue'),
+    meta: { title: 'TOEIC', tab: null, hideChrome: true },
+  },
+  {
+    path: '/toeic/part',
+    name: 'toeic-part',
+    component: () => import('@/views/toeic/ToeicPartPracticeView.vue'),
+    meta: { title: 'TOEIC · Part', tab: null, hideChrome: true },
+  },
+  {
+    path: '/toeic/skill',
+    name: 'toeic-skill',
+    component: () => import('@/views/toeic/ToeicSkillPracticeView.vue'),
+    meta: { title: 'TOEIC · Skill', tab: null, hideChrome: true },
+  },
+  {
+    path: '/toeic/mini',
+    name: 'toeic-mini',
+    component: () => import('@/views/toeic/ToeicMiniTestView.vue'),
+    meta: { title: 'TOEIC · Mini Test', tab: null, hideChrome: true },
+  },
+  {
+    path: '/toeic/exam',
+    name: 'toeic-exam',
+    component: () => import('@/views/toeic/ToeicExamView.vue'),
+    meta: { title: 'TOEIC · Exam', tab: null, hideChrome: true },
+  },
+  {
+    path: '/toeic/mistakes',
+    name: 'toeic-mistakes',
+    component: () => import('@/views/toeic/ToeicMistakesView.vue'),
+    meta: { title: 'TOEIC · Mistakes', tab: null, hideChrome: true },
+  },
+  {
+    path: '/toeic/bank',
+    name: 'toeic-bank',
+    component: () => import('@/views/toeic/ToeicChunkBankView.vue'),
+    meta: { title: 'TOEIC · Chunk Bank', tab: null, hideChrome: true },
+  },
+  {
+    path: '/toeic/progress',
+    name: 'toeic-progress',
+    component: () => import('@/views/toeic/ToeicProgressView.vue'),
+    meta: { title: 'TOEIC · Progress', tab: null, hideChrome: true },
+  },
   { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },
 ];
 

@@ -201,6 +201,50 @@ async function deleteCustom(c: Chunk) {
       <div :style="{ fontSize: '13px', color: 'var(--color-text-3)', marginTop: '2px' }">Tinh chỉnh listening lab</div>
     </div>
 
+    <!-- TOEIC Training Center entry -->
+    <router-link
+      to="/toeic"
+      class="btn tap toeic-entry"
+      :style="{
+        margin: '0 20px 14px',
+        padding: '16px',
+        borderRadius: '18px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '14px',
+        background:
+          'linear-gradient(135deg, rgba(34, 211, 238, 0.18), rgba(167, 139, 250, 0.14))',
+        border: '1px solid color-mix(in oklch, #22D3EE 32%, transparent)',
+        textDecoration: 'none',
+        color: 'inherit',
+      }"
+    >
+      <span :style="{
+        width: '48px',
+        height: '48px',
+        borderRadius: '14px',
+        background: 'linear-gradient(135deg, #F59E0B, #FB7185)',
+        display: 'grid',
+        placeItems: 'center',
+        flexShrink: 0,
+        boxShadow: '0 8px 22px rgba(245,158,11,0.35), 0 1px 0 rgba(255,255,255,0.3) inset',
+      }">
+        <Icon name="trophy" :size="22" :style="{ color: '#fff', filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.22))' }" />
+      </span>
+      <div :style="{ flex: 1, minWidth: 0 }">
+        <div :style="{ fontSize: '11px', fontWeight: 700, color: 'var(--color-cyan)', letterSpacing: '.05em', textTransform: 'uppercase' }">
+          TOEIC Training Center
+        </div>
+        <div :style="{ fontSize: '15px', fontWeight: 700, marginTop: '2px' }">
+          Luyện 450 → 550 theo lộ trình
+        </div>
+        <div :style="{ fontSize: '11px', color: 'var(--color-text-3)', marginTop: '2px' }">
+          7 Part · Mini Test · Exam Mode · Mistake Notebook
+        </div>
+      </div>
+      <Icon name="chevron-right" :size="18" :style="{ color: 'var(--color-cyan)' }" />
+    </router-link>
+
     <!-- Profile card -->
     <div
       class="glass-strong"
