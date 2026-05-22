@@ -1,14 +1,14 @@
 /**
  * Picture-in-Picture for the listening lab.
  *
- * iOS Safari (and most browsers) only allow PiP for <video>, not arbitrary
- * HTML. To get the chunk text + phonetic + meaning into a floating window we
- * draw them on an offscreen <canvas>, capture the canvas as a MediaStream,
- * pipe it through a hidden <video>, and request PiP on that video.
+ * Standard pattern: draw the chunk onto an offscreen <canvas>, expose it
+ * through canvas.captureStream(), and request PiP on a hidden <video>.
  *
- * The canvas is redrawn on update() (when the chunk changes) and once per
- * second by a RAF-driven heartbeat — without that heartbeat, Safari's
- * captured stream tends to freeze after a few seconds.
+ * iOS Safari (including PWA standalone) doesn't always honour the standard
+ * `requestPictureInPicture()` for canvas-sourced streams, so we also call
+ * the legacy WebKit API `video.webkitSetPresentationMode('picture-in-picture')`
+ * when it's available. Either path triggers the same OS-level floating
+ * window.
  */
 
 export type PipChunkData = {
@@ -16,6 +16,16 @@ export type PipChunkData = {
   phonetic?: string;
   meaning?: string;
   topicColor?: string;
+};
+
+type IOSVideo = HTMLVideoElement & {
+  webkitSupportsPresentationMode?: (
+    mode: 'inline' | 'picture-in-picture' | 'fullscreen',
+  ) => boolean;
+  webkitSetPresentationMode?: (
+    mode: 'inline' | 'picture-in-picture' | 'fullscreen',
+  ) => void;
+  webkitPresentationMode?: 'inline' | 'picture-in-picture' | 'fullscreen';
 };
 
 const WIDTH = 480;
@@ -27,8 +37,21 @@ let stream: MediaStream | null = null;
 let rafId: number | null = null;
 let lastDrawAt = 0;
 let currentData: PipChunkData | null = null;
-let leaveHandler: (() => void) | null = null;
+let listenersBound = false;
 let onLeaveCallback: (() => void) | null = null;
+let supportedCache: boolean | null = null;
+
+function asIOS(v: HTMLVideoElement): IOSVideo {
+  return v as IOSVideo;
+}
+
+function iosSupportsPip(v: HTMLVideoElement): boolean {
+  const ios = asIOS(v);
+  return (
+    typeof ios.webkitSupportsPresentationMode === 'function' &&
+    ios.webkitSupportsPresentationMode('picture-in-picture')
+  );
+}
 
 function ensureElements() {
   if (canvas && video) return;
@@ -39,8 +62,12 @@ function ensureElements() {
   const v = document.createElement('video');
   v.muted = true;
   v.playsInline = true;
+  v.autoplay = true;
   v.setAttribute('playsinline', '');
   v.setAttribute('webkit-playsinline', '');
+  v.setAttribute('muted', '');
+  // Keep the element in the DOM but invisible — required for PiP request to
+  // succeed in some browsers (Chrome will reject if the video isn't connected).
   v.style.position = 'fixed';
   v.style.right = '0';
   v.style.bottom = '0';
@@ -86,7 +113,6 @@ function drawFrame() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  // Background gradient.
   const bg = ctx.createLinearGradient(0, 0, WIDTH, HEIGHT);
   bg.addColorStop(0, '#0B0F22');
   bg.addColorStop(1, '#161A35');
@@ -103,19 +129,16 @@ function drawFrame() {
 
   const accent = currentData.topicColor ?? '#22D3EE';
 
-  // Accent bar.
   ctx.fillStyle = accent;
   ctx.fillRect(0, 0, 4, HEIGHT);
 
   ctx.textAlign = 'center';
 
-  // Main chunk text.
   ctx.fillStyle = '#FFFFFF';
   ctx.font = '700 26px -apple-system, system-ui, sans-serif';
   const textY = 60;
   const textHeight = drawText(ctx, currentData.text, WIDTH / 2, textY, WIDTH - 40, 32, 3);
 
-  // Phonetic transcription.
   let cursor = textY + textHeight + 18;
   if (currentData.phonetic) {
     ctx.fillStyle = accent;
@@ -124,7 +147,6 @@ function drawFrame() {
     cursor += 28;
   }
 
-  // Meaning.
   if (currentData.meaning) {
     ctx.fillStyle = '#A0A8C0';
     ctx.font = '400 15px -apple-system, system-ui, sans-serif';
@@ -133,8 +155,6 @@ function drawFrame() {
 }
 
 function heartbeat(now: number) {
-  // Redraw at most ~1 fps to keep the captured stream from freezing on
-  // Safari without burning CPU.
   if (now - lastDrawAt > 900) {
     drawFrame();
     lastDrawAt = now;
@@ -156,62 +176,111 @@ function stopHeartbeat() {
 }
 
 function isSupported(): boolean {
-  if (typeof document === 'undefined') return false;
-  if (!('pictureInPictureEnabled' in document)) return false;
-  return Boolean(document.pictureInPictureEnabled);
+  if (supportedCache !== null) return supportedCache;
+  if (typeof document === 'undefined') return (supportedCache = false);
+  const standard = 'pictureInPictureEnabled' in document && document.pictureInPictureEnabled;
+  if (standard) return (supportedCache = true);
+  if (typeof HTMLVideoElement !== 'undefined') {
+    const probe = document.createElement('video');
+    if (iosSupportsPip(probe)) return (supportedCache = true);
+  }
+  return (supportedCache = false);
 }
 
 function isActive(): boolean {
-  if (typeof document === 'undefined') return false;
-  return document.pictureInPictureElement === video && video !== null;
+  if (!video) return false;
+  if (typeof document !== 'undefined' && document.pictureInPictureElement === video) return true;
+  if (asIOS(video).webkitPresentationMode === 'picture-in-picture') return true;
+  return false;
 }
 
 function handleLeave() {
   stopHeartbeat();
-  if (onLeaveCallback) {
+  const cb = onLeaveCallback;
+  if (cb) {
     try {
-      onLeaveCallback();
+      cb();
     } catch {
       /* ignore */
     }
   }
 }
 
+function bindLeaveListeners(v: HTMLVideoElement) {
+  if (listenersBound) return;
+  v.addEventListener('leavepictureinpicture', handleLeave);
+  v.addEventListener('webkitpresentationmodechanged', () => {
+    if (asIOS(v).webkitPresentationMode !== 'picture-in-picture') {
+      handleLeave();
+    }
+  });
+  listenersBound = true;
+}
+
 async function enter(data: PipChunkData, opts?: { onLeave?: () => void }): Promise<void> {
-  if (!isSupported()) throw new Error('Picture-in-Picture không được hỗ trợ trên trình duyệt này.');
+  if (!isSupported()) {
+    throw new Error('Picture-in-Picture không được hỗ trợ trên trình duyệt này.');
+  }
   ensureElements();
+  if (!video || !canvas) throw new Error('PiP video/canvas khởi tạo thất bại.');
+
   currentData = data;
   drawFrame();
 
   if (!stream) {
-    // captureStream(0) means "frame-driven" (push on draw) — but Safari is
-    // happier with a low fps. Pair with a 1fps heartbeat above.
-    stream = canvas!.captureStream(1);
-    video!.srcObject = stream;
+    stream = canvas.captureStream(1);
+    video.srcObject = stream;
   }
 
   onLeaveCallback = opts?.onLeave ?? null;
+  bindLeaveListeners(video);
 
-  if (!leaveHandler) {
-    leaveHandler = handleLeave;
-    video!.addEventListener('leavepictureinpicture', leaveHandler);
-  }
-
-  try {
-    await video!.play();
-  } catch {
-    /* may throw on iOS if not called from a gesture — propagate */
+  // Fire play() but DON'T await — awaiting may break the user-gesture chain
+  // and cause iOS to reject the subsequent PiP request. Errors (e.g.
+  // autoplay blocked) are logged but don't stop the PiP attempt.
+  const playPromise = video.play();
+  if (playPromise && typeof playPromise.catch === 'function') {
+    playPromise.catch((err) => {
+      console.warn('[pip] video.play() failed:', err);
+    });
   }
   startHeartbeat();
-  await video!.requestPictureInPicture();
+
+  // iOS Safari (incl. PWA standalone) prefers the legacy WebKit API for
+  // canvas-sourced streams. Try it first when available.
+  if (iosSupportsPip(video)) {
+    try {
+      asIOS(video).webkitSetPresentationMode!('picture-in-picture');
+      return;
+    } catch (err) {
+      console.warn('[pip] webkitSetPresentationMode failed, falling back:', err);
+    }
+  }
+
+  if (typeof document === 'undefined' || !document.pictureInPictureEnabled) {
+    throw new Error('Picture-in-Picture không khả dụng.');
+  }
+  await video.requestPictureInPicture();
 }
 
 async function exit(): Promise<void> {
-  if (typeof document !== 'undefined' && document.pictureInPictureElement) {
-    try {
-      await document.exitPictureInPicture();
-    } catch {
-      /* ignore */
+  if (video) {
+    if (
+      iosSupportsPip(video) &&
+      asIOS(video).webkitPresentationMode === 'picture-in-picture'
+    ) {
+      try {
+        asIOS(video).webkitSetPresentationMode!('inline');
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof document !== 'undefined' && document.pictureInPictureElement === video) {
+      try {
+        await document.exitPictureInPicture();
+      } catch {
+        /* ignore */
+      }
     }
   }
   stopHeartbeat();
