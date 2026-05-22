@@ -4,6 +4,7 @@ import { computed, ref } from 'vue';
 import type { Chunk } from '@/types/chunk';
 import type { ListeningMode } from '@/types/progress';
 import { speechService } from '@/services/speechService';
+import { backgroundAudioService } from '@/services/backgroundAudioService';
 import { useSettingsStore } from './settingsStore';
 import { useProgressStore } from './progressStore';
 
@@ -152,6 +153,15 @@ export const usePlayerStore = defineStore('player', () => {
     selectedVoiceName.value = name;
   }
 
+  function bgActions() {
+    return {
+      onPlay: () => void play(),
+      onPause: () => pause(),
+      onPrev: () => prev(),
+      onNext: () => next(),
+    };
+  }
+
   async function play() {
     if (!current.value) return;
     if (isPlaying.value && isPaused.value) {
@@ -161,11 +171,21 @@ export const usePlayerStore = defineStore('player', () => {
         pauseAccumMs += Date.now() - pauseStartedAt;
         pauseStartedAt = 0;
       }
+      backgroundAudioService.setPlaybackState('playing');
       return;
     }
     if (isPlaying.value) return;
     isPlaying.value = true;
     isPaused.value = false;
+    // Kick off the silent-audio loop + lock-screen controls. Must run inside
+    // the user-gesture that triggered play() so iOS allows autoplay.
+    void backgroundAudioService.start(bgActions());
+    if (current.value) {
+      backgroundAudioService.updateMetadata({
+        title: current.value.text,
+        artist: current.value.meaning || 'Chunk Listening Lab',
+      });
+    }
     const token = ++currentToken;
     await loopPlay(token);
   }
@@ -177,6 +197,7 @@ export const usePlayerStore = defineStore('player', () => {
     if (chunkStartedAt > 0 && pauseStartedAt === 0) {
       pauseStartedAt = Date.now();
     }
+    backgroundAudioService.setPlaybackState('paused');
   }
 
   function stop() {
@@ -185,6 +206,7 @@ export const usePlayerStore = defineStore('player', () => {
     isPlaying.value = false;
     isPaused.value = false;
     resetProgress();
+    backgroundAudioService.stop();
   }
 
   function next() {
@@ -227,6 +249,11 @@ export const usePlayerStore = defineStore('player', () => {
       const chunk = current.value;
       const settings = useSettingsStore();
       const progress = useProgressStore();
+
+      backgroundAudioService.updateMetadata({
+        title: chunk.text,
+        artist: chunk.meaning || 'Chunk Listening Lab',
+      });
 
       for (let i = 0; i < repeatEach.value; i += 1) {
         if (token !== currentToken) return;
