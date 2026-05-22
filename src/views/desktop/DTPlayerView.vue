@@ -402,17 +402,28 @@ function openDetail() {
   background: rgba(34,211,238,0.1);
   border-color: var(--color-cyan);
 }
-.dt-pl__voice-row { display: flex; align-items: center; gap: 8px; }
+.dt-pl__voice-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .dt-pl__voice-av {
+  flex: 0 0 28px;
   width: 28px; height: 28px; border-radius: 50%;
   background: var(--color-surface-3);
   display: grid; place-items: center;
   color: var(--color-text-1); font-size: 11px; font-weight: 700;
 }
 .dt-pl__voice-av.is-on { background: var(--color-cyan); color: #0b0f22; }
-.dt-pl__voice-meta { min-width: 0; }
-.dt-pl__voice-name { font-size: 12px; font-weight: 700; }
-.dt-pl__voice-region { font-size: 10px; color: var(--color-text-3); }
+.dt-pl__voice-meta { min-width: 0; flex: 1; }
+.dt-pl__voice-name {
+  font-size: 12px; font-weight: 700; line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.dt-pl__voice-region {
+  font-size: 10px; color: var(--color-text-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 .dt-pl__transcript {
   font-size: 17px; font-weight: 600; line-height: 1.5; letter-spacing: -0.005em;

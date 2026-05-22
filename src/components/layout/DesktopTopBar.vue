@@ -217,6 +217,7 @@ function bellAction() {
 .dt-tb__flame {
   width: 22px;
   height: 22px;
+  flex: 0 0 22px;
   border-radius: 50%;
   background: rgba(251, 113, 133, 0.2);
   display: grid;
