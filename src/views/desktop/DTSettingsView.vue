@@ -576,7 +576,8 @@ function cycleHintPosition() {
 
 .dt-st__profile { display: flex; align-items: center; gap: 16px; padding: 6px 0 14px; }
 .dt-st__avatar {
-  width: 64px; height: 64px; border-radius: 50%;
+  width: 64px; height: 64px; flex: 0 0 64px;
+  border-radius: 50%;
   background: var(--grad-primary);
   display: grid; place-items: center;
   font-size: 24px; font-weight: 700; color: #0b0f22;

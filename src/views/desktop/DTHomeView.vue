@@ -453,7 +453,7 @@ function gotoTopic(id: string) { chunks.setTopic(id); router.push('/library'); }
 }
 .dt-home__topic-head { display: flex; align-items: center; justify-content: space-between; }
 .dt-home__topic-ic {
-  width: 36px; height: 36px; border-radius: 12px;
+  width: 36px; height: 36px; flex: 0 0 36px; border-radius: 12px;
   display: grid; place-items: center;
 }
 .dt-home__topic-ring { position: relative; width: 36px; height: 36px; }

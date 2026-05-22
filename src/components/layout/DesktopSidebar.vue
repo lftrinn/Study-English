@@ -228,6 +228,7 @@ function goTopic(id: string) {
 .dt-sb__avatar {
   width: 30px;
   height: 30px;
+  flex: 0 0 30px;
   border-radius: 50%;
   background: var(--grad-primary);
   display: grid;
