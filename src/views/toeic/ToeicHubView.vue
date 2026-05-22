@@ -40,8 +40,10 @@ const currentPhaseInfo = computed(() => {
 });
 
 function goBack() {
-  if (window.history.length > 1) router.back();
-  else router.replace('/settings');
+  // Always return to Settings — that's the only entry point to TOEIC, so
+  // router.back() can land somewhere unexpected (e.g. an in-app sub-view
+  // the user navigated through).
+  router.push('/settings');
 }
 
 function go(route: string) {

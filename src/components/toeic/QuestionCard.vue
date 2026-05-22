@@ -36,7 +36,9 @@ const emit = defineEmits<{
 }>();
 
 const part = computed(() => TOEIC_PARTS.find((p) => p.id === props.partId)!);
-const isAnswered = computed(() => props.selected !== null && props.selected !== undefined);
+// Lock options only after the user has committed (showExplain === true).
+// Before that they should be free to change their pick.
+const isLocked = computed(() => props.showExplain === true);
 const correctIdx = computed(() => {
   const q = props.q;
   if ('correct' in q) return q.correct;
@@ -50,8 +52,10 @@ const optionsForLayout = computed(() => {
 });
 
 function pickOption(i: number) {
-  if (isAnswered.value) return;
-  emit('update:selected', i);
+  if (isLocked.value) return;
+  // Toggle off if tapping the already-selected option, so the user can
+  // unset and re-pick before committing.
+  emit('update:selected', props.selected === i ? null : i);
 }
 
 // — Fill stimulus — split on _____ blanks
@@ -172,7 +176,7 @@ function isPassage(q: TOEICQuestion): q is TOEICPassageQuestion {
         v-for="(opt, i) in optionsForLayout"
         :key="i"
         class="btn tap qcard__opt"
-        :disabled="isAnswered"
+        :disabled="isLocked"
         :class="{
           'is-selected': selected === i && !showExplain,
           'is-correct': showExplain && i === correctIdx,
@@ -195,7 +199,7 @@ function isPassage(q: TOEICQuestion): q is TOEICPassageQuestion {
         v-for="(opt, i) in q.questions[0].options"
         :key="`pq-${i}`"
         class="btn tap qcard__opt"
-        :disabled="isAnswered"
+        :disabled="isLocked"
         :class="{
           'is-selected': selected === i && !showExplain,
           'is-correct': showExplain && i === q.questions[0].correct,
