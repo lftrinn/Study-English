@@ -5,19 +5,23 @@ import { useRouter } from 'vue-router';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useChunkStore } from '@/stores/chunkStore';
 import { useProgressStore } from '@/stores/progressStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { useUiStore } from '@/stores/uiStore';
 import { playlistService } from '@/services/playlistService';
+import { speechService } from '@/services/speechService';
 
 import ModeShell from '@/components/layout/ModeShell.vue';
 import TopicChip from '@/components/chunk/TopicChip.vue';
 import PlayBtn from '@/components/common/PlayBtn.vue';
 import WaveBars from '@/components/common/WaveBars.vue';
 import Icon from '@/components/common/Icon.vue';
+import AppSheet from '@/components/common/AppSheet.vue';
 
 const router = useRouter();
 const player = usePlayerStore();
 const chunks = useChunkStore();
 const progress = useProgressStore();
+const settings = useSettingsStore();
 const ui = useUiStore();
 
 const showMeaning = ref(true);
@@ -73,6 +77,43 @@ function toggleMeaning() {
 
 function openDetail() {
   if (current.value) ui.openChunkDetail(current.value.id);
+}
+
+const audioSheetOpen = ref(false);
+const englishVoices = ref<SpeechSynthesisVoice[]>([]);
+
+function adjustSpeed(delta: number) {
+  const v = Math.round((player.speed + delta) * 10) / 10;
+  const clamped = Math.max(0.5, Math.min(2, v));
+  player.setSpeed(clamped);
+  settings.defaultSpeed = clamped;
+}
+function adjustGap(delta: number) {
+  const v = Math.max(0, Math.min(5000, player.gap + delta));
+  player.setGap(v);
+  settings.defaultGap = v;
+}
+function pickVoice(name: string | null) {
+  player.setVoiceName(name);
+  settings.selectedVoiceName = name;
+  if (name && player.mixVoice) {
+    // Picking a specific voice implies turning mix off.
+    player.setMixVoice(false);
+    settings.mixVoice = false;
+  }
+}
+function toggleMix() {
+  const v = !player.mixVoice;
+  player.setMixVoice(v);
+  settings.mixVoice = v;
+}
+
+async function openAudioSheet() {
+  audioSheetOpen.value = true;
+  if (englishVoices.value.length === 0) {
+    await speechService.ensureVoicesLoaded();
+    englishVoices.value = speechService.getEnglishVoices();
+  }
 }
 
 onMounted(() => {
@@ -172,14 +213,19 @@ onBeforeUnmount(() => {
               <Icon name="next" :size="22" />
             </button>
           </div>
-          <div class="passive__meta">
+          <button
+            class="btn tap passive__meta passive__meta-btn"
+            :aria-label="'Tuỳ chỉnh âm thanh'"
+            @click="openAudioSheet"
+          >
             <Icon name="mic" :size="12" />
             <span>{{ voiceLine }}</span>
             <span class="passive__sep" />
             <span class="mono">{{ player.speed.toFixed(2) }}×</span>
             <span class="passive__sep" />
             <span>Gap {{ (player.gap / 1000).toFixed(1) }}s</span>
-          </div>
+            <Icon name="chevron-right" :size="12" :style="{ color: 'var(--color-text-4)' }" />
+          </button>
         </div>
       </div>
     </template>
@@ -189,6 +235,125 @@ onBeforeUnmount(() => {
         Tới Library
       </button>
     </div>
+
+    <AppSheet :open="audioSheetOpen" title="Tuỳ chỉnh âm thanh" @close="audioSheetOpen = false">
+      <div class="audio-sheet">
+        <!-- Speed -->
+        <div class="audio-sheet__group">
+          <div class="audio-sheet__label">
+            <Icon name="bolt" :size="14" :style="{ color: '#F59E0B' }" />
+            <span>Tốc độ</span>
+            <span class="audio-sheet__value mono">{{ player.speed.toFixed(2) }}×</span>
+          </div>
+          <div class="audio-sheet__stepper">
+            <button class="btn tap audio-sheet__btn" :disabled="player.speed <= 0.5" @click="adjustSpeed(-0.1)">
+              <Icon name="minus" :size="14" />
+            </button>
+            <div class="audio-sheet__readout mono">{{ player.speed.toFixed(2) }}×</div>
+            <button class="btn tap audio-sheet__btn" :disabled="player.speed >= 2" @click="adjustSpeed(0.1)">
+              <Icon name="plus" :size="14" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Gap -->
+        <div class="audio-sheet__group">
+          <div class="audio-sheet__label">
+            <Icon name="clock" :size="14" :style="{ color: '#34D399' }" />
+            <span>Gap giữa chunk</span>
+            <span class="audio-sheet__value mono">{{ player.gap }}ms</span>
+          </div>
+          <div class="audio-sheet__stepper">
+            <button class="btn tap audio-sheet__btn" :disabled="player.gap <= 0" @click="adjustGap(-100)">
+              <Icon name="minus" :size="14" />
+            </button>
+            <div class="audio-sheet__readout mono">{{ player.gap }}ms</div>
+            <button class="btn tap audio-sheet__btn" :disabled="player.gap >= 5000" @click="adjustGap(100)">
+              <Icon name="plus" :size="14" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Mix voice -->
+        <div class="audio-sheet__group">
+          <div class="audio-sheet__label">
+            <Icon name="speaker" :size="14" :style="{ color: '#A78BFA' }" />
+            <span>Mix voices</span>
+            <span class="audio-sheet__value">{{ player.mixVoice ? 'Bật' : 'Tắt' }}</span>
+          </div>
+          <button
+            class="btn tap audio-sheet__toggle"
+            :aria-pressed="player.mixVoice"
+            :style="{
+              background: player.mixVoice ? 'var(--color-cyan)' : 'var(--color-surface-3)',
+            }"
+            @click="toggleMix"
+          >
+            <span :style="{
+              position: 'absolute',
+              top: '3px',
+              left: player.mixVoice ? '19px' : '3px',
+              width: '20px',
+              height: '20px',
+              borderRadius: '50%',
+              background: '#fff',
+              transition: 'left .15s ease',
+              boxShadow: '0 2px 4px rgba(0,0,0,.2)',
+            }" />
+          </button>
+        </div>
+
+        <!-- Voice list -->
+        <div class="audio-sheet__group audio-sheet__group--voices">
+          <div class="audio-sheet__label">
+            <Icon name="mic" :size="14" :style="{ color: '#22D3EE' }" />
+            <span>Giọng đọc</span>
+          </div>
+          <p
+            v-if="englishVoices.length === 0"
+            :style="{ fontSize: '12px', color: 'var(--color-text-3)', margin: '4px 0 0' }"
+          >Đang tải danh sách giọng...</p>
+          <div v-else class="audio-sheet__voices">
+            <button
+              class="btn tap audio-sheet__voice"
+              :style="{
+                background: !player.selectedVoiceName && !player.mixVoice ? 'color-mix(in oklch, var(--color-cyan) 14%, transparent)' : 'var(--color-surface-1)',
+                border: !player.selectedVoiceName && !player.mixVoice ? '1px solid color-mix(in oklch, var(--color-cyan) 40%, transparent)' : '1px solid var(--color-border-1)',
+              }"
+              @click="pickVoice(null)"
+            >
+              <span class="audio-sheet__voice-name">Mặc định trình duyệt</span>
+              <span
+                v-if="!player.selectedVoiceName && !player.mixVoice"
+                class="audio-sheet__voice-tag"
+              >Đang dùng</span>
+            </button>
+            <button
+              v-for="v in englishVoices"
+              :key="v.name"
+              class="btn tap audio-sheet__voice"
+              :style="{
+                background: player.selectedVoiceName === v.name && !player.mixVoice ? 'color-mix(in oklch, var(--color-cyan) 14%, transparent)' : 'var(--color-surface-1)',
+                border: player.selectedVoiceName === v.name && !player.mixVoice ? '1px solid color-mix(in oklch, var(--color-cyan) 40%, transparent)' : '1px solid var(--color-border-1)',
+              }"
+              @click="pickVoice(v.name)"
+            >
+              <span class="audio-sheet__voice-name">
+                <span>{{ v.name }}</span>
+                <span class="audio-sheet__voice-lang mono">{{ v.lang }}</span>
+              </span>
+              <span
+                v-if="player.selectedVoiceName === v.name && !player.mixVoice"
+                class="audio-sheet__voice-tag"
+              >Đang dùng</span>
+            </button>
+          </div>
+          <p
+            :style="{ fontSize: '11px', color: 'var(--color-text-4)', margin: '8px 0 0', textAlign: 'center' }"
+          >Thay đổi sẽ áp dụng cho chunk tiếp theo.</p>
+        </div>
+      </div>
+    </AppSheet>
   </ModeShell>
 </template>
 
@@ -310,6 +475,17 @@ onBeforeUnmount(() => {
   font-size: 11px;
   color: var(--color-text-3);
 }
+.passive__meta-btn {
+  width: auto;
+  align-self: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-1);
+}
+.passive__meta-btn:hover {
+  background: var(--color-surface-3);
+}
 .passive__sep {
   width: 3px;
   height: 3px;
@@ -341,6 +517,115 @@ onBeforeUnmount(() => {
     0 10px 28px rgba(34, 211, 238, 0.42),
     0 1px 0 rgba(255, 255, 255, 0.35) inset,
     0 -1px 0 rgba(0, 0, 0, 0.18) inset;
+}
+
+.audio-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.audio-sheet__group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border-1);
+  border-radius: 14px;
+}
+.audio-sheet__group--voices {
+  flex-direction: column;
+  align-items: stretch;
+}
+.audio-sheet__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-2);
+  flex: 1;
+  min-width: 0;
+}
+.audio-sheet__value {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--color-text-3);
+  font-weight: 600;
+}
+.audio-sheet__stepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.audio-sheet__btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--color-surface-2);
+  color: var(--color-text-2);
+  display: grid;
+  place-items: center;
+}
+.audio-sheet__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.audio-sheet__readout {
+  min-width: 64px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-1);
+}
+.audio-sheet__toggle {
+  width: 42px;
+  height: 26px;
+  border-radius: 99px;
+  position: relative;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.audio-sheet__voices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  max-height: 38dvh;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.audio-sheet__voices::-webkit-scrollbar {
+  display: none;
+}
+.audio-sheet__voice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  text-align: left;
+}
+.audio-sheet__voice-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 0;
+}
+.audio-sheet__voice-lang {
+  font-size: 10px;
+  color: var(--color-text-3);
+  font-weight: 500;
+}
+.audio-sheet__voice-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-cyan);
+  flex-shrink: 0;
 }
 
 @keyframes passivePulse {
