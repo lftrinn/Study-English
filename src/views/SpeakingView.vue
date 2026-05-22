@@ -352,7 +352,7 @@ const subtitle = computed(() => {
 </script>
 
 <template>
-  <ModeShell title="Speaking Lab" :subtitle="subtitle" :on-close="exit">
+  <ModeShell title="Speaking Lab" :subtitle="subtitle" :on-close="exit" stage-width="narrow">
     <template v-if="!supported">
       <EmptyState
         icon="mic"
