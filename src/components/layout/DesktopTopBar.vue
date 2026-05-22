@@ -258,11 +258,28 @@ function bellAction() {
   width: 320px;
   padding: 12px;
   border-radius: 14px;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+  /* Solid card on top of page — don't rely on the translucent .glass-strong utility, which lets the page bleed through. */
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-bg-2) 96%, transparent), color-mix(in oklch, var(--color-bg-1) 96%, transparent));
+  border: 1px solid var(--color-border-2);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  box-shadow:
+    0 24px 60px -12px rgba(0, 0, 0, 0.6),
+    0 8px 24px -8px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  z-index: 50;
+  z-index: 80;
+  isolation: isolate;
+}
+[data-theme='light'] .dt-tb__bell-pop {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.94));
+  box-shadow:
+    0 24px 60px -12px rgba(14, 18, 38, 0.18),
+    0 8px 24px -8px rgba(14, 18, 38, 0.12);
 }
 .dt-tb__bell-head {
   display: flex;

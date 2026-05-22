@@ -438,13 +438,46 @@ function gotoTopic(id: string) { chunks.setTopic(id); router.push('/library'); }
 .dt-home__sec-sub { font-size: 12px; color: var(--color-text-3); margin-top: 2px; }
 .dt-home__see { font-size: 12px; color: var(--color-cyan); font-weight: 700; }
 
-.dt-home__qa { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.dt-home__qa { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .dt-home__qa-tile {
-  padding: 16px; border-radius: 18px; text-align: left; min-height: 124px;
-  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 18px;
+  border-radius: 18px;
+  text-align: left;
+  min-height: 148px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  /* Override the very-subtle .glass background — on the dark night-bg it disappears.
+     Stack a darker solid card under the glass blur so the tile reads as a real surface. */
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--color-bg-2) 70%, transparent), color-mix(in oklch, var(--color-bg-1) 70%, transparent));
+  border: 1px solid var(--color-border-2);
+  box-shadow:
+    0 12px 28px -16px rgba(0, 0, 0, 0.55),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  transition: transform 0.18s var(--ease-out-soft), border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
-.dt-home__qa-label { font-size: 14px; font-weight: 700; }
-.dt-home__qa-sub { font-size: 11px; color: var(--color-text-3); margin-top: 2px; }
+.dt-home__qa-tile:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklch, var(--color-cyan) 35%, var(--color-border-2));
+  box-shadow:
+    0 22px 40px -18px rgba(0, 0, 0, 0.65),
+    0 0 0 1px color-mix(in oklch, var(--color-cyan) 24%, transparent),
+    0 1px 0 rgba(255, 255, 255, 0.06) inset;
+}
+[data-theme='light'] .dt-home__qa-tile {
+  background: #ffffff;
+  border-color: var(--color-border-1);
+  box-shadow: 0 8px 24px -14px rgba(14, 18, 38, 0.18);
+}
+.dt-home__qa-label { font-size: 15px; font-weight: 700; letter-spacing: -0.005em; }
+.dt-home__qa-sub { font-size: 12px; color: var(--color-text-3); margin-top: 4px; }
+
+@media (min-width: 1440px) {
+  .dt-home__qa-tile { min-height: 164px; padding: 20px; }
+  .dt-home__qa-label { font-size: 16px; }
+}
 
 .dt-home__cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
 .dt-home__topics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
