@@ -261,7 +261,7 @@ const filterActiveCount = computed(
             </button>
           </div>
         </div>
-        <div>
+        <div class="dt-lib__card-body">
           <div class="dt-lib__card-en">{{ c.text }}</div>
           <div v-if="c.phonetic" class="dt-lib__card-ipa">
             /{{ c.phonetic.replace(/^\/|\/$/g, '') }}/
@@ -516,9 +516,14 @@ const filterActiveCount = computed(
   background: var(--color-surface-2);
   border: 1px solid var(--color-border-1);
   display: flex; flex-direction: column; gap: 10px;
+  min-height: 200px;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
-.dt-lib__card-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.dt-lib__card-top { display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0; }
+.dt-lib__card-body {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; justify-content: center;
+}
 .dt-lib__card-tools { display: flex; gap: 4px; }
 .dt-lib__star {
   width: 30px; height: 30px; border-radius: 8px;
@@ -533,7 +538,7 @@ const filterActiveCount = computed(
   font-style: italic; letter-spacing: 0.01em; line-height: 1.3;
 }
 .dt-lib__card-vi { font-size: 12px; color: var(--color-text-3); margin-top: 4px; line-height: 1.4; }
-.dt-lib__card-foot { display: flex; align-items: center; gap: 10px; }
+.dt-lib__card-foot { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-top: auto; }
 .dt-lib__card-listens {
   font-size: 11px; color: var(--color-text-3);
   display: inline-flex; align-items: center; gap: 4px; margin-left: auto;
