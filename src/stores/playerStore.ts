@@ -165,13 +165,22 @@ export const usePlayerStore = defineStore('player', () => {
   async function play() {
     if (!current.value) return;
     if (isPlaying.value && isPaused.value) {
-      speechService.resume();
+      // Resume from pause. speechSynthesis.pause()/resume() is unreliable
+      // across browsers (and iOS will silently drop the utterance once the
+      // page has been backgrounded for a few seconds), so we instead halted
+      // loopPlay on pause and now restart the current chunk from scratch.
       isPaused.value = false;
       if (pauseStartedAt > 0) {
         pauseAccumMs += Date.now() - pauseStartedAt;
         pauseStartedAt = 0;
       }
       backgroundAudioService.setPlaybackState('playing');
+      backgroundAudioService.updateMetadata({
+        title: current.value.text,
+        artist: current.value.meaning || 'Chunk Listening Lab',
+      });
+      const token = ++currentToken;
+      await loopPlay(token);
       return;
     }
     if (isPlaying.value) return;
@@ -191,8 +200,15 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   function pause() {
-    if (!isPlaying.value) return;
-    speechService.pause();
+    if (!isPlaying.value || isPaused.value) return;
+    // Don't rely on speechSynthesis.pause(): if iOS later cancels the
+    // utterance in the background, loopPlay's awaited speak() would resolve
+    // (treated as 'canceled' -> resolve) and advance to the next chunk while
+    // the user thinks playback is paused. Instead, bump the token to halt
+    // loopPlay and cancel the utterance outright; play() will restart the
+    // current chunk on resume.
+    currentToken += 1;
+    speechService.cancel();
     isPaused.value = true;
     if (chunkStartedAt > 0 && pauseStartedAt === 0) {
       pauseStartedAt = Date.now();
