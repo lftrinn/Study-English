@@ -95,6 +95,9 @@ function openPlayer() { router.push('/player'); }
         <div>
           <TopicChip :topic-id="chunk.topic" size="sm" />
           <div class="dt-rail__en">{{ chunk.text }}</div>
+          <div v-if="chunk.phonetic" class="dt-rail__ipa">
+            /{{ chunk.phonetic.replace(/^\/|\/$/g, '') }}/
+          </div>
           <div class="dt-rail__hr" />
           <div class="dt-rail__vi">{{ chunk.meaning }}</div>
         </div>
@@ -219,6 +222,10 @@ function openPlayer() { router.push('/player'); }
   margin-top: 12px;
   letter-spacing: -0.01em;
   text-wrap: pretty;
+}
+.dt-rail__ipa {
+  font-size: 12.5px; color: var(--color-text-3); margin-top: 4px;
+  font-style: italic; letter-spacing: 0.01em; line-height: 1.3;
 }
 .dt-rail__hr { height: 1px; background: var(--color-border-1); margin: 10px 0; }
 .dt-rail__vi { font-size: 13px; color: var(--color-text-2); }

@@ -233,6 +233,9 @@ function gotoTopic(id: string) { chunks.setTopic(id); router.push('/library'); }
       <div class="dt-home__cont-mid">
         <div class="dt-home__cont-eye">Tiếp tục · {{ continueTopic?.name ?? '' }}</div>
         <div class="dt-home__cont-en">{{ continueChunk.text }}</div>
+        <div v-if="continueChunk.phonetic" class="dt-home__cont-ipa">
+          /{{ continueChunk.phonetic.replace(/^\/|\/$/g, '') }}/
+        </div>
         <div class="dt-home__cont-meta">
           <WaveBars :size="14" :playing="false" color="var(--color-text-3)" />
           <span>{{ progress.todayListenCount }} / {{ settings.dailyGoal }} chunks · {{ player.speed.toFixed(2) }}×</span>
@@ -423,6 +426,10 @@ function gotoTopic(id: string) { chunks.setTopic(id); router.push('/library'); }
   letter-spacing: 0.05em; text-transform: uppercase;
 }
 .dt-home__cont-en { font-size: 20px; font-weight: 700; margin-top: 4px; letter-spacing: -0.01em; }
+.dt-home__cont-ipa {
+  font-size: 13px; color: var(--color-text-3); margin-top: 3px;
+  font-style: italic; letter-spacing: 0.01em;
+}
 .dt-home__cont-meta {
   font-size: 12px; color: var(--color-text-3); margin-top: 6px;
   display: flex; align-items: center; gap: 10px;

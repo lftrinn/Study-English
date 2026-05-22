@@ -270,6 +270,17 @@ watch(open, async (v) => {
           }"
         >{{ chunk.text }}</div>
         <div
+          v-if="chunk.phonetic"
+          :style="{
+            fontSize: '14px',
+            color: 'var(--color-text-3)',
+            fontStyle: 'italic',
+            marginTop: '6px',
+            letterSpacing: '0.01em',
+            position: 'relative',
+          }"
+        >/{{ chunk.phonetic.replace(/^\/|\/$/g, '') }}/</div>
+        <div
           :style="{ fontSize: '14px', color: 'var(--color-text-2)', marginTop: '8px', position: 'relative' }"
         >{{ chunk.meaning }}</div>
 

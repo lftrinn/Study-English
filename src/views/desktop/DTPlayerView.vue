@@ -147,6 +147,9 @@ function openDetail() {
               <LevelPill :level="chunk.level" />
             </div>
             <div class="dt-pl__en">{{ chunk.text }}</div>
+            <div v-if="chunk.phonetic" class="dt-pl__ipa">
+              /{{ chunk.phonetic.replace(/^\/|\/$/g, '') }}/
+            </div>
           </div>
           <div>
             <div class="dt-pl__hr" />
@@ -319,6 +322,10 @@ function openDetail() {
 .dt-pl__en {
   font-size: 26px; font-weight: 700; line-height: 1.2;
   letter-spacing: -0.015em; margin-top: 16px; text-wrap: pretty;
+}
+.dt-pl__ipa {
+  font-size: 15px; color: var(--color-text-3);
+  font-style: italic; letter-spacing: 0.01em; margin-top: 6px;
 }
 .dt-pl__hr { height: 1px; background: var(--color-border-1); margin: 14px 0; }
 .dt-pl__vi { font-size: 14px; color: var(--color-text-2); line-height: 1.4; }
