@@ -55,6 +55,11 @@ const goalProgressPct = computed(() => {
 });
 
 const continueChunk = computed<Chunk | undefined>(() => {
+  // Prefer the chunk the player is currently sitting on (live queue): this
+  // keeps the "Tiếp tục" card in sync with MiniPlayer / PlayerView / Passive
+  // Lab. recordListen only fires after a chunk finishes speaking, so falling
+  // back to recentLogs[0] would always lag by one chunk while a playlist runs.
+  if (player.current) return player.current;
   const recent = progress.recentLogs[0];
   if (recent) return chunks.byId(recent.chunkId);
   return undefined;
@@ -62,6 +67,12 @@ const continueChunk = computed<Chunk | undefined>(() => {
 const continueTopic = computed(() =>
   continueChunk.value ? chunks.topicById(continueChunk.value.topic) : undefined,
 );
+const continueLabel = computed(() => {
+  if (!player.current) return 'Tiếp tục';
+  if (player.isPlaying && !player.isPaused) return 'Đang phát';
+  if (player.isPaused) return 'Tạm dừng';
+  return 'Tiếp tục';
+});
 
 const dueChunks = computed<Chunk[]>(() => {
   const all = progress.dueReviewChunkIds.map((id) => chunks.byId(id)).filter((c): c is Chunk => Boolean(c));
@@ -98,6 +109,13 @@ function gotoPlayer(queue: Chunk[]) {
   router.push('/player');
 }
 function continueLearning() {
+  // If the player already has a live queue, jump straight to it — don't
+  // overwrite the queue with a single chunk and lose the rest of the playlist.
+  if (player.current) {
+    if (!player.isPlaying || player.isPaused) void player.play();
+    router.push('/player');
+    return;
+  }
   if (!continueChunk.value) return;
   gotoPlayer([continueChunk.value]);
 }
@@ -263,7 +281,7 @@ function statusToLabel(s: string): string {
               textTransform: 'uppercase',
             }"
           >
-            Tiếp tục · {{ continueTopic?.name ?? '' }}
+            {{ continueLabel }} · {{ continueTopic?.name ?? '' }}
           </div>
           <div
             :style="{
