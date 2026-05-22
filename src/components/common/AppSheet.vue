@@ -132,4 +132,57 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
 .sheet-leave-to .sheet {
   transform: translateY(100%);
 }
+
+/* ─── Desktop: render as centered modal instead of bottom sheet ─── */
+@media (min-width: 1180px) {
+  .sheet-root { display: grid; place-items: center; padding: 24px; }
+  .sheet {
+    position: relative;
+    inset: auto;
+    left: auto; right: auto; bottom: auto;
+    width: min(760px, calc(100vw - 48px));
+    max-width: 760px;
+    /* Override max-height passed inline for mobile (92dvh etc.) — desktop modal is shorter. */
+    max-height: min(85vh, 760px) !important;
+    border-radius: 20px;
+    padding-bottom: 0;
+    /* Solid card so it actually pops above the page (.glass-strong is rgba 7%/3% on dark night-bg). */
+    background:
+      linear-gradient(180deg,
+        color-mix(in oklch, var(--color-bg-2) 96%, transparent),
+        color-mix(in oklch, var(--color-bg-1) 96%, transparent));
+    border: 1px solid var(--color-border-2);
+    box-shadow:
+      0 32px 80px -16px rgba(0, 0, 0, 0.65),
+      0 12px 28px -10px rgba(0, 0, 0, 0.45),
+      0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  }
+  [data-theme='light'] .sheet {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.94));
+    box-shadow:
+      0 32px 80px -16px rgba(14, 18, 38, 0.22),
+      0 12px 28px -10px rgba(14, 18, 38, 0.14);
+  }
+  .sheet__head { padding: 16px 22px 8px; }
+  .sheet__handle { display: none; }
+  .sheet__body { padding: 8px 22px 18px; }
+  .sheet__actions {
+    padding: 14px 22px 18px;
+    border-radius: 0 0 20px 20px;
+  }
+
+  /* Modal-style enter: scale + fade instead of slide-up */
+  .sheet-enter-active .sheet,
+  .sheet-leave-active .sheet {
+    transition:
+      transform 0.22s var(--ease-out-soft, cubic-bezier(0.2, 0.8, 0.2, 1)),
+      opacity 0.18s ease;
+  }
+  .sheet-enter-from .sheet,
+  .sheet-leave-to .sheet {
+    transform: scale(0.97);
+    opacity: 0;
+  }
+}
 </style>
