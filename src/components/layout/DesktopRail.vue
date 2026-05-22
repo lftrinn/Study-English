@@ -23,8 +23,9 @@ const ui = useUiStore();
 const tab = computed(() => (route.meta?.tab as string | undefined) ?? '');
 
 const chunk = computed(() => {
-  if (tab.value === 'library' && ui.sheetChunkId) {
-    return chunks.byId(ui.sheetChunkId) ?? player.current ?? chunks.chunks[0];
+  if (tab.value === 'library') {
+    const id = ui.selectedChunkId ?? ui.sheetChunkId;
+    if (id) return chunks.byId(id) ?? player.current ?? chunks.chunks[0];
   }
   return player.current ?? chunks.chunks[0];
 });

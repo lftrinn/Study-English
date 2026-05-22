@@ -7,12 +7,14 @@ import TopicChip from '@/components/chunk/TopicChip.vue';
 import TopicIcon from '@/components/chunk/TopicIcon.vue';
 import LevelPill from '@/components/chunk/LevelPill.vue';
 import StatusDot from '@/components/common/StatusDot.vue';
+import AppSheet from '@/components/common/AppSheet.vue';
+import ChunkFormSheet from '@/components/chunk/ChunkFormSheet.vue';
 
 import { useChunkStore } from '@/stores/chunkStore';
 import { useProgressStore } from '@/stores/progressStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useUiStore } from '@/stores/uiStore';
-import type { Chunk } from '@/types/chunk';
+import type { Chunk, ChunkLevel, ChunkSource } from '@/types/chunk';
 import type { LibraryTab } from '@/stores/chunkStore';
 
 const router = useRouter();
@@ -22,6 +24,25 @@ const player = usePlayerStore();
 const ui = useUiStore();
 
 const view = ref<'grid' | 'list'>('grid');
+const filterOpen = ref(false);
+const formOpen = ref(false);
+const editingChunk = ref<Chunk | undefined>(undefined);
+const menuOpenId = ref<string | null>(null);
+
+const levelFilters = ref<ChunkLevel[]>([...chunks.selectedLevels]);
+const sourceFilters = ref<ChunkSource[]>([...chunks.selectedSources]);
+
+const LEVELS: ChunkLevel[] = ['A1', 'A2', 'B1'];
+const SOURCES: Array<{ key: ChunkSource; label: string }> = [
+  { key: 'frontend', label: 'Frontend' },
+  { key: 'interview', label: 'Interview' },
+  { key: 'toeic', label: 'TOEIC' },
+  { key: 'profile', label: 'Profile' },
+  { key: 'angular', label: 'Angular' },
+  { key: 'javascript', label: 'JavaScript' },
+  { key: 'typescript', label: 'TypeScript' },
+  { key: 'custom', label: 'Custom' },
+];
 
 const tabs = computed(() => {
   const all = chunks.chunks;
@@ -38,22 +59,91 @@ const tabs = computed(() => {
 });
 
 const filtered = computed(() => chunks.filtered);
-const selectedId = computed(() => ui.sheetChunkId);
+const selectedId = computed(() => ui.selectedChunkId);
 
 function setTopic(id: string) { chunks.setTopic(id); }
 function setTab(id: LibraryTab) { chunks.setTab(id); }
-function select(c: Chunk) { ui.openChunkDetail(c.id); }
+function select(c: Chunk) { ui.selectChunk(c.id); }
+function openDetail(c: Chunk) { ui.openChunkDetail(c.id); }
+
 function play(c: Chunk) {
   const i = filtered.value.findIndex((x) => x.id === c.id);
   const queue = filtered.value.length > 0 ? filtered.value : [c];
   player.setQueue(queue, { startIndex: Math.max(0, i), mode: 'normal' });
+  ui.selectChunk(c.id);
   void player.play();
   router.push('/player');
 }
+
+function playAll() {
+  if (filtered.value.length === 0) return;
+  player.setQueue([...filtered.value], { mode: 'normal' });
+  void player.play();
+  router.push('/player');
+}
+
+function openNewChunk() {
+  editingChunk.value = undefined;
+  formOpen.value = true;
+}
+
+function toggleLevel(l: ChunkLevel) {
+  levelFilters.value = levelFilters.value.includes(l)
+    ? levelFilters.value.filter((x) => x !== l)
+    : [...levelFilters.value, l];
+}
+function toggleSource(s: ChunkSource) {
+  sourceFilters.value = sourceFilters.value.includes(s)
+    ? sourceFilters.value.filter((x) => x !== s)
+    : [...sourceFilters.value, s];
+}
+function applyFilters() {
+  chunks.setLevels(levelFilters.value);
+  chunks.setSources(sourceFilters.value);
+  filterOpen.value = false;
+}
+function resetFilters() {
+  levelFilters.value = [];
+  sourceFilters.value = [];
+  chunks.setLevels([]);
+  chunks.setSources([]);
+  chunks.setSearch('');
+  chunks.setTopic('all');
+  chunks.setTab('all');
+  filterOpen.value = false;
+}
+function openFilters() {
+  levelFilters.value = [...chunks.selectedLevels];
+  sourceFilters.value = [...chunks.selectedSources];
+  filterOpen.value = true;
+}
+
+function toggleMenu(id: string, e: MouseEvent) {
+  e.stopPropagation();
+  menuOpenId.value = menuOpenId.value === id ? null : id;
+}
+function editChunk(c: Chunk) {
+  editingChunk.value = c;
+  formOpen.value = true;
+  menuOpenId.value = null;
+}
+async function deleteChunk(c: Chunk) {
+  menuOpenId.value = null;
+  if (c.source !== 'custom') {
+    window.alert('Chỉ chunk custom mới xoá được. Bỏ sao để ẩn khỏi danh sách.');
+    return;
+  }
+  if (!window.confirm(`Xoá "${c.text}"?`)) return;
+  await chunks.deleteCustomChunkById(c.id);
+}
+
+const filterActiveCount = computed(
+  () => chunks.selectedLevels.length + chunks.selectedSources.length,
+);
 </script>
 
 <template>
-  <div class="scrollarea dt-lib">
+  <div class="scrollarea dt-lib" @click="menuOpenId = null">
     <!-- Header -->
     <div class="dt-lib__head">
       <div>
@@ -61,7 +151,8 @@ function play(c: Chunk) {
           Library <span class="dt-lib__title-sub">· {{ chunks.chunks.length }} chunks</span>
         </h1>
         <div class="dt-lib__sub">
-          Across <span class="mono">{{ chunks.topics.length }}</span> topics
+          Đang hiển thị <span class="mono">{{ filtered.length }}</span> · qua
+          <span class="mono">{{ chunks.topics.length }}</span> topics
         </div>
       </div>
       <div class="dt-lib__actions">
@@ -69,6 +160,7 @@ function play(c: Chunk) {
           <button
             class="btn tap dt-lib__view-btn"
             :class="{ 'is-active': view === 'list' }"
+            :title="'Hiển thị dạng list'"
             @click="view = 'list'"
           >
             <Icon name="list" :size="14" :style="{ color: view === 'list' ? 'var(--color-cyan)' : 'var(--color-text-3)' }" />
@@ -76,15 +168,26 @@ function play(c: Chunk) {
           <button
             class="btn tap dt-lib__view-btn"
             :class="{ 'is-active': view === 'grid' }"
+            :title="'Hiển thị dạng grid'"
             @click="view = 'grid'"
           >
             <Icon name="grid" :size="14" :style="{ color: view === 'grid' ? 'var(--color-cyan)' : 'var(--color-text-3)' }" />
           </button>
         </div>
-        <button class="btn tap glass dt-lib__filter">
-          <Icon name="filter" :size="13" :style="{ color: 'var(--color-text-2)' }" /> Filters
+        <button class="btn tap glass dt-lib__btn-secondary" @click="playAll" title="Phát toàn bộ kết quả">
+          <Icon name="play" :size="13" :style="{ color: 'var(--color-text-2)' }" />
+          Play all
         </button>
-        <button class="btn tap dt-lib__add">
+        <button
+          class="btn tap glass dt-lib__btn-secondary"
+          :class="{ 'has-badge': filterActiveCount > 0 }"
+          @click="openFilters"
+        >
+          <Icon name="filter" :size="13" :style="{ color: 'var(--color-text-2)' }" />
+          Filters
+          <span v-if="filterActiveCount > 0" class="mono dt-lib__btn-badge">{{ filterActiveCount }}</span>
+        </button>
+        <button class="btn tap dt-lib__add" @click="openNewChunk">
           <span class="dt-lib__add-shine" aria-hidden="true" />
           <Icon name="plus" :size="13" :style="{ color: '#fff', position: 'relative' }" />
           <span style="position: relative">Add chunk</span>
@@ -139,17 +242,24 @@ function play(c: Chunk) {
           background: `linear-gradient(160deg, color-mix(in oklch, ${chunks.topicById(c.topic)?.color ?? '#22D3EE'} 16%, var(--color-surface-2)), var(--color-surface-2))`,
           border: `1px solid ${chunks.topicById(c.topic)?.color ?? '#22D3EE'}`,
         } : {}"
+        :title="'Click chọn · Double-click xem chi tiết'"
         @click="select(c)"
+        @dblclick="openDetail(c)"
       >
         <div class="dt-lib__card-top">
           <TopicChip :topic-id="c.topic" size="sm" />
-          <button class="btn tap dt-lib__star" aria-label="Star" @click.stop="progress.toggleStarred(c.id)">
-            <Icon
-              :name="progress.byId(c.id)?.starred ? 'star-filled' : 'star'"
-              :size="14"
-              :style="{ color: progress.byId(c.id)?.starred ? '#F59E0B' : 'var(--color-text-3)' }"
-            />
-          </button>
+          <div class="dt-lib__card-tools">
+            <button class="btn tap dt-lib__star" aria-label="Star" @click.stop="progress.toggleStarred(c.id)">
+              <Icon
+                :name="progress.byId(c.id)?.starred ? 'star-filled' : 'star'"
+                :size="14"
+                :style="{ color: progress.byId(c.id)?.starred ? '#F59E0B' : 'var(--color-text-3)' }"
+              />
+            </button>
+            <button class="btn tap dt-lib__star" aria-label="Detail" title="Xem chi tiết" @click.stop="openDetail(c)">
+              <Icon name="more" :size="14" :style="{ color: 'var(--color-text-3)' }" />
+            </button>
+          </div>
         </div>
         <div>
           <div class="dt-lib__card-en">{{ c.text }}</div>
@@ -176,7 +286,7 @@ function play(c: Chunk) {
         </div>
       </div>
       <div v-if="filtered.length === 0" class="dt-lib__empty">
-        Không có chunk khớp với bộ lọc — thử reset.
+        Không có chunk khớp bộ lọc — <button class="dt-lib__reset" @click="resetFilters">reset filters</button>.
       </div>
     </div>
 
@@ -191,6 +301,7 @@ function play(c: Chunk) {
         class="tap dt-lib__row"
         :class="{ 'is-active': selectedId === c.id }"
         @click="select(c)"
+        @dblclick="openDetail(c)"
       >
         <button
           class="btn tap dt-lib__row-play"
@@ -213,11 +324,109 @@ function play(c: Chunk) {
           <Icon name="headphones" :size="11" :style="{ color: 'var(--color-text-3)' }" />
           <span class="mono">{{ progress.byId(c.id)?.listenCount ?? 0 }}</span>
         </span>
-        <button class="btn tap dt-lib__row-more" @click.stop>
-          <Icon name="more" :size="13" :style="{ color: 'var(--color-text-3)' }" />
-        </button>
+        <div class="dt-lib__row-menu-wrap">
+          <button class="btn tap dt-lib__row-more" @click="toggleMenu(c.id, $event)" aria-label="Menu">
+            <Icon name="more" :size="13" :style="{ color: 'var(--color-text-3)' }" />
+          </button>
+          <div v-if="menuOpenId === c.id" class="dt-lib__row-menu glass-strong" @click.stop>
+            <button class="btn tap dt-lib__menu-item" @click="openDetail(c)">
+              <Icon name="eye" :size="13" /> Xem chi tiết
+            </button>
+            <button class="btn tap dt-lib__menu-item" @click="play(c)">
+              <Icon name="play" :size="13" /> Phát ngay
+            </button>
+            <button class="btn tap dt-lib__menu-item" @click="progress.toggleStarred(c.id)">
+              <Icon :name="progress.byId(c.id)?.starred ? 'star-filled' : 'star'" :size="13" />
+              {{ progress.byId(c.id)?.starred ? 'Bỏ sao' : 'Đánh sao' }}
+            </button>
+            <button class="btn tap dt-lib__menu-item" @click="editChunk(c)">
+              <Icon name="edit" :size="13" /> Chỉnh sửa
+            </button>
+            <button class="btn tap dt-lib__menu-item is-danger" @click="deleteChunk(c)">
+              <Icon name="trash" :size="13" /> Xoá
+            </button>
+          </div>
+        </div>
+      </div>
+      <div v-if="filtered.length === 0" class="dt-lib__empty">
+        Không có chunk khớp bộ lọc — <button class="dt-lib__reset" @click="resetFilters">reset filters</button>.
       </div>
     </div>
+
+    <!-- Filter sheet -->
+    <AppSheet :open="filterOpen" title="Filter chunks" @close="filterOpen = false">
+      <div :style="{ display: 'flex', flexDirection: 'column', gap: '18px', paddingTop: '8px' }">
+        <div>
+          <div :style="{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-3)', letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: '8px' }">Level</div>
+          <div :style="{ display: 'flex', gap: '8px' }">
+            <button
+              v-for="l in LEVELS"
+              :key="l"
+              class="btn tap"
+              :style="{
+                flex: 1,
+                padding: '10px 0',
+                borderRadius: '12px',
+                background: levelFilters.includes(l) ? 'var(--color-surface-3)' : 'var(--color-surface-1)',
+                border: levelFilters.includes(l) ? '1px solid var(--color-violet)' : '1px solid var(--color-border-1)',
+                fontSize: '14px',
+                fontWeight: 700,
+                color: levelFilters.includes(l) ? 'var(--color-violet)' : 'var(--color-text-2)',
+              }"
+              @click="toggleLevel(l)"
+            >{{ l }}</button>
+          </div>
+        </div>
+        <div>
+          <div :style="{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-3)', letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: '8px' }">Source</div>
+          <div :style="{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }">
+            <button
+              v-for="s in SOURCES"
+              :key="s.key"
+              class="btn tap"
+              :style="{
+                padding: '10px 14px',
+                borderRadius: '14px',
+                textAlign: 'left',
+                background: sourceFilters.includes(s.key) ? 'var(--color-surface-3)' : 'var(--color-surface-1)',
+                border: sourceFilters.includes(s.key) ? '1px solid var(--color-cyan)' : '1px solid var(--color-border-1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '14px',
+                fontWeight: 600,
+              }"
+              @click="toggleSource(s.key)"
+            >
+              {{ s.label }}
+              <Icon v-if="sourceFilters.includes(s.key)" name="check" :size="16" :style="{ color: 'var(--color-cyan)' }" />
+            </button>
+          </div>
+        </div>
+        <div :style="{ display: 'flex', gap: '8px', paddingTop: '4px' }">
+          <button
+            class="btn tap glass"
+            :style="{ flex: 1, padding: '14px 0', fontSize: '14px', fontWeight: 700, borderRadius: '14px' }"
+            @click="resetFilters"
+          >Reset</button>
+          <button
+            class="btn tap"
+            :style="{
+              flex: 2,
+              padding: '14px 0',
+              borderRadius: '16px',
+              fontSize: '14px',
+              fontWeight: 700,
+              background: 'var(--grad-primary)',
+              color: '#0B0F22',
+            }"
+            @click="applyFilters"
+          >Apply</button>
+        </div>
+      </div>
+    </AppSheet>
+
+    <ChunkFormSheet :open="formOpen" :initial="editingChunk" @close="formOpen = false" />
   </div>
 </template>
 
@@ -231,7 +440,7 @@ function play(c: Chunk) {
 .dt-lib__title-sub { color: var(--color-text-3); font-weight: 500; }
 .dt-lib__sub { font-size: 13px; color: var(--color-text-3); margin-top: 2px; }
 
-.dt-lib__actions { display: flex; gap: 8px; }
+.dt-lib__actions { display: flex; gap: 8px; align-items: center; }
 .dt-lib__view {
   display: flex; padding: 3px;
   background: var(--color-surface-1);
@@ -244,10 +453,15 @@ function play(c: Chunk) {
 }
 .dt-lib__view-btn.is-active { background: var(--color-surface-3); }
 
-.dt-lib__filter {
+.dt-lib__btn-secondary {
   padding: 0 14px; height: 34px; font-size: 12px; font-weight: 700;
   color: var(--color-text-2);
   display: inline-flex; align-items: center; gap: 6px; border-radius: 10px;
+}
+.dt-lib__btn-secondary.has-badge { color: var(--color-cyan); border-color: color-mix(in oklch, var(--color-cyan) 40%, var(--color-border-1)); }
+.dt-lib__btn-badge {
+  background: var(--color-cyan); color: #0b0f22;
+  padding: 1px 6px; border-radius: 99px; font-size: 10px;
 }
 .dt-lib__add {
   position: relative; overflow: hidden;
@@ -299,10 +513,12 @@ function play(c: Chunk) {
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .dt-lib__card-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.dt-lib__card-tools { display: flex; gap: 4px; }
 .dt-lib__star {
-  width: 32px; height: 32px; border-radius: 8px;
+  width: 30px; height: 30px; border-radius: 8px;
   display: grid; place-items: center;
 }
+.dt-lib__star:hover { background: var(--color-surface-3); }
 .dt-lib__card-en {
   font-size: 14px; font-weight: 600; line-height: 1.35; letter-spacing: -0.005em;
 }
@@ -338,6 +554,7 @@ function play(c: Chunk) {
   padding: 10px 14px; align-items: center; cursor: pointer;
   border-bottom: 1px solid var(--color-border-1);
   gap: 12px;
+  position: relative;
 }
 .dt-lib__row:hover { background: var(--color-surface-1); }
 .dt-lib__row.is-active { background: var(--color-surface-3); }
@@ -359,14 +576,38 @@ function play(c: Chunk) {
   font-size: 12px; color: var(--color-text-2);
   display: inline-flex; align-items: center; gap: 4px;
 }
+.dt-lib__row-menu-wrap { position: relative; }
 .dt-lib__row-more {
   width: 28px; height: 28px; border-radius: 8px;
   display: grid; place-items: center;
 }
+.dt-lib__row-more:hover { background: var(--color-surface-2); }
+.dt-lib__row-menu {
+  position: absolute;
+  top: 32px; right: 0;
+  min-width: 180px;
+  padding: 6px;
+  border-radius: 10px;
+  display: flex; flex-direction: column;
+  z-index: 20;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+}
+.dt-lib__menu-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 8px;
+  font-size: 12px; font-weight: 600; color: var(--color-text-2);
+  text-align: left;
+}
+.dt-lib__menu-item:hover { background: var(--color-surface-2); }
+.dt-lib__menu-item.is-danger { color: var(--color-rose); }
 
 .dt-lib__empty {
   grid-column: 1 / -1;
   padding: 36px; text-align: center; font-size: 13px; color: var(--color-text-3);
   border: 1px dashed var(--color-border-1); border-radius: 14px;
+}
+.dt-lib__reset {
+  color: var(--color-cyan); font-weight: 700; text-decoration: underline;
+  text-underline-offset: 3px;
 }
 </style>

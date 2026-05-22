@@ -27,7 +27,13 @@ const nav: Array<{ id: NavId; icon: string; label: string; kbd: string; to: stri
 
 const activeTab = computed(() => (route.meta?.tab as string | undefined) ?? '');
 
-const initial = computed(() => (settings.displayName?.trim().charAt(0) || 'M').toUpperCase());
+const initial = computed(() => {
+  const n = (settings.displayName ?? '').trim();
+  if (!n) return 'M';
+  // Take first grapheme so emoji avatars show.
+  const first = Array.from(n)[0];
+  return /^[a-zA-Z]/.test(first) ? first.toUpperCase() : first;
+});
 
 function go(to: string) {
   if (route.path !== to) router.push(to);

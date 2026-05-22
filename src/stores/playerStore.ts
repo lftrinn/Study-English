@@ -35,6 +35,8 @@ export const usePlayerStore = defineStore('player', () => {
   const listeningMode = ref<ListeningMode>('normal');
   const currentElapsedMs = ref(0);
   const currentDurationMs = ref(0);
+  /** 1-based index of the loop currently playing for the active chunk. */
+  const currentLoopIndex = ref(1);
 
   let currentToken = 0;
   let progressTimer: ReturnType<typeof setInterval> | null = null;
@@ -273,6 +275,7 @@ export const usePlayerStore = defineStore('player', () => {
 
       for (let i = 0; i < repeatEach.value; i += 1) {
         if (token !== currentToken) return;
+        currentLoopIndex.value = i + 1;
         const voiceName = pickVoice();
         startProgressTick(estimateChunkDurationMs(chunk.text, speed.value));
         try {
@@ -342,6 +345,7 @@ export const usePlayerStore = defineStore('player', () => {
     listeningMode,
     currentElapsedMs,
     currentDurationMs,
+    currentLoopIndex,
     current,
     queueLength,
     hasNext,

@@ -20,10 +20,16 @@ export const useUiStore = defineStore('ui', () => {
   const installPromptVisible = ref(false);
   const installPromptEvent = shallowRef<BeforeInstallPromptEventLike | null>(null);
   const compactPlayer = ref(false);
+  /** Desktop-only: chunk currently highlighted in the rail (no sheet open). */
+  const selectedChunkId = ref<string | null>(null);
 
   function openChunkDetail(chunkId: string) {
     sheet.value = 'chunk-detail';
     sheetChunkId.value = chunkId;
+    selectedChunkId.value = chunkId;
+  }
+  function selectChunk(chunkId: string | null) {
+    selectedChunkId.value = chunkId;
   }
   function openSheet(kind: Exclude<SheetKind, 'chunk-detail' | 'none'>) {
     sheet.value = kind;
@@ -47,10 +53,12 @@ export const useUiStore = defineStore('ui', () => {
   return {
     sheet,
     sheetChunkId,
+    selectedChunkId,
     installPromptVisible,
     installPromptEvent,
     compactPlayer,
     openChunkDetail,
+    selectChunk,
     openSheet,
     closeSheet,
     setCompactPlayer,

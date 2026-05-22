@@ -12,6 +12,8 @@ import { usePlayerStore } from '@/stores/playerStore';
 import { usePracticeStore } from '@/stores/practiceStore';
 import { useProgressStore } from '@/stores/progressStore';
 import { playlistService } from '@/services/playlistService';
+import type { Chunk } from '@/types/chunk';
+import type { PracticeMode } from '@/types/practice';
 
 const router = useRouter();
 const chunks = useChunkStore();
@@ -20,7 +22,9 @@ const player = usePlayerStore();
 const practice = usePracticeStore();
 const progress = useProgressStore();
 
-const modes = [
+type ModeId = 'passive' | PracticeMode | 'learn';
+
+const modes: Array<{ id: ModeId; route: string; name: string; sub: string; icon: string; color: string; time: string }> = [
   { id: 'passive', route: '/study/passive', name: 'Passive Listening', sub: 'Background loop — train your ear hands-free', icon: 'headphones', color: '#22D3EE', time: '5–60 min' },
   { id: 'flashcard', route: '/study/flashcard', name: 'Flashcards', sub: 'Quick recall · I know / Still learning', icon: 'refresh', color: '#A78BFA', time: '5 min' },
   { id: 'learn', route: '/study/learn', name: 'Learn · Guided', sub: 'Listen → meaning → repeat — full SRS loop', icon: 'brain', color: '#F59E0B', time: '10 min' },
@@ -31,42 +35,84 @@ const modes = [
   { id: 'test', route: '/study/test', name: 'Mini Test', sub: 'Build a quick TOEIC-style test from your library', icon: 'target', color: '#60A5FA', time: '10 min' },
 ];
 
-const selectedTopics = ref<string[]>(settings.selectedTopics.slice(0, 3));
+const selectedTopics = ref<string[]>(settings.selectedTopics.length > 0 ? [...settings.selectedTopics] : [chunks.topicWithCounts[0]?.id ?? 'standup']);
 const level = ref<'A1' | 'A2' | 'B1'>(settings.level);
 const length = ref<'5' | '10' | '20' | '∞'>('10');
+const customMode = ref<ModeId>('flashcard');
+
+const customPool = computed<Chunk[]>(() => {
+  return chunks.chunks.filter((c) => {
+    if (selectedTopics.value.length > 0 && !selectedTopics.value.includes(c.topic)) return false;
+    if (c.level !== level.value) return false;
+    return true;
+  });
+});
+
+const customQueue = computed<Chunk[]>(() => {
+  const lim = length.value === '∞' ? customPool.value.length : parseInt(length.value, 10);
+  const pool = customPool.value.length > 0 ? customPool.value : chunks.chunks;
+  return pool.slice(0, Math.max(1, lim));
+});
 
 function toggleTopic(id: string) {
   if (selectedTopics.value.includes(id)) selectedTopics.value = selectedTopics.value.filter((x) => x !== id);
   else selectedTopics.value = [...selectedTopics.value, id];
 }
 
-function startCustom() {
-  const pool = chunks.chunks.filter((c) => {
-    if (selectedTopics.value.length > 0 && !selectedTopics.value.includes(c.topic)) return false;
-    if (c.level !== level.value) return false;
-    return true;
-  });
-  const lim = length.value === '∞' ? pool.length : parseInt(length.value, 10);
-  const queue = (pool.length > 0 ? pool : chunks.chunks).slice(0, Math.max(1, lim));
-  player.setQueue(queue, { mode: 'normal' });
-  void player.play();
-  router.push('/player');
-}
-
-function runMode(id: string, route: string) {
+function buildQueueFor(id: ModeId): Chunk[] {
   if (id === 'passive') {
     const list = playlistService.buildLowListen(chunks.chunks, progress.progressMap, { threshold: 5, limit: 30 });
-    const queue = list.length > 0 ? list : chunks.chunks.slice(0, 20);
-    player.setQueue(queue, { mode: 'passive' });
+    return list.length > 0 ? list : chunks.chunks.slice(0, 20);
+  }
+  if (id === 'flashcard') {
+    const weak = playlistService.buildMistakes(chunks.chunks, progress.progressMap, { limit: 20 });
+    return weak.length > 0 ? weak : chunks.chunks.slice(0, 20);
+  }
+  // learn / dictation / write / multiple-choice / match / test / speaking
+  return chunks.chunks.slice(0, 20);
+}
+
+function runMode(id: ModeId, route: string) {
+  const queue = buildQueueFor(id);
+  if (queue.length === 0) {
+    router.push('/library');
+    return;
+  }
+  if (id === 'passive') {
     player.setShuffle(true);
+    player.setQueue(queue, { mode: 'passive' });
     void player.play();
-  } else if (id === 'flashcard') {
-    practice.start({ mode: 'flashcard', chunks: chunks.chunks.slice(0, 20) });
+  } else if (id !== 'learn') {
+    practice.start({ mode: id as PracticeMode, chunks: queue });
   }
   router.push(route);
 }
 
-const visibleTopics = computed(() => chunks.topicWithCounts.slice(0, 6));
+function startCustom() {
+  const queue = customQueue.value;
+  if (queue.length === 0) {
+    window.alert('Không tìm thấy chunk phù hợp — đổi topic/level nhé.');
+    return;
+  }
+  const mode = customMode.value;
+  if (mode === 'passive') {
+    player.setQueue(queue, { mode: 'passive' });
+    void player.play();
+    router.push('/study/passive');
+    return;
+  }
+  if (mode === 'learn') {
+    player.setQueue(queue, { mode: 'normal' });
+    void player.play();
+    router.push('/study/learn');
+    return;
+  }
+  practice.start({ mode: mode as PracticeMode, chunks: queue });
+  const target = modes.find((m) => m.id === mode);
+  router.push(target?.route ?? '/study/flashcard');
+}
+
+const visibleTopics = computed(() => chunks.topicWithCounts.slice(0, 8));
 </script>
 
 <template>
@@ -97,12 +143,12 @@ const visibleTopics = computed(() => chunks.topicWithCounts.slice(0, 6));
       <div class="dt-pr__b-head">
         <div>
           <div class="dt-pr__b-eye">Build · Custom session</div>
-          <div class="dt-pr__b-title">Chọn chủ đề, level, mode — let's go.</div>
+          <div class="dt-pr__b-title">Chọn topic, level, mode — let's go.</div>
         </div>
         <button class="btn tap dt-pr__b-cta" @click="startCustom">
           <span class="dt-pr__b-shine" aria-hidden="true" />
           <Icon name="play" :size="13" :style="{ color: '#fff', position: 'relative' }" />
-          <span style="position: relative">Start session</span>
+          <span style="position: relative">Start · {{ customQueue.length }} chunks</span>
         </button>
       </div>
 
@@ -114,7 +160,7 @@ const visibleTopics = computed(() => chunks.topicWithCounts.slice(0, 6));
               v-for="t in visibleTopics"
               :key="t.id"
               class="chip dt-pr__chip"
-              :style="{ '--c': t.color } as any"
+              :style="{ '--c': t.color }"
               :class="{ 'is-off': !selectedTopics.includes(t.id) }"
               @click="toggleTopic(t.id)"
             >
@@ -145,6 +191,27 @@ const visibleTopics = computed(() => chunks.topicWithCounts.slice(0, 6));
               @click="length = l as any"
             >{{ l }}</button>
           </div>
+        </div>
+      </div>
+
+      <div class="dt-pr__mode-row">
+        <div class="dt-pr__field-lbl">Mode</div>
+        <div class="dt-pr__mode-chips">
+          <button
+            v-for="m in modes"
+            :key="m.id"
+            class="btn tap dt-pr__mode-chip"
+            :class="{ 'is-on': customMode === m.id }"
+            :style="customMode === m.id ? {
+              background: `color-mix(in oklch, ${m.color} 22%, transparent)`,
+              borderColor: m.color,
+              color: m.color,
+            } : {}"
+            @click="customMode = m.id"
+          >
+            <Icon :name="m.icon as any" :size="13" />
+            {{ m.name.split('·')[0].trim() }}
+          </button>
         </div>
       </div>
     </div>
@@ -205,7 +272,7 @@ const visibleTopics = computed(() => chunks.topicWithCounts.slice(0, 6));
 }
 .dt-pr__chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .dt-pr__chip { cursor: pointer; }
-.dt-pr__chip.is-off { opacity: 0.5; }
+.dt-pr__chip.is-off { opacity: 0.45; }
 .dt-pr__seg { display: flex; gap: 6px; }
 .dt-pr__seg-btn {
   flex: 1; height: 32px; border-radius: 9px;
@@ -218,5 +285,18 @@ const visibleTopics = computed(() => chunks.topicWithCounts.slice(0, 6));
   background: var(--color-surface-3);
   border-color: var(--color-cyan);
   color: var(--color-cyan);
+}
+
+.dt-pr__mode-row { margin-top: 14px; }
+.dt-pr__mode-chips {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.dt-pr__mode-chip {
+  padding: 8px 12px; border-radius: 999px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border-1);
+  font-size: 12px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--color-text-2);
 }
 </style>

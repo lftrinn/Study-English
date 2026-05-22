@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, watchEffect } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, onBeforeUnmount, onMounted, watchEffect } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 import DesktopSidebar from './DesktopSidebar.vue';
 import DesktopTopBar from './DesktopTopBar.vue';
@@ -19,6 +19,7 @@ import InstallBanner from '@/components/common/InstallBanner.vue';
 import { useSettingsStore } from '@/stores/settingsStore';
 
 const route = useRoute();
+const router = useRouter();
 const settings = useSettingsStore();
 
 const tab = computed(() => (route.meta?.tab as string | undefined) ?? '');
@@ -29,13 +30,45 @@ watchEffect(() => {
     document.documentElement.dataset.theme = settings.theme;
   }
 });
+
+const SHORTCUTS: Record<string, string> = {
+  '1': '/',
+  '2': '/library',
+  '3': '/player',
+  '4': '/practice',
+  '5': '/progress',
+};
+
+function onKey(e: KeyboardEvent) {
+  // ⌘K / Ctrl+K → focus search
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    const el = document.querySelector<HTMLInputElement>('[data-dt-search]');
+    el?.focus();
+    el?.select();
+    return;
+  }
+  // ⌘1..5 / Ctrl+1..5 → main nav
+  if ((e.metaKey || e.ctrlKey) && SHORTCUTS[e.key]) {
+    // Don't hijack browser tab switching unless we're confident this is our app.
+    const target = e.target as HTMLElement | null;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+    e.preventDefault();
+    if (route.path !== SHORTCUTS[e.key]) router.push(SHORTCUTS[e.key]);
+  }
+  // Esc closes detail sheet — handled by sheet itself.
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKey);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKey);
+});
 </script>
 
 <template>
   <div class="dt-shell night-bg" :class="{ 'is-mode': hideChrome }">
-    <!-- Full-screen mode overlays (passive/flashcard/learn/etc.) get their own
-         routes that set hideChrome=true — for those we render the routed view
-         only, no shell. -->
     <template v-if="hideChrome">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">

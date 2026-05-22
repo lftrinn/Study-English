@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 import Icon from '@/components/common/Icon.vue';
 import IconBlock from '@/components/common/IconBlock.vue';
@@ -9,10 +10,30 @@ import TopicIcon from '@/components/chunk/TopicIcon.vue';
 import { useChunkStore } from '@/stores/chunkStore';
 import { useProgressStore } from '@/stores/progressStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { usePlayerStore } from '@/stores/playerStore';
+import { useUiStore } from '@/stores/uiStore';
 
+const router = useRouter();
 const chunks = useChunkStore();
 const progress = useProgressStore();
 const settings = useSettingsStore();
+const player = usePlayerStore();
+const ui = useUiStore();
+
+function gotoTopic(id: string) {
+  chunks.setTopic(id);
+  router.push('/library');
+}
+function playChunk(id: string) {
+  const c = chunks.byId(id);
+  if (!c) return;
+  player.setQueue([c], { mode: 'normal' });
+  void player.play();
+  router.push('/player');
+}
+function openChunkDetail(id: string) {
+  ui.openChunkDetail(id);
+}
 
 const range = ref<'Week' | 'Month' | 'Year'>('Week');
 
@@ -40,7 +61,8 @@ const weekly = computed(() => progress.weeklyStats.map((d) => d.listenCount));
 const weeklyMax = computed(() => Math.max(1, ...weekly.value));
 const weeklyTotal = computed(() => weekly.value.reduce((s, n) => s + n, 0));
 const weeklyDelta = computed(() => {
-  const prev = progress.previousWeekTotal || 1;
+  const prev = progress.previousWeekTotal;
+  if (prev === 0) return weeklyTotal.value > 0 ? 100 : 0;
   return Math.round(((weeklyTotal.value - prev) / prev) * 100);
 });
 
@@ -170,8 +192,9 @@ const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
         <div
           v-for="(t, i) in topicRows"
           :key="t.id"
-          class="dt-pg__topic-row"
+          class="dt-pg__topic-row tap"
           :class="{ 'is-last': i === topicRows.length - 1 }"
+          @click="gotoTopic(t.id)"
         >
           <div
             class="dt-pg__topic-ic"
@@ -192,7 +215,12 @@ const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
       <div class="glass dt-pg__panel">
         <div class="dt-pg__lbl">Most listened</div>
         <div class="dt-pg__top">
-          <div v-for="(c, i) in top" :key="c.id" class="dt-pg__top-row">
+          <div
+            v-for="(c, i) in top"
+            :key="c.id"
+            class="dt-pg__top-row tap"
+            @click="openChunkDetail(c.id)"
+          >
             <span class="mono dt-pg__top-rank">{{ i + 1 }}</span>
             <div
               class="dt-pg__top-ic"
@@ -201,6 +229,17 @@ const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
               <TopicIcon :name="c.topic" :size="12" />
             </div>
             <div class="dt-pg__top-text">{{ c.text }}</div>
+            <button
+              class="btn tap dt-pg__top-play"
+              :style="{
+                background: `color-mix(in oklch, ${chunks.topicById(c.topic)?.color ?? '#22D3EE'} 22%, transparent)`,
+                color: chunks.topicById(c.topic)?.color ?? '#22D3EE',
+              }"
+              @click.stop="playChunk(c.id)"
+              aria-label="Play"
+            >
+              <Icon name="play" :size="11" :style="{ marginLeft: '1px' }" />
+            </button>
             <span class="dt-pg__top-listens">
               <Icon name="headphones" :size="11" :style="{ color: 'var(--color-text-3)' }" />
               <span class="mono">{{ c.listens }}</span>
@@ -321,6 +360,8 @@ const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   border-bottom: 1px solid var(--color-border-1);
 }
 .dt-pg__topic-row.is-last { border-bottom: 0; }
+.dt-pg__topic-row.tap { cursor: pointer; }
+.dt-pg__topic-row.tap:hover { background: var(--color-surface-1); border-radius: 8px; padding-left: 6px; padding-right: 6px; margin: 0 -6px; }
 .dt-pg__topic-ic {
   width: 30px; height: 30px; border-radius: 9px;
   display: grid; place-items: center; flex-shrink: 0;
@@ -350,6 +391,12 @@ const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 .dt-pg__top-listens {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 11px; color: var(--color-text-2);
+}
+.dt-pg__top-row.tap { cursor: pointer; }
+.dt-pg__top-row.tap:hover { background: var(--color-surface-2); }
+.dt-pg__top-play {
+  width: 24px; height: 24px; border-radius: 7px;
+  display: grid; place-items: center;
 }
 .dt-pg__empty {
   padding: 24px; text-align: center; font-size: 12px; color: var(--color-text-3);
