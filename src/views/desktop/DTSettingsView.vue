@@ -222,6 +222,18 @@ function cycleHintPosition() {
     <h1 class="dt-st__title">Settings</h1>
     <div class="dt-st__sub">Tune your listening lab.</div>
 
+    <router-link to="/toeic" class="btn tap dt-st__toeic-entry">
+      <span class="dt-st__toeic-icon">
+        <Icon name="trophy" :size="22" />
+      </span>
+      <div class="dt-st__toeic-body">
+        <div class="dt-st__toeic-eye">TOEIC Training Center</div>
+        <div class="dt-st__toeic-name">Luyện 450 → 550 theo lộ trình</div>
+        <div class="dt-st__toeic-sub">7 Part · Mini Test · Exam Mode · Mistake Notebook</div>
+      </div>
+      <Icon name="chevron-right" :size="18" :style="{ color: 'var(--color-cyan)' }" />
+    </router-link>
+
     <div class="dt-st__grid">
       <!-- Side nav -->
       <div class="dt-st__nav">
@@ -540,6 +552,41 @@ function cycleHintPosition() {
 .dt-st { padding: 28px; }
 .dt-st__title { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.025em; }
 .dt-st__sub { font-size: 13px; color: var(--color-text-3); margin-top: 2px; margin-bottom: 22px; }
+
+.dt-st__toeic-entry {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  margin-bottom: 22px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.18), rgba(167, 139, 250, 0.14));
+  border: 1px solid color-mix(in oklch, var(--color-cyan) 32%, transparent);
+  text-decoration: none;
+  color: inherit;
+}
+.dt-st__toeic-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #f59e0b, #fb7185);
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 10px 24px rgba(245, 158, 11, 0.35), 0 1px 0 rgba(255, 255, 255, 0.3) inset;
+}
+.dt-st__toeic-body { flex: 1; min-width: 0; }
+.dt-st__toeic-eye {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-cyan);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.dt-st__toeic-name { font-size: 17px; font-weight: 700; margin-top: 4px; letter-spacing: -0.01em; }
+.dt-st__toeic-sub { font-size: 12px; color: var(--color-text-3); margin-top: 2px; }
+
 .dt-st__grid { display: grid; grid-template-columns: 220px 1fr; gap: 22px; }
 
 .dt-st__nav { display: flex; flex-direction: column; gap: 2px; }
