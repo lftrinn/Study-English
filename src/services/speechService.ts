@@ -76,6 +76,14 @@ function speak(options: SpeakOptions): Promise<void> {
   }
   const synth = window.speechSynthesis;
 
+  // Clear stale state from any previous utterance. Without this, rapid
+  // play/pause/play sequences can leave the queue in a state where speak()
+  // silently no-ops on Chromium/Safari — i.e. user clicks Play and nothing
+  // happens. Calling cancel() also unblocks any "paused" state inherited
+  // from a backgrounded tab.
+  if (synth.speaking || synth.pending) synth.cancel();
+  if (synth.paused) synth.resume();
+
   return new Promise((resolve, reject) => {
     const u = new SpeechSynthesisUtterance(options.text);
     const voice = findVoice(options.voiceName);
