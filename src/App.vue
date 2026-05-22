@@ -21,19 +21,11 @@ function onBeforeInstall(e: Event) {
   ui.setInstallPromptEvent(e as BeforeInstallPromptEventLike);
 }
 
-// iOS PWA lifecycle: when the user swipes to the home screen, switches apps
-// or locks the device, the system fires `visibilitychange` with hidden=true.
-// We pause so the user can resume on return. When the PWA is actually closed
-// (pagehide, persisted=false), we stop entirely to release the speech queue.
-function onVisibilityChange() {
-  if (document.visibilityState === 'hidden' && player.isPlaying && !player.isPaused) {
-    player.pause();
-  }
-}
-
+// PWA lifecycle hooks. We *don't* pause on `visibilitychange` anymore — the
+// silent-audio loop + Media Session API set up by playerStore.play() aim to
+// keep playback alive when the app is backgrounded (best-effort on iOS).
+// pagehide with persisted=false signals a real teardown, so stop cleanly.
 function onPageHide(e: PageTransitionEvent) {
-  // persisted=true means the page is going into bfcache and may come back —
-  // pause is enough; persisted=false means a real teardown, so stop.
   if (e.persisted) {
     if (player.isPlaying && !player.isPaused) player.pause();
   } else {
@@ -48,13 +40,11 @@ onMounted(async () => {
     router.replace('/onboarding');
   }
   window.addEventListener('beforeinstallprompt', onBeforeInstall);
-  document.addEventListener('visibilitychange', onVisibilityChange);
   window.addEventListener('pagehide', onPageHide);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('beforeinstallprompt', onBeforeInstall);
-  document.removeEventListener('visibilitychange', onVisibilityChange);
   window.removeEventListener('pagehide', onPageHide);
 });
 </script>
