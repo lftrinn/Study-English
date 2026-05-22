@@ -123,6 +123,12 @@ function playChunk(chunk: Chunk) {
   void player.play();
   router.push('/player');
 }
+function playFiltered() {
+  if (filteredChunks.value.length === 0) return;
+  player.setQueue([...filteredChunks.value], { mode: 'normal' });
+  void player.play();
+  router.push('/player');
+}
 function toggleStar(chunk: Chunk) {
   void progress.toggleStarred(chunk.id);
 }
@@ -205,6 +211,27 @@ function openNewChunk() {
         @click="filterOpen = true"
       >
         <Icon name="filter" :size="18" :style="{ color: 'var(--color-text-2)' }" />
+      </button>
+      <button
+        class="btn tap"
+        :style="{
+          width: '44px',
+          height: '44px',
+          display: 'grid',
+          placeItems: 'center',
+          borderRadius: '14px',
+          background: 'var(--grad-primary)',
+          color: '#0B0F22',
+          border: '1px solid color-mix(in oklch, var(--color-cyan) 35%, transparent)',
+          opacity: filteredChunks.length === 0 ? 0.4 : 1,
+          cursor: filteredChunks.length === 0 ? 'not-allowed' : 'pointer',
+        }"
+        :aria-label="`Phát ${filteredChunks.length} chunks`"
+        :title="`Phát ${filteredChunks.length} chunks đã lọc`"
+        :disabled="filteredChunks.length === 0"
+        @click="playFiltered"
+      >
+        <Icon name="play" :size="18" />
       </button>
     </div>
 
