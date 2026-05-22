@@ -347,7 +347,6 @@ const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   width: 100%; max-width: 48px;
   background: var(--color-surface-3);
   border-radius: 8px 8px 4px 4px;
-  align-self: stretch;
 }
 .dt-pg__bar.is-today { background: var(--grad-primary); }
 .dt-pg__bar-num { font-size: 11px; font-weight: 700; color: var(--color-text-2); }

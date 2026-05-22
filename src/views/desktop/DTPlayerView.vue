@@ -255,11 +255,13 @@ function openDetail() {
                   <div class="dt-pl__voice-region">{{ v.region }}</div>
                 </div>
               </div>
-              <WaveBars
-                :size="14"
-                :playing="isVoiceOn(v.name) && isPlaying"
-                :color="isVoiceOn(v.name) ? 'var(--color-cyan)' : 'var(--color-text-3)'"
-              />
+              <div class="dt-pl__voice-foot">
+                <WaveBars
+                  :size="14"
+                  :playing="isVoiceOn(v.name) && isPlaying"
+                  :color="isVoiceOn(v.name) ? 'var(--color-cyan)' : 'var(--color-text-3)'"
+                />
+              </div>
             </button>
           </div>
         </div>
@@ -398,29 +400,37 @@ function openDetail() {
 }
 .dt-pl__switch.is-on .dt-pl__switch-thumb { left: 11px; }
 
-.dt-pl__voices { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.dt-pl__voices {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  align-items: stretch;
+}
 .dt-pl__voice {
-  padding: 12px; border-radius: 12px;
-  display: flex; flex-direction: column; gap: 6px;
+  padding: 14px; border-radius: 12px;
+  display: flex; flex-direction: column; gap: 10px;
   background: var(--color-surface-1);
   border: 1px solid var(--color-border-1);
+  text-align: left;
+  min-height: 0;
 }
 .dt-pl__voice.is-on {
   background: rgba(34,211,238,0.1);
   border-color: var(--color-cyan);
 }
-.dt-pl__voice-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dt-pl__voice-row {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  flex: 1;
+}
 .dt-pl__voice-av {
-  flex: 0 0 28px;
-  width: 28px; height: 28px; border-radius: 50%;
+  flex: 0 0 32px;
+  width: 32px; height: 32px; border-radius: 50%;
   background: var(--color-surface-3);
   display: grid; place-items: center;
-  color: var(--color-text-1); font-size: 11px; font-weight: 700;
+  color: var(--color-text-1); font-size: 12px; font-weight: 700;
 }
 .dt-pl__voice-av.is-on { background: var(--color-cyan); color: #0b0f22; }
 .dt-pl__voice-meta { min-width: 0; flex: 1; }
 .dt-pl__voice-name {
-  font-size: 12px; font-weight: 700; line-height: 1.25;
+  font-size: 12.5px; font-weight: 700; line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -428,8 +438,14 @@ function openDetail() {
   word-break: break-word;
 }
 .dt-pl__voice-region {
-  font-size: 10px; color: var(--color-text-3);
+  font-size: 10.5px; color: var(--color-text-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.dt-pl__voice-foot {
+  display: flex; align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in oklch, var(--color-border-1) 60%, transparent);
 }
 
 .dt-pl__transcript {
