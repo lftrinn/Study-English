@@ -47,17 +47,27 @@ const allSkills = computed<SkillEntry[]>(() => {
 const selectedSkill = ref<SkillEntry | null>(null);
 const answer = ref<number | null>(null);
 const showExplain = ref(false);
+const drillIdx = ref(0);
 
-const drillQuestion = computed(() => {
-  if (!selectedSkill.value) return undefined;
-  const qs = TOEIC_QUESTIONS[selectedSkill.value.partId] ?? [];
-  return qs[0];
+// Pool: prefer questions tagged with the chosen skill; fall back to all
+// questions in that Part. With more sample data the tag filter will narrow
+// further; for now it still cycles a varied set.
+const drillPool = computed(() => {
+  if (!selectedSkill.value) return [];
+  const all = TOEIC_QUESTIONS[selectedSkill.value.partId] ?? [];
+  const skillName = selectedSkill.value.skill.toLowerCase();
+  const tagged = all.filter((q) =>
+    q.tags?.some((t) => t.toLowerCase() === skillName),
+  );
+  return tagged.length > 0 ? tagged : all;
 });
+const drillQuestion = computed(() => drillPool.value[drillIdx.value % Math.max(1, drillPool.value.length)]);
 
 function pickSkill(s: SkillEntry) {
   selectedSkill.value = s;
   answer.value = null;
   showExplain.value = false;
+  drillIdx.value = 0;
 }
 
 function backToList() {
@@ -78,6 +88,9 @@ function check() {
 function next() {
   answer.value = null;
   showExplain.value = false;
+  if (drillPool.value.length > 0) {
+    drillIdx.value = (drillIdx.value + 1) % drillPool.value.length;
+  }
 }
 
 function classFor(acc: number) {
@@ -148,10 +161,11 @@ function classFor(acc: number) {
 
       <QuestionCard
         v-if="drillQuestion"
+        :key="`d-${drillIdx}`"
         :q="drillQuestion"
         :part-id="selectedSkill.partId"
-        :q-index="0"
-        :total="5"
+        :q-index="drillIdx"
+        :total="drillPool.length"
         :selected="answer"
         :show-explain="showExplain"
         @update:selected="(v) => (answer = v)"

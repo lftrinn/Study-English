@@ -1,15 +1,22 @@
 <script setup lang="ts">
 /**
  * QuestionCard renders any of the 7 TOEIC question kinds. The parent owns
- * the selected/showExplain state — keep this component as a pure
- * presentational view so it can be embedded in PartPractice, MiniTest,
- * SkillPractice, and ExamMode without coupling.
+ * the selected state — for single-answer questions that's a `number | null`
+ * via v-model:selected. For multi-answer questions (cloze with N blanks,
+ * passage with N sub-questions) the parent passes a `selectedMulti` array
+ * and listens for `update:selectedMulti`.
+ *
+ * Audio: tapping the Play button on Listening parts triggers
+ * speechService.speak() with the appropriate text (options narration for
+ * Part 1, question for Part 2, context for Parts 3-4).
  */
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 import Icon from '@/components/common/Icon.vue';
 import WaveBars from '@/components/common/WaveBars.vue';
 import { TOEIC_PARTS } from '@/data/toeic';
+import { speechService } from '@/services/speechService';
+import { useSettingsStore } from '@/stores/settingsStore';
 import type {
   TOEICClozeQuestion,
   TOEICFillQuestion,
@@ -23,17 +30,23 @@ const props = withDefaults(
     partId: number;
     qIndex: number;
     total: number;
+    /** Single-answer selection (photo / qa / conv / talk / fill). */
     selected: number | null;
+    /** Multi-answer selection — one slot per blank/sub-question. */
+    selectedMulti?: Array<number | null>;
     showExplain?: boolean;
     /** Hide the part-chip + index header (used in ExamSection which renders its own). */
     compactHeader?: boolean;
   }>(),
-  { showExplain: false, compactHeader: false },
+  { showExplain: false, compactHeader: false, selectedMulti: () => [] },
 );
 
 const emit = defineEmits<{
   (e: 'update:selected', value: number | null): void;
+  (e: 'update:selectedMulti', value: Array<number | null>): void;
 }>();
+
+const settings = useSettingsStore();
 
 const part = computed(() => TOEIC_PARTS.find((p) => p.id === props.partId)!);
 // Lock options only after the user has committed (showExplain === true).
@@ -58,6 +71,14 @@ function pickOption(i: number) {
   emit('update:selected', props.selected === i ? null : i);
 }
 
+function pickMulti(slot: number, i: number) {
+  if (isLocked.value) return;
+  const next = [...props.selectedMulti];
+  while (next.length <= slot) next.push(null);
+  next[slot] = next[slot] === i ? null : i;
+  emit('update:selectedMulti', next);
+}
+
 // — Fill stimulus — split on _____ blanks
 function splitFill(text: string) {
   return text.split(/_+/);
@@ -71,6 +92,73 @@ function isCloze(q: TOEICQuestion): q is TOEICClozeQuestion {
 }
 function isPassage(q: TOEICQuestion): q is TOEICPassageQuestion {
   return q.kind === 'passage';
+}
+
+// — Audio playback —
+const isPlaying = ref(false);
+
+async function playAudio() {
+  const q = props.q;
+  let text = '';
+  if (q.kind === 'photo') {
+    text = q.options.map((o, i) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. ');
+  } else if (q.kind === 'qa') {
+    text = `${q.q}. ${q.options.map((o, i) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. ')}`;
+  } else if (q.kind === 'conv' || q.kind === 'talk') {
+    text = q.context;
+  } else {
+    return;
+  }
+  try {
+    isPlaying.value = true;
+    await speechService.speak({
+      text,
+      voiceName: settings.selectedVoiceName ?? undefined,
+      rate: settings.defaultSpeed,
+    });
+  } catch {
+    /* canceled or unsupported — ignore */
+  } finally {
+    isPlaying.value = false;
+  }
+}
+
+function replayAudio() {
+  void playAudio();
+}
+
+// — Cloze / passage navigation —
+const subIndex = ref(0);
+const subTotal = computed(() => {
+  if (isCloze(props.q)) return props.q.blanks.length;
+  if (isPassage(props.q)) return props.q.questions.length;
+  return 0;
+});
+const currentSubQ = computed(() => {
+  if (isPassage(props.q)) return props.q.questions[subIndex.value];
+  return null;
+});
+const currentBlank = computed(() => {
+  if (isCloze(props.q)) return props.q.blanks[subIndex.value];
+  return null;
+});
+function nextSub() {
+  if (subIndex.value + 1 < subTotal.value) subIndex.value += 1;
+}
+function prevSub() {
+  if (subIndex.value > 0) subIndex.value -= 1;
+}
+function gotoSub(i: number) {
+  if (i >= 0 && i < subTotal.value) subIndex.value = i;
+}
+
+// For cloze: highlight the blank we're on in the passage
+function clozePassageWithMarkers(passage: string, activeIdx: number): string {
+  // Replace (N) ___ with [active marker] vs plain marker
+  return passage.replace(/\((\d+)\) ___/g, (_, n) => {
+    const num = parseInt(n, 10);
+    return num === activeIdx ? `(${n}) ▮▮▮` : `(${n}) ▯▯▯`;
+  });
 }
 </script>
 
@@ -99,8 +187,8 @@ function isPassage(q: TOEICQuestion): q is TOEICPassageQuestion {
         <Icon name="headphones" :size="28" :style="{ color: 'var(--color-text-3)' }" />
         <span class="mono qcard__photo-label">{{ q.topic }} · photo</span>
       </div>
-      <button class="btn tap qcard__photo-play" aria-label="Play audio">
-        <Icon name="play" :size="14" :style="{ color: '#fff', marginLeft: '1px' }" />
+      <button class="btn tap qcard__photo-play" aria-label="Play audio" @click="playAudio">
+        <Icon :name="isPlaying ? 'pause' : 'play'" :size="14" :style="{ color: '#fff', marginLeft: isPlaying ? 0 : '1px' }" />
       </button>
     </div>
 
@@ -112,15 +200,15 @@ function isPassage(q: TOEICQuestion): q is TOEICPassageQuestion {
         borderColor: `color-mix(in oklch, ${part.color} 24%, transparent)`,
       }"
     >
-      <button class="btn tap qcard__audio-play" aria-label="Play audio">
-        <Icon name="play" :size="16" :style="{ color: '#fff', marginLeft: '1px' }" />
+      <button class="btn tap qcard__audio-play" aria-label="Play audio" @click="playAudio">
+        <Icon :name="isPlaying ? 'pause' : 'play'" :size="16" :style="{ color: '#fff', marginLeft: isPlaying ? 0 : '1px' }" />
       </button>
       <div class="qcard__audio-meta">
         <div class="qcard__audio-label">Câu hỏi</div>
-        <WaveBars :color="part.color" :playing="false" :size="18" />
-        <div class="mono qcard__audio-time">0:00 / 0:04 · Aria · 1.00×</div>
+        <WaveBars :color="part.color" :playing="isPlaying" :size="18" />
+        <div class="mono qcard__audio-time">{{ isPlaying ? 'Đang đọc…' : '0:00 / 0:04' }} · Aria · {{ settings.defaultSpeed.toFixed(2) }}×</div>
       </div>
-      <button class="btn tap qcard__audio-replay" aria-label="Replay">
+      <button class="btn tap qcard__audio-replay" aria-label="Replay" @click="replayAudio">
         <Icon name="refresh" :size="14" :style="{ color: 'var(--color-text-2)' }" />
       </button>
     </div>
@@ -133,15 +221,15 @@ function isPassage(q: TOEICQuestion): q is TOEICPassageQuestion {
           borderColor: `color-mix(in oklch, ${part.color} 24%, transparent)`,
         }"
       >
-        <button class="btn tap qcard__audio-play" aria-label="Play audio">
-          <Icon name="play" :size="16" :style="{ color: '#fff', marginLeft: '1px' }" />
+        <button class="btn tap qcard__audio-play" aria-label="Play audio" @click="playAudio">
+          <Icon :name="isPlaying ? 'pause' : 'play'" :size="16" :style="{ color: '#fff', marginLeft: isPlaying ? 0 : '1px' }" />
         </button>
         <div class="qcard__audio-meta">
           <div class="qcard__audio-label">{{ q.kind === 'talk' ? 'Bài nói' : 'Hội thoại' }}</div>
-          <WaveBars :color="part.color" :playing="false" :size="18" />
-          <div class="mono qcard__audio-time">0:00 / 0:18 · Aria · 1.00×</div>
+          <WaveBars :color="part.color" :playing="isPlaying" :size="18" />
+          <div class="mono qcard__audio-time">{{ isPlaying ? 'Đang đọc…' : '0:00 / 0:18' }} · Aria · {{ settings.defaultSpeed.toFixed(2) }}×</div>
         </div>
-        <button class="btn tap qcard__audio-replay" aria-label="Replay">
+        <button class="btn tap qcard__audio-replay" aria-label="Replay" @click="replayAudio">
           <Icon name="refresh" :size="14" :style="{ color: 'var(--color-text-2)' }" />
         </button>
       </div>
@@ -158,20 +246,51 @@ function isPassage(q: TOEICQuestion): q is TOEICPassageQuestion {
       </template>
     </div>
 
-    <div v-else-if="isCloze(q)" class="qcard__passage">
-      {{ q.passage }}
+    <!-- Cloze: multi-blank passage with stepper -->
+    <div v-else-if="isCloze(q)" class="qcard__cloze">
+      <div class="qcard__passage">{{ clozePassageWithMarkers(q.passage, currentBlank?.idx ?? 1) }}</div>
+      <div class="qcard__sub-nav">
+        <button class="btn tap qcard__sub-nav-btn" :disabled="subIndex === 0" @click="prevSub">
+          <Icon name="chevron-left" :size="14" />
+        </button>
+        <div class="qcard__sub-pills">
+          <button
+            v-for="(b, i) in q.blanks"
+            :key="b.idx"
+            class="btn tap qcard__sub-pill"
+            :class="{
+              'is-active': i === subIndex,
+              'is-filled': selectedMulti[i] != null,
+              'is-correct': isLocked && selectedMulti[i] === b.correct,
+              'is-wrong': isLocked && selectedMulti[i] != null && selectedMulti[i] !== b.correct,
+            }"
+            @click="gotoSub(i)"
+          >({{ b.idx }})</button>
+        </div>
+        <button class="btn tap qcard__sub-nav-btn" :disabled="subIndex === subTotal - 1" @click="nextSub">
+          <Icon name="chevron-right" :size="14" />
+        </button>
+      </div>
     </div>
 
+    <!-- Passage: scrollable text + sub-question stepper -->
     <div v-else-if="isPassage(q)" class="qcard__passage qcard__passage--scrollable">
       {{ q.passage }}
     </div>
 
-    <!-- Prompt -->
-    <div v-if="'q' in q && q.kind !== 'fill'" class="qcard__prompt">{{ q.q }}</div>
-    <div v-else-if="isPassage(q) && q.questions[0]" class="qcard__prompt">{{ q.questions[0].q }}</div>
+    <!-- Prompt for fill / single-q passage / cloze sub-question -->
+    <div v-if="'q' in q && q.kind !== 'fill' && !isPassage(q) && !isCloze(q)" class="qcard__prompt">{{ q.q }}</div>
+    <div v-else-if="isCloze(q) && currentBlank" class="qcard__prompt">
+      <span class="qcard__prompt-eye">Chỗ trống ({{ currentBlank.idx }})</span>
+      Chọn từ phù hợp:
+    </div>
+    <div v-else-if="isPassage(q) && currentSubQ" class="qcard__prompt">
+      <span class="qcard__prompt-eye">Câu {{ subIndex + 1 }} / {{ subTotal }}</span>
+      {{ currentSubQ.q }}
+    </div>
 
-    <!-- Options -->
-    <div v-if="optionsForLayout" class="qcard__opts">
+    <!-- Single-answer Options (photo / qa / conv / talk / fill) -->
+    <div v-if="optionsForLayout && !isPassage(q) && !isCloze(q)" class="qcard__opts">
       <button
         v-for="(opt, i) in optionsForLayout"
         :key="i"
@@ -193,36 +312,85 @@ function isPassage(q: TOEICQuestion): q is TOEICPassageQuestion {
       </button>
     </div>
 
-    <!-- Passage: sub-questions for the first one only (parents drive multi-sub flow). -->
-    <div v-if="isPassage(q) && q.questions[0]" class="qcard__opts">
+    <!-- Cloze blank options -->
+    <div v-if="isCloze(q) && currentBlank" class="qcard__opts">
       <button
-        v-for="(opt, i) in q.questions[0].options"
-        :key="`pq-${i}`"
+        v-for="(opt, i) in currentBlank.options"
+        :key="`cb-${subIndex}-${i}`"
         class="btn tap qcard__opt"
         :disabled="isLocked"
         :class="{
-          'is-selected': selected === i && !showExplain,
-          'is-correct': showExplain && i === q.questions[0].correct,
-          'is-wrong': showExplain && selected === i && i !== q.questions[0].correct,
+          'is-selected': selectedMulti[subIndex] === i && !showExplain,
+          'is-correct': showExplain && i === currentBlank.correct,
+          'is-wrong': showExplain && selectedMulti[subIndex] === i && i !== currentBlank.correct,
         }"
-        @click="pickOption(i)"
+        @click="pickMulti(subIndex, i)"
       >
         <span class="qcard__opt-marker mono">
-          <Icon v-if="showExplain && i === q.questions[0].correct" name="check" :size="12" :style="{ color: '#fff' }" />
-          <Icon v-else-if="showExplain && selected === i && i !== q.questions[0].correct" name="x" :size="12" :style="{ color: '#fff' }" />
+          <Icon v-if="showExplain && i === currentBlank.correct" name="check" :size="12" :style="{ color: '#fff' }" />
+          <Icon v-else-if="showExplain && selectedMulti[subIndex] === i && i !== currentBlank.correct" name="x" :size="12" :style="{ color: '#fff' }" />
           <template v-else>{{ String.fromCharCode(65 + i) }}</template>
         </span>
         <span class="qcard__opt-text">{{ opt }}</span>
       </button>
     </div>
 
+    <!-- Passage sub-question options + stepper -->
+    <div v-if="isPassage(q) && currentSubQ" class="qcard__opts">
+      <button
+        v-for="(opt, i) in currentSubQ.options"
+        :key="`pq-${subIndex}-${i}`"
+        class="btn tap qcard__opt"
+        :disabled="isLocked"
+        :class="{
+          'is-selected': selectedMulti[subIndex] === i && !showExplain,
+          'is-correct': showExplain && i === currentSubQ.correct,
+          'is-wrong': showExplain && selectedMulti[subIndex] === i && i !== currentSubQ.correct,
+        }"
+        @click="pickMulti(subIndex, i)"
+      >
+        <span class="qcard__opt-marker mono">
+          <Icon v-if="showExplain && i === currentSubQ.correct" name="check" :size="12" :style="{ color: '#fff' }" />
+          <Icon v-else-if="showExplain && selectedMulti[subIndex] === i && i !== currentSubQ.correct" name="x" :size="12" :style="{ color: '#fff' }" />
+          <template v-else>{{ String.fromCharCode(65 + i) }}</template>
+        </span>
+        <span class="qcard__opt-text">{{ opt }}</span>
+      </button>
+    </div>
+
+    <!-- Sub-question pager for passage -->
+    <div v-if="isPassage(q) && subTotal > 1" class="qcard__sub-nav">
+      <button class="btn tap qcard__sub-nav-btn" :disabled="subIndex === 0" @click="prevSub">
+        <Icon name="chevron-left" :size="14" />
+      </button>
+      <div class="qcard__sub-pills">
+        <button
+          v-for="(_, i) in q.questions"
+          :key="`pi-${i}`"
+          class="btn tap qcard__sub-pill"
+          :class="{
+            'is-active': i === subIndex,
+            'is-filled': selectedMulti[i] != null,
+            'is-correct': isLocked && selectedMulti[i] === q.questions[i].correct,
+            'is-wrong': isLocked && selectedMulti[i] != null && selectedMulti[i] !== q.questions[i].correct,
+          }"
+          @click="gotoSub(i)"
+        >{{ i + 1 }}</button>
+      </div>
+      <button class="btn tap qcard__sub-nav-btn" :disabled="subIndex === subTotal - 1" @click="nextSub">
+        <Icon name="chevron-right" :size="14" />
+      </button>
+    </div>
+
     <!-- Explanation -->
-    <div v-if="showExplain && q.explain" class="qcard__explain">
+    <div v-if="showExplain && (q.explain || currentBlank?.explain || currentSubQ?.explain)" class="qcard__explain">
       <div class="qcard__explain-head">
         <Icon name="sparkle" :size="11" :style="{ color: 'var(--color-cyan)' }" />
         <span>Giải thích</span>
       </div>
-      <div class="qcard__explain-body">{{ q.explain }}</div>
+      <div class="qcard__explain-body">
+        {{ currentBlank?.explain || currentSubQ?.explain || q.explain }}
+      </div>
       <div v-if="q.tags && q.tags.length > 0" class="qcard__tags">
         <span v-for="t in q.tags" :key="t" class="mono qcard__tag">{{ t }}</span>
       </div>
@@ -395,6 +563,20 @@ function isPassage(q: TOEICQuestion): q is TOEICPassageQuestion {
   line-height: 1.45;
   color: var(--color-text-1);
 }
+.qcard__prompt-eye {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-cyan);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-right: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--color-cyan) 14%, transparent);
+  border: 1px solid color-mix(in oklch, var(--color-cyan) 24%, transparent);
+  vertical-align: middle;
+}
 
 .qcard__opts {
   display: flex;
@@ -454,6 +636,63 @@ function isPassage(q: TOEICQuestion): q is TOEICPassageQuestion {
   color: #0b0f22;
 }
 .qcard__opt-text { flex: 1; }
+
+/* Sub-question pager (cloze / passage) */
+.qcard__sub-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qcard__sub-nav-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--color-surface-2);
+  display: grid;
+  place-items: center;
+  color: var(--color-text-2);
+  flex-shrink: 0;
+}
+.qcard__sub-nav-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+.qcard__sub-pills {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.qcard__sub-pills::-webkit-scrollbar { display: none; }
+.qcard__sub-pill {
+  min-width: 38px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border-1);
+  color: var(--color-text-3);
+}
+.qcard__sub-pill.is-active {
+  background: var(--color-surface-3);
+  border-color: var(--color-cyan);
+  color: var(--color-cyan);
+}
+.qcard__sub-pill.is-filled {
+  background: color-mix(in oklch, var(--color-cyan) 16%, transparent);
+  border-color: color-mix(in oklch, var(--color-cyan) 32%, transparent);
+  color: var(--color-cyan);
+}
+.qcard__sub-pill.is-correct {
+  background: color-mix(in oklch, var(--color-emerald) 18%, transparent);
+  border-color: var(--color-emerald);
+  color: var(--color-emerald);
+}
+.qcard__sub-pill.is-wrong {
+  background: color-mix(in oklch, var(--color-rose) 18%, transparent);
+  border-color: var(--color-rose);
+  color: var(--color-rose);
+}
 
 .qcard__explain {
   padding: 10px 12px;

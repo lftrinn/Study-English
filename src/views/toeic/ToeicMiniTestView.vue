@@ -25,7 +25,9 @@ const count = ref<5 | 10 | 20>(10);
 const parts = ref<number[]>([1, 2, 5]);
 const qi = ref(0);
 const answers = ref<Record<number, number | null>>({});
+const multiAnswers = ref<Record<number, Array<number | null>>>({});
 const current = ref<number | null>(null);
+const currentMulti = ref<Array<number | null>>([]);
 
 const questions = computed<Array<TOEICQuestion & { partId: number }>>(() => {
   const list: Array<TOEICQuestion & { partId: number }> = [];
@@ -47,45 +49,100 @@ function presetFoundation() {
   parts.value = [1, 2, 5];
 }
 
+function isMultiQuestion(q: TOEICQuestion): boolean {
+  return q.kind === 'cloze' || q.kind === 'passage';
+}
+
 function start() {
   qi.value = 0;
   answers.value = {};
+  multiAnswers.value = {};
   current.value = null;
+  currentMulti.value = [];
   phase.value = 'run';
 }
 
 function commit(skip = false) {
   const q = questions.value[qi.value];
   if (!q) return;
-  const ans = skip ? null : current.value;
-  answers.value = { ...answers.value, [qi.value]: ans };
 
-  if (ans !== null) {
-    const correctIdx = 'correct' in q ? q.correct : 0;
-    const isCorrect = ans === correctIdx;
-    toeic.recordAnswer(q.partId, isCorrect);
-    if (!isCorrect) {
-      const correctText = 'options' in q ? q.options[correctIdx] : '';
-      const yourText = 'options' in q ? q.options[ans] : '';
-      toeic.addMistake({
-        partId: q.partId,
-        q: 'q' in q ? q.q : 'Câu hỏi',
-        yourAnswer: yourText,
-        correctAnswer: correctText,
-        when: 'Mini Test vừa rồi',
-        explain: q.explain ?? '',
-        chunk: q.tags?.[0] ?? '',
+  if (isMultiQuestion(q)) {
+    const picks = skip ? [] : [...currentMulti.value];
+    multiAnswers.value = { ...multiAnswers.value, [qi.value]: picks };
+    // Record per-sub-answer accuracy + create mistakes for wrong ones.
+    if (!skip) {
+      const subs =
+        q.kind === 'cloze'
+          ? q.blanks.map((b) => ({ correct: b.correct, options: b.options, explain: b.explain }))
+          : q.kind === 'passage'
+            ? q.questions.map((s) => ({ correct: s.correct, options: s.options, explain: s.explain }))
+            : [];
+      subs.forEach((s, i) => {
+        const ans = picks[i];
+        if (ans == null) return;
+        const ok = ans === s.correct;
+        toeic.recordAnswer(q.partId, ok);
+        if (!ok) {
+          toeic.addMistake({
+            partId: q.partId,
+            q: q.kind === 'cloze' ? `Cloze (${i + 1})` : q.questions[i].q,
+            yourAnswer: s.options[ans] ?? '',
+            correctAnswer: s.options[s.correct] ?? '',
+            when: 'Mini Test vừa rồi',
+            explain: s.explain ?? q.explain ?? '',
+            chunk: q.tags?.[0] ?? '',
+          });
+        }
       });
+    }
+  } else {
+    const ans = skip ? null : current.value;
+    answers.value = { ...answers.value, [qi.value]: ans };
+
+    if (ans !== null) {
+      const correctIdx = 'correct' in q ? q.correct : 0;
+      const isCorrect = ans === correctIdx;
+      toeic.recordAnswer(q.partId, isCorrect);
+      if (!isCorrect) {
+        const correctText = 'options' in q ? q.options[correctIdx] : '';
+        const yourText = 'options' in q ? q.options[ans] : '';
+        toeic.addMistake({
+          partId: q.partId,
+          q: 'q' in q ? q.q : 'Câu hỏi',
+          yourAnswer: yourText,
+          correctAnswer: correctText,
+          when: 'Mini Test vừa rồi',
+          explain: q.explain ?? '',
+          chunk: q.tags?.[0] ?? '',
+        });
+      }
     }
   }
 
   current.value = null;
+  currentMulti.value = [];
   if (qi.value + 1 < questions.value.length) qi.value += 1;
   else phase.value = 'result';
 }
 
 const correctCount = computed(() =>
   questions.value.reduce((acc, q, i) => {
+    if (isMultiQuestion(q)) {
+      const picks = multiAnswers.value[i] ?? [];
+      const subs =
+        q.kind === 'cloze'
+          ? q.blanks.map((b) => b.correct)
+          : q.kind === 'passage'
+            ? q.questions.map((s) => s.correct)
+            : [];
+      // Each sub-question scores independently; reduce sum of correct picks
+      // across the whole question.
+      const subCorrect = subs.reduce(
+        (sum, c, idx) => sum + (picks[idx] === c ? 1 : 0),
+        0,
+      );
+      return acc + subCorrect / Math.max(1, subs.length);
+    }
     const correctIdx = 'correct' in q ? q.correct : 0;
     return acc + (answers.value[i] === correctIdx ? 1 : 0);
   }, 0),
@@ -104,7 +161,9 @@ const resultMessage = computed(() =>
 function againSetup() {
   phase.value = 'setup';
   answers.value = {};
+  multiAnswers.value = {};
   current.value = null;
+  currentMulti.value = [];
   qi.value = 0;
 }
 
@@ -115,14 +174,38 @@ function onClose() {
 function getRow(i: number) {
   const q = questions.value[i];
   const part = TOEIC_PARTS.find((p) => p.id === q.partId)!;
-  const correctIdx = 'correct' in q ? q.correct : 0;
-  const ans = answers.value[i];
-  const ok = ans === correctIdx;
-  const skipped = ans == null;
+  let ok = false;
+  let skipped = false;
+  if (isMultiQuestion(q)) {
+    const picks = multiAnswers.value[i] ?? [];
+    const subs =
+      q.kind === 'cloze'
+        ? q.blanks.map((b) => b.correct)
+        : q.kind === 'passage'
+          ? q.questions.map((s) => s.correct)
+          : [];
+    skipped = picks.length === 0;
+    ok = !skipped && subs.every((c, idx) => picks[idx] === c);
+  } else {
+    const correctIdx = 'correct' in q ? q.correct : 0;
+    const ans = answers.value[i];
+    skipped = ans == null;
+    ok = ans === correctIdx;
+  }
   const preview =
     'q' in q ? q.q : 'options' in q ? q.options[0] : 'passage' in q ? q.passage.slice(0, 40) : '';
   return { part, ok, skipped, preview };
 }
+
+const ctaEnabled = computed(() => {
+  const q = questions.value[qi.value];
+  if (!q) return false;
+  if (isMultiQuestion(q)) {
+    const total = q.kind === 'cloze' ? q.blanks.length : q.kind === 'passage' ? q.questions.length : 0;
+    return currentMulti.value.filter((v) => v != null).length === total;
+  }
+  return current.value != null;
+});
 </script>
 
 <template>
@@ -194,17 +277,20 @@ function getRow(i: number) {
       </div>
 
       <QuestionCard
+        :key="`q-${qi}`"
         :q="questions[qi]"
         :part-id="questions[qi].partId"
         :q-index="qi"
         :total="questions.length"
         :selected="current"
+        :selected-multi="currentMulti"
         @update:selected="(v) => (current = v)"
+        @update:selected-multi="(v) => (currentMulti = v)"
       />
 
       <div class="tmini__cta">
         <button class="btn tap glass tmini__cta-skip" @click="commit(true)">Bỏ qua</button>
-        <button class="btn tap tmini__cta-primary" :disabled="current == null" @click="commit(false)">
+        <button class="btn tap tmini__cta-primary" :disabled="!ctaEnabled" @click="commit(false)">
           {{ qi + 1 < questions.length ? 'Câu tiếp →' : 'Hoàn thành' }}
         </button>
       </div>
@@ -213,14 +299,19 @@ function getRow(i: number) {
     <!-- Result -->
     <div v-else class="tmini">
       <div class="glass-strong tmini__result-hero">
-        <ProgressRing :value="pct / 100" :size="120" :stroke="9" :color="pct >= 70 ? '#34D399' : pct >= 50 ? '#22D3EE' : '#FB7185'" :show-label="false">
-          <template #default />
+        <ProgressRing
+          :value="pct / 100"
+          :size="120"
+          :stroke="9"
+          :color="pct >= 70 ? '#34D399' : pct >= 50 ? '#22D3EE' : '#FB7185'"
+          :show-label="false"
+        >
+          <div class="tmini__result-ring-inner">
+            <span class="mono tmini__result-ring-num">{{ pct }}<span class="tmini__result-ring-pct">%</span></span>
+            <div class="tmini__result-ring-eye">Accuracy</div>
+          </div>
         </ProgressRing>
-        <div class="tmini__result-ring-num">
-          <span class="mono">{{ pct }}<span class="tmini__result-ring-pct">%</span></span>
-          <div class="tmini__result-ring-eye">Accuracy</div>
-        </div>
-        <div class="tmini__result-headline grad-text">{{ correctCount }}/{{ questions.length }} đúng</div>
+        <div class="tmini__result-headline grad-text">{{ Math.round(correctCount * 10) / 10 }}/{{ questions.length }} đúng</div>
         <div class="tmini__result-msg">{{ resultMessage }}</div>
       </div>
 
@@ -404,11 +495,13 @@ function getRow(i: number) {
   align-items: center;
   gap: 12px;
 }
-.tmini__result-ring-num { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: -90px; }
-.tmini__result-ring-num .mono {
-  font-size: 30px;
-  font-weight: 700;
+.tmini__result-ring-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
 }
+.tmini__result-ring-num { font-size: 30px; font-weight: 700; line-height: 1; }
 .tmini__result-ring-pct { font-size: 14px; color: var(--color-text-3); }
 .tmini__result-ring-eye {
   font-size: 9px;
@@ -417,7 +510,7 @@ function getRow(i: number) {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-.tmini__result-headline { font-size: 20px; font-weight: 700; margin-top: 60px; }
+.tmini__result-headline { font-size: 20px; font-weight: 700; }
 .tmini__result-msg { font-size: 13px; color: var(--color-text-2); }
 
 .tmini__result-rows {

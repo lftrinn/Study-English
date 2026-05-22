@@ -126,7 +126,7 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
 
         <div class="thub__hero-phase">
           <ProgressRing :value="progressPct / 100" :size="isDesktop ? 78 : 64" :stroke="6" color="#22D3EE" :show-label="false">
-            <template #default />
+            <span class="mono thub__hero-ring-num">{{ Math.round(progressPct) }}%</span>
           </ProgressRing>
           <div>
             <div class="thub__hero-label">Phase</div>
@@ -414,6 +414,7 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
 }
 .thub__hero-phase { display: flex; align-items: center; gap: 12px; }
 .thub__hero-phase-name { font-size: 14px; font-weight: 700; margin-top: 2px; }
+.thub__hero-ring-num { font-size: 13px; font-weight: 700; color: var(--color-cyan); }
 
 /* Section */
 .thub__section { margin-top: 22px; }

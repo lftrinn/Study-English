@@ -50,7 +50,10 @@ const label = computed(() => `${Math.round(pct.value * 100)}%`);
         style="transition: stroke-dasharray 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)"
       />
     </svg>
-    <span v-if="showLabel" class="ring__label">{{ label }}</span>
+    <div v-if="$slots.default" class="ring__slot">
+      <slot />
+    </div>
+    <span v-else-if="showLabel" class="ring__label">{{ label }}</span>
   </div>
 </template>
 
@@ -68,5 +71,12 @@ const label = computed(() => `${Math.round(pct.value * 100)}%`);
   font-size: 12px;
   font-weight: 700;
   color: var(--color-text-1);
+}
+.ring__slot {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
 }
 </style>

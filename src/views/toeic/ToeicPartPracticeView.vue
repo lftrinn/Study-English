@@ -24,6 +24,7 @@ const initialPart = (() => {
 
 const selectedPartId = ref<number | null>(initialPart);
 const answer = ref<number | null>(null);
+const multiAnswer = ref<Array<number | null>>([]);
 const showExplain = ref(false);
 const qi = ref(0);
 
@@ -33,11 +34,31 @@ const part = computed<TOEICPart | undefined>(() =>
 const partQs = computed(() => (selectedPartId.value ? TOEIC_QUESTIONS[selectedPartId.value] ?? [] : []));
 const current = computed(() => partQs.value[qi.value] ?? partQs.value[0]);
 
+const isMulti = computed(() => {
+  if (!current.value) return false;
+  return current.value.kind === 'cloze' || current.value.kind === 'passage';
+});
+
+const ctaEnabled = computed(() => {
+  if (!current.value) return false;
+  if (isMulti.value) {
+    const total =
+      current.value.kind === 'cloze'
+        ? current.value.blanks.length
+        : current.value.kind === 'passage'
+          ? current.value.questions.length
+          : 0;
+    return multiAnswer.value.filter((v) => v != null).length === total;
+  }
+  return answer.value != null;
+});
+
 watch(selectedPartId, (val) => {
   // Reflect picker selection in URL so deep-link works on refresh.
   if (val == null) router.replace({ query: {} });
   else router.replace({ query: { part: String(val) } });
   answer.value = null;
+  multiAnswer.value = [];
   showExplain.value = false;
   qi.value = 0;
 });
@@ -47,30 +68,59 @@ function pickPart(id: number) {
 }
 
 function checkAnswer() {
-  if (answer.value == null || !current.value || !part.value) return;
-  const correctIdx = 'correct' in current.value ? current.value.correct : 0;
-  const isCorrect = answer.value === correctIdx;
-  toeic.recordAnswer(part.value.id, isCorrect);
-  if (!isCorrect) {
-    const correctText =
-      'options' in current.value ? current.value.options[correctIdx] : '';
-    const yourText =
-      'options' in current.value ? current.value.options[answer.value] : '';
-    toeic.addMistake({
-      partId: part.value.id,
-      q: 'q' in current.value ? current.value.q : 'Câu hỏi',
-      yourAnswer: yourText,
-      correctAnswer: correctText,
-      when: 'Vừa xong',
-      explain: current.value.explain ?? '',
-      chunk: current.value.tags?.[0] ?? '',
+  if (!current.value || !part.value) return;
+  if (isMulti.value) {
+    const q = current.value;
+    const subs =
+      q.kind === 'cloze'
+        ? q.blanks.map((b) => ({ correct: b.correct, options: b.options, explain: b.explain }))
+        : q.kind === 'passage'
+          ? q.questions.map((s) => ({ correct: s.correct, options: s.options, explain: s.explain }))
+          : [];
+    subs.forEach((s, i) => {
+      const ans = multiAnswer.value[i];
+      if (ans == null) return;
+      const ok = ans === s.correct;
+      toeic.recordAnswer(part.value!.id, ok);
+      if (!ok) {
+        toeic.addMistake({
+          partId: part.value!.id,
+          q: q.kind === 'cloze' ? `Cloze (${i + 1})` : q.kind === 'passage' ? q.questions[i].q : 'Câu hỏi',
+          yourAnswer: s.options[ans] ?? '',
+          correctAnswer: s.options[s.correct] ?? '',
+          when: 'Vừa xong',
+          explain: s.explain ?? q.explain ?? '',
+          chunk: q.tags?.[0] ?? '',
+        });
+      }
     });
+  } else {
+    if (answer.value == null) return;
+    const correctIdx = 'correct' in current.value ? current.value.correct : 0;
+    const isCorrect = answer.value === correctIdx;
+    toeic.recordAnswer(part.value.id, isCorrect);
+    if (!isCorrect) {
+      const correctText =
+        'options' in current.value ? current.value.options[correctIdx] : '';
+      const yourText =
+        'options' in current.value ? current.value.options[answer.value] : '';
+      toeic.addMistake({
+        partId: part.value.id,
+        q: 'q' in current.value ? current.value.q : 'Câu hỏi',
+        yourAnswer: yourText,
+        correctAnswer: correctText,
+        when: 'Vừa xong',
+        explain: current.value.explain ?? '',
+        chunk: current.value.tags?.[0] ?? '',
+      });
+    }
   }
   showExplain.value = true;
 }
 
 function next() {
   answer.value = null;
+  multiAnswer.value = [];
   showExplain.value = false;
   qi.value = partQs.value.length > 0 ? (qi.value + 1) % partQs.value.length : 0;
 }
@@ -178,13 +228,16 @@ const skillCells = computed(() => {
       <!-- Question -->
       <QuestionCard
         v-if="current"
+        :key="`q-${qi}`"
         :q="current"
         :part-id="part.id"
         :q-index="qi"
         :total="partQs.length"
         :selected="answer"
+        :selected-multi="multiAnswer"
         :show-explain="showExplain"
         @update:selected="(v) => (answer = v)"
+        @update:selected-multi="(v) => (multiAnswer = v)"
       />
       <div v-else class="tpart__empty">
         Phần này chưa có câu mẫu. Import đề thật vào <code>src/data/toeic.ts</code>.
@@ -196,7 +249,7 @@ const skillCells = computed(() => {
           <button class="btn tap glass tpart__cta-skip" @click="next">Bỏ qua</button>
           <button
             class="btn tap tpart__cta-primary"
-            :disabled="answer == null"
+            :disabled="!ctaEnabled"
             @click="checkAnswer"
           >Kiểm tra</button>
         </template>

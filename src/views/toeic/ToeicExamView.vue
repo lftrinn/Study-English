@@ -5,7 +5,7 @@
  * Reading lets the user skip/flag. We render a single section view for both
  * with prop-driven behavior.
  */
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import Icon from '@/components/common/Icon.vue';
@@ -17,6 +17,10 @@ import type { TOEICQuestion } from '@/types/toeic';
 
 type ExamPhase = 'setup' | 'listening' | 'break' | 'reading' | 'result';
 
+const LISTENING_SECONDS = 45 * 60;
+const READING_SECONDS = 75 * 60;
+const BREAK_SECONDS = 10 * 60;
+
 const router = useRouter();
 const toeic = useToeicStore();
 
@@ -24,6 +28,40 @@ const phase = ref<ExamPhase>('setup');
 const qi = ref(0);
 const answers = ref<Record<string, number | null>>({});
 const current = ref<number | null>(null);
+const timeLeft = ref(0);
+let timerId: ReturnType<typeof setInterval> | null = null;
+
+function startTimer(seconds: number) {
+  stopTimer();
+  timeLeft.value = seconds;
+  timerId = setInterval(() => {
+    timeLeft.value = Math.max(0, timeLeft.value - 1);
+    if (timeLeft.value === 0) onTimeExpired();
+  }, 1000);
+}
+function stopTimer() {
+  if (timerId != null) {
+    clearInterval(timerId);
+    timerId = null;
+  }
+}
+function onTimeExpired() {
+  stopTimer();
+  // Auto-advance the section when the clock hits 0.
+  if (phase.value === 'listening') {
+    phase.value = 'break';
+    startTimer(BREAK_SECONDS);
+  } else if (phase.value === 'break') {
+    startReading();
+  } else if (phase.value === 'reading') {
+    finishExam();
+  }
+}
+onBeforeUnmount(stopTimer);
+watch(phase, (p) => {
+  // Stop the timer when leaving a timed phase. Setup / result don't tick.
+  if (p === 'setup' || p === 'result') stopTimer();
+});
 
 const examPool = computed<Array<TOEICQuestion & { partId: number }>>(() => {
   const list: Array<TOEICQuestion & { partId: number }> = [];
@@ -46,7 +84,7 @@ const sectionMeta = computed(() => {
     return {
       name: 'Listening',
       color: '#22D3EE',
-      timeLeftSec: 45 * 60 - 187,
+      timeLeftSec: timeLeft.value,
       total: 100,
       autoAdvance: true,
       canSkip: false,
@@ -56,13 +94,16 @@ const sectionMeta = computed(() => {
   return {
     name: 'Reading',
     color: '#FB7185',
-    timeLeftSec: 75 * 60 - 312,
+    timeLeftSec: timeLeft.value,
     total: 100,
     autoAdvance: false,
     canSkip: true,
     canFlag: true,
   };
 });
+
+const breakMinsLeft = computed(() => Math.floor(timeLeft.value / 60));
+const breakSecsLeft = computed(() => Math.floor(timeLeft.value % 60));
 
 const currentQ = computed(() => sectionQs.value[qi.value] ?? sectionQs.value[0]);
 const currentPart = computed(() =>
@@ -81,6 +122,7 @@ function startExam() {
   qi.value = 0;
   current.value = null;
   answers.value = {};
+  startTimer(LISTENING_SECONDS);
 }
 
 function nextListening() {
@@ -92,7 +134,10 @@ function nextListening() {
   }
   current.value = null;
   if (qi.value + 1 < listeningQs.value.length) qi.value += 1;
-  else phase.value = 'break';
+  else {
+    phase.value = 'break';
+    startTimer(BREAK_SECONDS);
+  }
 }
 
 function nextReading() {
@@ -111,9 +156,11 @@ function startReading() {
   phase.value = 'reading';
   qi.value = 0;
   current.value = null;
+  startTimer(READING_SECONDS);
 }
 
 function finishExam() {
+  stopTimer();
   // Project a TOEIC-scaled score from raw answers (mock weighting matching
   // the design — real conversion tables would replace this).
   const listening = 245;
@@ -123,10 +170,12 @@ function finishExam() {
 }
 
 function againSetup() {
+  stopTimer();
   phase.value = 'setup';
   qi.value = 0;
   current.value = null;
   answers.value = {};
+  timeLeft.value = 0;
 }
 
 function onClose() {
@@ -270,7 +319,7 @@ const delta = computed(() => lastTotal.value - prevTotal.value);
         </div>
       </div>
       <div class="texam__break-text">
-        <div class="texam__break-eye">Break · 10 phút</div>
+        <div class="texam__break-eye">Break · còn <span class="mono">{{ String(breakMinsLeft).padStart(2, '0') }}:{{ String(breakSecsLeft).padStart(2, '0') }}</span></div>
         <div class="texam__break-title">Nghỉ giữa giờ</div>
         <div class="texam__break-body">Đứng dậy. Uống nước. Tránh nhìn màn hình.<br />Reading section dài hơn — giữ nguyên năng lượng.</div>
       </div>
