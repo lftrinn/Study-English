@@ -263,6 +263,9 @@ const filterActiveCount = computed(
         </div>
         <div>
           <div class="dt-lib__card-en">{{ c.text }}</div>
+          <div v-if="c.phonetic" class="dt-lib__card-ipa">
+            /{{ c.phonetic.replace(/^\/|\/$/g, '') }}/
+          </div>
           <div class="dt-lib__card-vi">{{ c.meaning }}</div>
         </div>
         <div class="dt-lib__card-foot">
@@ -315,6 +318,9 @@ const filterActiveCount = computed(
         </button>
         <div class="dt-lib__row-text">
           <div class="dt-lib__row-en">{{ c.text }}</div>
+          <div v-if="c.phonetic" class="dt-lib__row-ipa">
+            /{{ c.phonetic.replace(/^\/|\/$/g, '') }}/
+          </div>
           <div class="dt-lib__row-vi">{{ c.meaning }}</div>
         </div>
         <TopicChip :topic-id="c.topic" size="sm" />
@@ -522,6 +528,10 @@ const filterActiveCount = computed(
 .dt-lib__card-en {
   font-size: 14px; font-weight: 600; line-height: 1.35; letter-spacing: -0.005em;
 }
+.dt-lib__card-ipa {
+  font-size: 12px; color: var(--color-text-3); margin-top: 3px;
+  font-style: italic; letter-spacing: 0.01em; line-height: 1.3;
+}
 .dt-lib__card-vi { font-size: 12px; color: var(--color-text-3); margin-top: 4px; line-height: 1.4; }
 .dt-lib__card-foot { display: flex; align-items: center; gap: 10px; }
 .dt-lib__card-listens {
@@ -566,6 +576,11 @@ const filterActiveCount = computed(
 .dt-lib__row-text { min-width: 0; }
 .dt-lib__row-en {
   font-size: 13px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dt-lib__row-ipa {
+  font-size: 11px; color: var(--color-text-3); margin-top: 2px;
+  font-style: italic; letter-spacing: 0.01em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .dt-lib__row-vi {

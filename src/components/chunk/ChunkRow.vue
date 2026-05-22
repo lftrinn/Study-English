@@ -70,6 +70,12 @@ function onStar(e: Event) {
       <div :style="{ fontSize: '14.5px', fontWeight: 600, letterSpacing: '-0.005em', lineHeight: 1.35 }">
         {{ chunk.text }}
       </div>
+      <div
+        v-if="chunk.phonetic"
+        :style="{ fontSize: '12px', color: 'var(--color-text-3)', marginTop: '2px', fontStyle: 'italic', letterSpacing: '0.01em' }"
+      >
+        /{{ chunk.phonetic.replace(/^\/|\/$/g, '') }}/
+      </div>
       <div :style="{ fontSize: '12.5px', color: 'var(--color-text-3)', marginTop: '2px', lineHeight: 1.35 }">
         {{ chunk.meaning }}
       </div>

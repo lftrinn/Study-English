@@ -39,6 +39,9 @@ const accent = computed(() => topic.value?.color ?? '#22D3EE');
 
     <div class="chunk-card__body">
       <p class="chunk-card__text">{{ chunk.text }}</p>
+      <p v-if="chunk.phonetic" class="chunk-card__phonetic">
+        /{{ chunk.phonetic.replace(/^\/|\/$/g, '') }}/
+      </p>
       <p class="chunk-card__meaning">{{ chunk.meaning }}</p>
     </div>
 
@@ -137,6 +140,14 @@ const accent = computed(() => topic.value?.color ?? '#22D3EE');
   line-height: 1.2;
   letter-spacing: -0.015em;
   color: var(--color-text-1);
+}
+.chunk-card__phonetic {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--color-text-3);
+  font-style: italic;
+  letter-spacing: 0.01em;
 }
 .chunk-card__meaning {
   margin: 0;
