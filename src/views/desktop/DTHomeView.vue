@@ -96,17 +96,30 @@ function continueLearning() {
     router.push('/player');
     return;
   }
-  if (!continueChunk.value) return;
+  if (!continueChunk.value) {
+    if (chunks.chunks.length === 0) {
+      router.push('/library');
+      return;
+    }
+    // Seed with first chunk so user always has something to play.
+    player.setQueue(chunks.chunks.slice(0, 20), { mode: 'normal' });
+    void player.play();
+    router.push('/player');
+    return;
+  }
   player.setQueue([continueChunk.value], { mode: 'normal' });
   void player.play();
   router.push('/player');
 }
 
 function runAction(id: string) {
+  if (chunks.chunks.length === 0) {
+    router.push('/library');
+    return;
+  }
   if (id === 'passive') {
     const list = playlistService.buildLowListen(chunks.chunks, progress.progressMap, { threshold: 5, limit: 30 });
     const queue = list.length > 0 ? list : chunks.chunks.slice(0, 20);
-    if (queue.length === 0) { router.push('/library'); return; }
     player.setShuffle(true);
     player.setQueue(queue, { mode: 'passive' });
     void player.play();
@@ -116,8 +129,16 @@ function runAction(id: string) {
     const queue = list.length > 0 ? list : chunks.chunks.slice(0, 20);
     practice.start({ mode: 'flashcard', chunks: queue });
     router.push('/study/flashcard');
-  } else if (id === 'learn') router.push('/study/learn');
-  else if (id === 'test') router.push('/study/test');
+  } else if (id === 'learn') {
+    const queue = chunks.chunks.slice(0, 20);
+    player.setQueue(queue, { mode: 'normal' });
+    void player.play();
+    router.push('/study/learn');
+  } else if (id === 'test') {
+    const queue = chunks.chunks.slice(0, 20);
+    practice.start({ mode: 'test', chunks: queue });
+    router.push('/study/test');
+  }
 }
 
 function statusToLabel(s: string) {

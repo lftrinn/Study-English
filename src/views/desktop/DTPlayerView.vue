@@ -8,18 +8,50 @@ import PlayBtn from '@/components/common/PlayBtn.vue';
 import ProgressBar from '@/components/common/ProgressBar.vue';
 import WaveBars from '@/components/common/WaveBars.vue';
 
+import { useRouter } from 'vue-router';
+
 import { usePlayerStore } from '@/stores/playerStore';
 import { useChunkStore } from '@/stores/chunkStore';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { useUiStore } from '@/stores/uiStore';
+import { speechService } from '@/services/speechService';
 
+const router = useRouter();
 const player = usePlayerStore();
 const chunks = useChunkStore();
+const settings = useSettingsStore();
+const ui = useUiStore();
 
-const VOICES = [
+const FALLBACK_VOICES = [
   { id: 'aria', name: 'Aria', region: 'US · Female' },
   { id: 'ben', name: 'Ben', region: 'US · Male' },
   { id: 'chloe', name: 'Chloe', region: 'UK · Female' },
   { id: 'daniel', name: 'Daniel', region: 'UK · Male' },
 ];
+
+const systemVoices = computed(() => {
+  if (typeof window === 'undefined') return [] as SpeechSynthesisVoice[];
+  return speechService.getEnglishVoices().slice(0, 4);
+});
+
+const voices = computed(() => {
+  if (systemVoices.value.length === 0) {
+    return FALLBACK_VOICES.map((v) => ({ name: v.name, region: v.region, system: false }));
+  }
+  return systemVoices.value.map((v, i) => ({
+    name: v.name,
+    region: v.lang || FALLBACK_VOICES[i % FALLBACK_VOICES.length].region,
+    system: true,
+  }));
+});
+
+function pickVoice(name: string) {
+  settings.selectedVoiceName = name;
+  player.setVoiceName(name);
+}
+function isVoiceOn(name: string) {
+  return settings.selectedVoiceName === name;
+}
 
 const chunk = computed(() => player.current ?? chunks.chunks[0]);
 const topic = computed(() => (chunk.value ? chunks.topicById(chunk.value.topic) : undefined));
@@ -48,16 +80,45 @@ function bump(field: 'speed' | 'gap' | 'repeatEach', dir: 1 | -1) {
   if (field === 'speed') {
     const v = Math.max(0.5, Math.min(1.5, +(player.speed + dir * 0.05).toFixed(2)));
     player.setSpeed(v);
+    settings.defaultSpeed = v;
   } else if (field === 'gap') {
-    const v = Math.max(500, Math.min(5000, player.gap + dir * 500));
+    const v = Math.max(0, Math.min(5000, player.gap + dir * 500));
     player.setGap(v);
+    settings.defaultGap = v;
   } else {
     const v = Math.max(1, Math.min(9, player.repeatEach + dir));
     player.setRepeatEach(v);
+    settings.defaultRepeatEach = v;
   }
 }
 function toggleMix() {
-  player.setMixVoice(!player.mixVoice);
+  const next = !player.mixVoice;
+  player.setMixVoice(next);
+  settings.mixVoice = next;
+}
+
+function sayWord(word: string) {
+  const cleaned = word.replace(/[^\w'-]/g, '');
+  if (!cleaned) return;
+  void speechService.speak({
+    text: cleaned,
+    voiceName: settings.selectedVoiceName ?? undefined,
+    rate: 0.85,
+  });
+}
+function practiceSayIt() {
+  if (!chunk.value) return;
+  router.push('/study/speaking');
+}
+function addNote() {
+  if (!chunk.value) return;
+  const cur = chunk.value.note ?? '';
+  const next = window.prompt('Ghi chú cho chunk này:', cur);
+  if (next === null) return;
+  void chunks.upsertCustomChunk({ ...chunk.value, note: next });
+}
+function openDetail() {
+  if (chunk.value) ui.openChunkDetail(chunk.value.id);
 }
 </script>
 
@@ -117,7 +178,7 @@ function toggleMix() {
         <div class="dt-pl__progress">
           <ProgressBar :value="progressPct" :max="100" :height="4" :color="accent" />
           <div class="dt-pl__progress-row">
-            <span class="mono">{{ elapsedFmt }} · loop {{ Math.min(player.repeatEach, 1) }}/{{ player.repeatEach }}</span>
+            <span class="mono">{{ elapsedFmt }} · loop {{ player.currentLoopIndex }}/{{ player.repeatEach }}</span>
             <span class="mono">{{ durationFmt }}</span>
           </div>
         </div>
@@ -175,21 +236,28 @@ function toggleMix() {
         <div class="glass dt-pl__panel">
           <div class="dt-pl__panel-head">Voices in rotation</div>
           <div class="dt-pl__voices">
-            <div
-              v-for="(v, i) in VOICES"
-              :key="v.id"
+            <button
+              v-for="v in voices"
+              :key="v.name"
+              type="button"
               class="dt-pl__voice"
-              :class="{ 'is-on': i === 0 }"
+              :class="{ 'is-on': isVoiceOn(v.name) }"
+              @click="pickVoice(v.name)"
+              :title="v.system ? 'Click để chọn voice này' : 'Tên ảo — chưa có system voice'"
             >
               <div class="dt-pl__voice-row">
-                <div class="dt-pl__voice-av" :class="{ 'is-on': i === 0 }">{{ v.name.charAt(0) }}</div>
+                <div class="dt-pl__voice-av" :class="{ 'is-on': isVoiceOn(v.name) }">{{ v.name.charAt(0) }}</div>
                 <div class="dt-pl__voice-meta">
                   <div class="dt-pl__voice-name">{{ v.name }}</div>
                   <div class="dt-pl__voice-region">{{ v.region }}</div>
                 </div>
               </div>
-              <WaveBars :size="14" :playing="i === 0 && isPlaying" :color="i === 0 ? 'var(--color-cyan)' : 'var(--color-text-3)'" />
-            </div>
+              <WaveBars
+                :size="14"
+                :playing="isVoiceOn(v.name) && isPlaying"
+                :color="isVoiceOn(v.name) ? 'var(--color-cyan)' : 'var(--color-text-3)'"
+              />
+            </button>
           </div>
         </div>
 
@@ -201,18 +269,23 @@ function toggleMix() {
               v-for="(w, i) in chunk.text.split(' ')"
               :key="i"
               class="dt-pl__word"
+              :title="'Phát từ ' + w"
+              @click="sayWord(w)"
             >{{ w }}</span>
           </div>
           <div class="dt-pl__transcript-vi">{{ chunk.meaning }}</div>
           <div class="dt-pl__transcript-actions">
-            <button class="btn tap dt-pl__t-btn">
-              <Icon name="volume" :size="13" :style="{ color: 'var(--color-text-2)' }" /> Word-by-word
+            <button class="btn tap dt-pl__t-btn" @click="sayWord(chunk.text)">
+              <Icon name="volume" :size="13" :style="{ color: 'var(--color-text-2)' }" /> Phát chậm
             </button>
-            <button class="btn tap dt-pl__t-btn">
+            <button class="btn tap dt-pl__t-btn" @click="practiceSayIt">
               <Icon name="mic" :size="13" :style="{ color: 'var(--color-text-2)' }" /> Practice say it
             </button>
-            <button class="btn tap dt-pl__t-btn">
-              <Icon name="edit" :size="13" :style="{ color: 'var(--color-text-2)' }" /> Add note
+            <button class="btn tap dt-pl__t-btn" @click="addNote">
+              <Icon name="edit" :size="13" :style="{ color: 'var(--color-text-2)' }" /> {{ chunk.note ? 'Sửa note' : 'Thêm note' }}
+            </button>
+            <button class="btn tap dt-pl__t-btn" @click="openDetail">
+              <Icon name="more" :size="13" :style="{ color: 'var(--color-text-2)' }" /> Chi tiết
             </button>
           </div>
         </div>

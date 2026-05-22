@@ -26,6 +26,10 @@ type PersistedSettings = {
   installPromptDismissedAt: number | null;
   spacedRepetition: boolean;
   vietnameseHintPosition: 'below' | 'above' | 'inline';
+  /** Desktop notification preferences. */
+  notifyDailyReminder: boolean;
+  notifyStreakAlert: boolean;
+  notifyWeeklyRecap: boolean;
 };
 
 const DEFAULTS: PersistedSettings = {
@@ -47,6 +51,9 @@ const DEFAULTS: PersistedSettings = {
   installPromptDismissedAt: null,
   spacedRepetition: true,
   vietnameseHintPosition: 'below',
+  notifyDailyReminder: true,
+  notifyStreakAlert: true,
+  notifyWeeklyRecap: false,
 };
 
 function loadFromLocalStorage(): PersistedSettings {
@@ -89,6 +96,9 @@ export const useSettingsStore = defineStore('settings', () => {
   const installPromptDismissedAt = ref<number | null>(DEFAULTS.installPromptDismissedAt);
   const spacedRepetition = ref<boolean>(DEFAULTS.spacedRepetition);
   const vietnameseHintPosition = ref<'below' | 'above' | 'inline'>(DEFAULTS.vietnameseHintPosition);
+  const notifyDailyReminder = ref<boolean>(DEFAULTS.notifyDailyReminder);
+  const notifyStreakAlert = ref<boolean>(DEFAULTS.notifyStreakAlert);
+  const notifyWeeklyRecap = ref<boolean>(DEFAULTS.notifyWeeklyRecap);
 
   const hydrated = ref(false);
 
@@ -112,6 +122,9 @@ export const useSettingsStore = defineStore('settings', () => {
       installPromptDismissedAt: installPromptDismissedAt.value,
       spacedRepetition: spacedRepetition.value,
       vietnameseHintPosition: vietnameseHintPosition.value,
+      notifyDailyReminder: notifyDailyReminder.value,
+      notifyStreakAlert: notifyStreakAlert.value,
+      notifyWeeklyRecap: notifyWeeklyRecap.value,
     };
   }
 
@@ -136,6 +149,9 @@ export const useSettingsStore = defineStore('settings', () => {
     installPromptDismissedAt.value = s.installPromptDismissedAt;
     spacedRepetition.value = s.spacedRepetition;
     vietnameseHintPosition.value = s.vietnameseHintPosition;
+    notifyDailyReminder.value = s.notifyDailyReminder ?? DEFAULTS.notifyDailyReminder;
+    notifyStreakAlert.value = s.notifyStreakAlert ?? DEFAULTS.notifyStreakAlert;
+    notifyWeeklyRecap.value = s.notifyWeeklyRecap ?? DEFAULTS.notifyWeeklyRecap;
     hydrated.value = true;
   }
 
@@ -181,6 +197,9 @@ export const useSettingsStore = defineStore('settings', () => {
     installPromptDismissedAt.value = DEFAULTS.installPromptDismissedAt;
     spacedRepetition.value = DEFAULTS.spacedRepetition;
     vietnameseHintPosition.value = DEFAULTS.vietnameseHintPosition;
+    notifyDailyReminder.value = DEFAULTS.notifyDailyReminder;
+    notifyStreakAlert.value = DEFAULTS.notifyStreakAlert;
+    notifyWeeklyRecap.value = DEFAULTS.notifyWeeklyRecap;
   }
 
   // Persist on any change after hydration.
@@ -204,6 +223,9 @@ export const useSettingsStore = defineStore('settings', () => {
       installPromptDismissedAt,
       spacedRepetition,
       vietnameseHintPosition,
+      notifyDailyReminder,
+      notifyStreakAlert,
+      notifyWeeklyRecap,
     ],
     () => {
       if (!hydrated.value) return;
@@ -231,6 +253,9 @@ export const useSettingsStore = defineStore('settings', () => {
     installPromptDismissedAt,
     spacedRepetition,
     vietnameseHintPosition,
+    notifyDailyReminder,
+    notifyStreakAlert,
+    notifyWeeklyRecap,
     hydrated,
     hydrate,
     setTheme,
