@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, ref, useTemplateRef } from 'vue';
 
 import Icon from '@/components/common/Icon.vue';
+import AppSheet from '@/components/common/AppSheet.vue';
 import LevelPill from '@/components/chunk/LevelPill.vue';
 import TopicIcon from '@/components/chunk/TopicIcon.vue';
 import PlayBtn from '@/components/common/PlayBtn.vue';
@@ -110,12 +111,26 @@ function practiceSayIt() {
   if (!chunk.value) return;
   router.push('/study/speaking');
 }
+const noteOpen = ref(false);
+const noteDraft = ref('');
+const noteTextarea = useTemplateRef<HTMLTextAreaElement>('noteTextarea');
+
 function addNote() {
   if (!chunk.value) return;
-  const cur = chunk.value.note ?? '';
-  const next = window.prompt('Ghi chú cho chunk này:', cur);
-  if (next === null) return;
-  void chunks.upsertCustomChunk({ ...chunk.value, note: next });
+  noteDraft.value = chunk.value.note ?? '';
+  noteOpen.value = true;
+  void nextTick(() => noteTextarea.value?.focus());
+}
+function closeNote() {
+  noteOpen.value = false;
+}
+function saveNote() {
+  if (!chunk.value) {
+    noteOpen.value = false;
+    return;
+  }
+  void chunks.upsertCustomChunk({ ...chunk.value, note: noteDraft.value.trim() });
+  noteOpen.value = false;
 }
 function openDetail() {
   if (chunk.value) ui.openChunkDetail(chunk.value.id);
@@ -296,6 +311,35 @@ function openDetail() {
         </div>
       </div>
     </div>
+
+    <AppSheet :open="noteOpen" :title="chunk?.note ? 'Sửa note' : 'Thêm note'" @close="closeNote">
+      <div v-if="chunk" class="dt-pl__note-form">
+        <div class="dt-pl__note-ctx">
+          <div class="dt-pl__note-en">{{ chunk.text }}</div>
+          <div class="dt-pl__note-vi">{{ chunk.meaning }}</div>
+        </div>
+        <label class="dt-pl__note-lbl" for="dt-pl-note-input">Ghi chú</label>
+        <textarea
+          id="dt-pl-note-input"
+          ref="noteTextarea"
+          v-model="noteDraft"
+          class="dt-pl__note-input"
+          rows="6"
+          placeholder="Mẹo, ngữ cảnh, ví dụ thêm…"
+          @keydown.meta.enter.prevent="saveNote"
+          @keydown.ctrl.enter.prevent="saveNote"
+        />
+        <div class="dt-pl__note-hint">
+          <span class="mono">⌘/Ctrl + Enter</span> để lưu nhanh.
+        </div>
+      </div>
+      <template #actions>
+        <button class="btn tap dt-pl__note-cancel" @click="closeNote">Huỷ</button>
+        <button class="btn tap dt-pl__note-save" @click="saveNote">
+          <Icon name="check" :size="14" /> Lưu note
+        </button>
+      </template>
+    </AppSheet>
   </div>
 </template>
 
@@ -466,5 +510,63 @@ function openDetail() {
   background: var(--color-surface-1); border: 1px solid var(--color-border-1);
   font-size: 12px; font-weight: 600; color: var(--color-text-2);
   display: inline-flex; align-items: center; gap: 6px;
+}
+
+/* Note sheet */
+.dt-pl__note-form { display: flex; flex-direction: column; gap: 10px; }
+.dt-pl__note-ctx {
+  padding: 12px 14px; border-radius: 12px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border-1);
+}
+.dt-pl__note-en {
+  font-size: 15px; font-weight: 700; line-height: 1.3; letter-spacing: -0.005em;
+}
+.dt-pl__note-vi {
+  font-size: 12.5px; color: var(--color-text-3); margin-top: 3px; line-height: 1.4;
+}
+.dt-pl__note-lbl {
+  font-size: 10px; font-weight: 700; color: var(--color-text-3);
+  letter-spacing: 0.05em; text-transform: uppercase;
+  margin-top: 4px;
+}
+.dt-pl__note-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border-1);
+  color: var(--color-text-1);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 120px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.dt-pl__note-input:focus {
+  border-color: var(--color-cyan);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-cyan) 18%, transparent);
+}
+.dt-pl__note-hint {
+  font-size: 11px; color: var(--color-text-3);
+}
+.dt-pl__note-cancel {
+  flex: 0 0 auto;
+  padding: 10px 16px; border-radius: 10px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-1);
+  color: var(--color-text-2);
+  font-size: 13px; font-weight: 600;
+}
+.dt-pl__note-save {
+  flex: 1;
+  padding: 10px 16px; border-radius: 10px;
+  background: var(--grad-primary);
+  color: #0b0f22;
+  font-size: 13px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  box-shadow: 0 6px 18px rgba(34,211,238,0.32), 0 1px 0 rgba(255,255,255,0.3) inset;
 }
 </style>
