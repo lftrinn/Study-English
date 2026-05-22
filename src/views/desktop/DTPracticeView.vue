@@ -125,16 +125,22 @@ const visibleTopics = computed(() => chunks.topicWithCounts.slice(0, 8));
         v-for="m in modes"
         :key="m.id"
         class="btn tap glass dt-pr__tile"
+        :style="{ '--mc': m.color } as any"
         @click="runMode(m.id, m.route)"
       >
+        <span class="dt-pr__tile-glow" aria-hidden="true" />
+        <span class="dt-pr__tile-bar" aria-hidden="true" />
         <div class="dt-pr__tile-top">
-          <IconBlock :icon="m.icon" :color="m.color" :size="48" />
+          <IconBlock :icon="m.icon" :color="m.color" :size="52" />
           <span class="mono dt-pr__time">{{ m.time }}</span>
         </div>
-        <div>
+        <div class="dt-pr__tile-body">
           <div class="dt-pr__name">{{ m.name }}</div>
           <div class="dt-pr__desc">{{ m.sub }}</div>
         </div>
+        <span class="dt-pr__tile-cue" aria-hidden="true">
+          <Icon name="chevron-right" :size="14" />
+        </span>
       </button>
     </div>
 
@@ -226,20 +232,70 @@ const visibleTopics = computed(() => chunks.topicWithCounts.slice(0, 8));
 .dt-pr__sub { font-size: 13px; color: var(--color-text-3); margin-top: 2px; margin-bottom: 22px; }
 
 .dt-pr__grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+}
+@media (min-width: 1440px) {
+  .dt-pr__grid { grid-template-columns: repeat(4, 1fr); gap: 18px; }
+}
+@media (min-width: 1680px) {
+  .dt-pr__grid { grid-template-columns: repeat(5, 1fr); }
 }
 .dt-pr__tile {
-  padding: 18px; border-radius: 18px; text-align: left; min-height: 180px;
-  display: flex; flex-direction: column; justify-content: space-between; gap: 12px;
+  position: relative; overflow: hidden;
+  padding: 20px; border-radius: 20px; text-align: left; min-height: 196px;
+  display: flex; flex-direction: column; justify-content: space-between; gap: 14px;
+  border: 1px solid var(--color-border-1);
+  transition: transform 220ms var(--ease-out-soft), border-color 220ms var(--ease-out-soft), box-shadow 220ms var(--ease-out-soft);
 }
-.dt-pr__tile-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.dt-pr__tile-glow {
+  position: absolute; inset: -40% -10% auto -10%; height: 70%;
+  pointer-events: none; opacity: 0.55;
+  background: radial-gradient(60% 70% at 30% 20%, color-mix(in oklch, var(--mc) 26%, transparent), transparent 70%);
+  transition: opacity 260ms var(--ease-out-soft);
+}
+.dt-pr__tile-bar {
+  position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--mc) 80%, transparent), transparent);
+  opacity: 0.7;
+}
+.dt-pr__tile-cue {
+  position: absolute; right: 14px; bottom: 14px;
+  width: 26px; height: 26px; border-radius: 99px;
+  display: grid; place-items: center;
+  color: var(--mc);
+  background: color-mix(in oklch, var(--mc) 14%, transparent);
+  border: 1px solid color-mix(in oklch, var(--mc) 28%, transparent);
+  opacity: 0; transform: translateX(-4px);
+  transition: opacity 200ms var(--ease-out-soft), transform 200ms var(--ease-out-soft);
+}
+.dt-pr__tile:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklch, var(--mc) 38%, var(--color-border-1));
+  box-shadow: 0 14px 32px color-mix(in oklch, var(--mc) 14%, transparent);
+}
+.dt-pr__tile:hover .dt-pr__tile-glow { opacity: 0.85; }
+.dt-pr__tile:hover .dt-pr__tile-cue { opacity: 1; transform: translateX(0); }
+.dt-pr__tile-top {
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 1;
+}
+.dt-pr__tile-body { position: relative; z-index: 1; }
 .dt-pr__time {
-  font-size: 10px; color: var(--color-text-3);
-  padding: 3px 7px; border-radius: 99px;
-  background: var(--color-surface-1); border: 1px solid var(--color-border-1);
+  font-size: 11px; font-weight: 600; color: color-mix(in oklch, var(--mc) 80%, var(--color-text-2));
+  padding: 4px 10px; border-radius: 99px; letter-spacing: 0.01em;
+  background: color-mix(in oklch, var(--mc) 10%, transparent);
+  border: 1px solid color-mix(in oklch, var(--mc) 22%, transparent);
 }
-.dt-pr__name { font-size: 15px; font-weight: 700; }
-.dt-pr__desc { font-size: 12px; color: var(--color-text-3); margin-top: 4px; line-height: 1.4; }
+.dt-pr__name { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.dt-pr__desc {
+  font-size: 12.5px; color: var(--color-text-3);
+  margin-top: 5px; line-height: 1.45;
+  padding-right: 32px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dt-pr__tile, .dt-pr__tile-glow, .dt-pr__tile-cue { transition: none; }
+  .dt-pr__tile:hover { transform: none; }
+}
 
 .dt-pr__builder { margin-top: 26px; padding: 22px; }
 .dt-pr__b-head {
