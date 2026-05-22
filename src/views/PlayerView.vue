@@ -13,6 +13,7 @@ import { useChunkStore } from '@/stores/chunkStore';
 import { useProgressStore } from '@/stores/progressStore';
 import { useUiStore } from '@/stores/uiStore';
 import { speechService } from '@/services/speechService';
+import { usePictureInPicture } from '@/composables/usePictureInPicture';
 
 import TopicIcon from '@/components/chunk/TopicIcon.vue';
 import LevelPill from '@/components/chunk/LevelPill.vue';
@@ -58,6 +59,8 @@ const currentVoiceLabel = computed(
 );
 
 const repeatIconName = computed(() => (player.repeatMode === 'one' ? 'repeat-one' : 'repeat'));
+
+const pip = usePictureInPicture();
 
 function onScroll(e: Event) {
   const target = e.target as HTMLElement;
@@ -495,21 +498,40 @@ const upNext = computed(() =>
               {{ Math.max(0, player.queueLength - player.queueIndex - 1) }} more in queue
             </div>
           </div>
-          <button
-            class="btn tap"
-            :style="{
-              fontSize: '12px',
-              color: 'var(--color-cyan)',
-              fontWeight: 700,
-              padding: '6px 10px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }"
-            @click="queueOpen = true"
-          >
-            <Icon name="list" :size="14" />Queue
-          </button>
+          <div :style="{ display: 'flex', alignItems: 'center', gap: '4px' }">
+            <button
+              v-if="pip.supported.value"
+              class="btn tap"
+              :aria-label="pip.active.value ? 'Tắt Picture-in-Picture' : 'Bật Picture-in-Picture'"
+              :style="{
+                fontSize: '12px',
+                color: pip.active.value ? 'var(--color-cyan)' : 'var(--color-text-2)',
+                fontWeight: 700,
+                padding: '6px 10px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }"
+              @click="pip.toggle"
+            >
+              <Icon name="pip" :size="14" />PiP
+            </button>
+            <button
+              class="btn tap"
+              :style="{
+                fontSize: '12px',
+                color: 'var(--color-cyan)',
+                fontWeight: 700,
+                padding: '6px 10px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }"
+              @click="queueOpen = true"
+            >
+              <Icon name="list" :size="14" />Queue
+            </button>
+          </div>
         </div>
         <div :style="{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: '6px' }">
           <button

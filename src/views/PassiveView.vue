@@ -9,6 +9,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useUiStore } from '@/stores/uiStore';
 import { playlistService } from '@/services/playlistService';
 import { speechService } from '@/services/speechService';
+import { usePictureInPicture } from '@/composables/usePictureInPicture';
 
 import ModeShell from '@/components/layout/ModeShell.vue';
 import TopicChip from '@/components/chunk/TopicChip.vue';
@@ -107,6 +108,8 @@ function toggleMix() {
   player.setMixVoice(v);
   settings.mixVoice = v;
 }
+
+const pip = usePictureInPicture();
 
 async function openAudioSheet() {
   audioSheetOpen.value = true;
@@ -211,6 +214,17 @@ onBeforeUnmount(() => {
               @click="player.next"
             >
               <Icon name="next" :size="22" />
+            </button>
+          </div>
+          <div v-if="pip.supported.value" class="passive__pip-row">
+            <button
+              class="btn tap passive__pip"
+              :class="{ 'passive__pip--active': pip.active.value }"
+              :aria-label="pip.active.value ? 'Tắt Picture-in-Picture' : 'Bật Picture-in-Picture'"
+              @click="pip.toggle"
+            >
+              <Icon name="pip" :size="14" />
+              <span>{{ pip.active.value ? 'Tắt PiP' : 'Mở PiP' }}</span>
             </button>
           </div>
           <button
@@ -466,6 +480,27 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   color: var(--color-text-1);
+}
+.passive__pip-row {
+  display: flex;
+  justify-content: center;
+}
+.passive__pip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-1);
+  color: var(--color-text-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+.passive__pip--active {
+  background: color-mix(in oklch, var(--color-cyan) 18%, transparent);
+  border-color: color-mix(in oklch, var(--color-cyan) 40%, transparent);
+  color: var(--color-cyan);
 }
 .passive__meta {
   display: flex;

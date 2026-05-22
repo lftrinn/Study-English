@@ -78,6 +78,7 @@ type IconName =
   | 'more'
   | 'gauge'
   | 'settings'
+  | 'pip'
   | 'circle';
 
 const props = defineProps<{
@@ -374,6 +375,12 @@ const chevronStroke = () =>
       <path d="M9.6 5.3c.8-.2 1.6-.3 2.4-.3 6 0 9.5 7 9.5 7-.5 1-1.2 2.1-2 3.1" />
       <path d="M9.8 9.8a3 3 0 0 0 4.4 4.4" />
       <path d="M2.5 2.5 21.5 21.5" />
+    </template>
+
+    <!-- PiP: outer frame with a smaller inset frame in lower-right -->
+    <template v-else-if="name === 'pip'">
+      <rect x="3" y="5" width="18" height="14" rx="2.5" fill="currentColor" fill-opacity="0.16" stroke="currentColor" />
+      <rect x="12" y="11" width="7" height="6" rx="1.2" fill="currentColor" stroke="none" />
     </template>
 
     <!-- Layout / list -->
