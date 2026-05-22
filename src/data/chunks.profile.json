@@ -6,7 +6,8 @@
     "topic": "profile",
     "level": "A1",
     "source": "profile",
-    "tags": ["self-intro"]
+    "tags": ["self-intro"],
+    "phonetic": "maɪ neɪm ɪz trɪn ænd aɪm ə ˈfrʌntend dɪˈveləpə"
   },
   {
     "id": "pf-002",
@@ -15,7 +16,8 @@
     "topic": "profile",
     "level": "B1",
     "source": "profile",
-    "tags": ["self-intro"]
+    "tags": ["self-intro"],
+    "phonetic": "aɪ həv əˈraʊnd fɔː jɪəz əv ɪkˈspɪəriəns ɪn web dɪˈveləpmənt"
   },
   {
     "id": "pf-003",
@@ -24,7 +26,8 @@
     "topic": "profile",
     "level": "A2",
     "source": "profile",
-    "tags": ["skills"]
+    "tags": ["skills"],
+    "phonetic": "aɪ ˈməʊstli wɜːk wɪð ˈæŋɡjʊlə ænd ˈtaɪpskrɪpt"
   },
   {
     "id": "pf-004",
@@ -33,7 +36,8 @@
     "topic": "profile",
     "level": "A2",
     "source": "profile",
-    "tags": ["self-intro"]
+    "tags": ["self-intro"],
+    "phonetic": "aɪm beɪst ɪn ˌvjetˈnæm ænd aɪ wɜːk rɪˈməʊtli"
   },
   {
     "id": "pf-005",
@@ -42,7 +46,8 @@
     "topic": "profile",
     "level": "B1",
     "source": "profile",
-    "tags": ["experience"]
+    "tags": ["experience"],
+    "phonetic": "aɪv biːn ˈwɜːkɪŋ ɒn ˈhelθkeə ˈsɒftweə ˈriːsntli"
   },
   {
     "id": "pf-006",
@@ -51,7 +56,8 @@
     "topic": "profile",
     "level": "B1",
     "source": "profile",
-    "tags": ["hobby"]
+    "tags": ["hobby"],
+    "phonetic": "aʊtˈsaɪd əv wɜːk aɪ ɪnˈdʒɔɪ ˈriːdɪŋ ˈteknɪkl bʊks"
   },
   {
     "id": "pf-007",
@@ -60,7 +66,8 @@
     "topic": "profile",
     "level": "A2",
     "source": "profile",
-    "tags": ["goal"]
+    "tags": ["goal"],
+    "phonetic": "aɪ əm ˈkʌrəntli ˈlɜːnɪŋ ˈɪŋɡlɪʃ fər ˈɪntəvjuːz"
   },
   {
     "id": "pf-008",
@@ -69,7 +76,8 @@
     "topic": "profile",
     "level": "A1",
     "source": "profile",
-    "tags": ["greeting"]
+    "tags": ["greeting"],
+    "phonetic": "naɪs tə miːt juː haʊ ɪz jɔː deɪ ˈɡəʊɪŋ"
   },
   {
     "id": "pf-009",
@@ -78,7 +86,8 @@
     "topic": "profile",
     "level": "B1",
     "source": "profile",
-    "tags": ["small-talk"]
+    "tags": ["small-talk"],
+    "phonetic": "aɪd lʌv tə lɜːn mɔːr əˈbaʊt jɔː tiːm"
   },
   {
     "id": "pf-010",
@@ -87,6 +96,7 @@
     "topic": "profile",
     "level": "A2",
     "source": "profile",
-    "tags": ["polite"]
+    "tags": ["polite"],
+    "phonetic": "θæŋks fə ˈteɪkɪŋ ðə taɪm tə miːt mi"
   }
 ]

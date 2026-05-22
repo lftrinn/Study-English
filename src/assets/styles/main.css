@@ -141,6 +141,24 @@ body {
   background: var(--color-bg-0);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  touch-action: pan-x pan-y;
+  -ms-touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input,
+textarea,
+[contenteditable='true'] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
 }
 
 body {

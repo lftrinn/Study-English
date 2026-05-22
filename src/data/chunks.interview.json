@@ -6,7 +6,8 @@
     "topic": "interview",
     "level": "A2",
     "source": "interview",
-    "tags": ["skills"]
+    "tags": ["skills"],
+    "phonetic": "aɪ həv ɪkˈspɪəriəns wɪð ˈæŋɡjʊlə ænd ˈtaɪpskrɪpt"
   },
   {
     "id": "iv-002",
@@ -15,7 +16,8 @@
     "topic": "interview",
     "level": "B1",
     "source": "interview",
-    "tags": ["experience"]
+    "tags": ["experience"],
+    "phonetic": "aɪ wəz rɪˈspɒnsəbl fə dɪˈveləpɪŋ ˌjuː ˈaɪ kəmˈpəʊnənts"
   },
   {
     "id": "iv-003",
@@ -24,7 +26,8 @@
     "topic": "interview",
     "level": "B1",
     "source": "interview",
-    "tags": ["values"]
+    "tags": ["values"],
+    "phonetic": "aɪ tend tə ˈfəʊkəs ɒn kliːn ænd riːˈjuːzəbl kəʊd"
   },
   {
     "id": "iv-004",
@@ -33,7 +36,8 @@
     "topic": "interview",
     "level": "B1",
     "source": "interview",
-    "tags": ["strength"]
+    "tags": ["strength"],
+    "phonetic": "maɪ streŋθ ɪz ˈbreɪkɪŋ daʊn ˈkɒmpleks rɪˈkwaɪəmənts"
   },
   {
     "id": "iv-005",
@@ -42,7 +46,8 @@
     "topic": "interview",
     "level": "B1",
     "source": "interview",
-    "tags": ["approach"]
+    "tags": ["approach"],
+    "phonetic": "aɪ ˈjuːʒʊəli stɑːt baɪ ˈklærɪfaɪɪŋ ðə ˈjuːzə fləʊ"
   },
   {
     "id": "iv-006",
@@ -51,7 +56,8 @@
     "topic": "interview",
     "level": "A2",
     "source": "interview",
-    "tags": ["experience"]
+    "tags": ["experience"],
+    "phonetic": "aɪ wɜːkt ɒn ə ˈhelθkeə ˈprɒdʒekt fə tuː jɪəz"
   },
   {
     "id": "iv-007",
@@ -60,7 +66,8 @@
     "topic": "interview",
     "level": "A2",
     "source": "interview",
-    "tags": ["growth"]
+    "tags": ["growth"],
+    "phonetic": "aɪ lɜːn ˈkwɪkli frəm kəʊd rɪˈvjuːz"
   },
   {
     "id": "iv-008",
@@ -69,7 +76,8 @@
     "topic": "interview",
     "level": "B1",
     "source": "interview",
-    "tags": ["soft-skill"]
+    "tags": ["soft-skill"],
+    "phonetic": "aɪ ɪnˈdʒɔɪ ˈmentərɪŋ ˈdʒuːniə ˈtiːmmeɪts"
   },
   {
     "id": "iv-009",
@@ -78,7 +86,8 @@
     "topic": "interview",
     "level": "B1",
     "source": "interview",
-    "tags": ["values"]
+    "tags": ["values"],
+    "phonetic": "aɪ traɪ tə ʃɪp smɔːl ænd test ˈɒfn"
   },
   {
     "id": "iv-010",
@@ -87,7 +96,8 @@
     "topic": "interview",
     "level": "B1",
     "source": "interview",
-    "tags": ["self-description"]
+    "tags": ["self-description"],
+    "phonetic": "aɪd dɪˈskraɪb maɪˈself əz ˈdiːteɪl ˈɔːrientɪd"
   },
   {
     "id": "iv-011",
@@ -96,7 +106,8 @@
     "topic": "interview",
     "level": "B1",
     "source": "interview",
-    "tags": ["collaboration"]
+    "tags": ["collaboration"],
+    "phonetic": "aɪ ˈjuːʒʊəli peə wɪð ðə ˈbækend dɪˈveləpə fɜːst"
   },
   {
     "id": "iv-012",
@@ -105,7 +116,8 @@
     "topic": "interview",
     "level": "B1",
     "source": "interview",
-    "tags": ["leadership"]
+    "tags": ["leadership"],
+    "phonetic": "aɪ wʌns led ə smɔːl ˈriːfæktə sprɪnt"
   },
   {
     "id": "iv-013",
@@ -114,7 +126,8 @@
     "topic": "interview",
     "level": "B1",
     "source": "interview",
-    "tags": ["teamwork"]
+    "tags": ["teamwork"],
+    "phonetic": "aɪm ˈkʌmftəbl ˈwɜːkɪŋ ɪn krɒs ˈfʌŋkʃənl tiːmz"
   },
   {
     "id": "iv-014",
@@ -123,7 +136,8 @@
     "topic": "interview",
     "level": "B1",
     "source": "interview",
-    "tags": ["values"]
+    "tags": ["values"],
+    "phonetic": "aɪ lʊk fər ˈɪmpækt ˈrɑːðə ðæn laɪn kaʊnt"
   },
   {
     "id": "iv-015",
@@ -132,6 +146,7 @@
     "topic": "interview",
     "level": "B1",
     "source": "interview",
-    "tags": ["goal"]
+    "tags": ["goal"],
+    "phonetic": "aɪd lʌv tə wɜːk ɒn əkˌsesəˈbɪləti nekst"
   }
 ]
