@@ -9,6 +9,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useProgressStore } from '@/stores/progressStore';
 import { useChunkStore } from '@/stores/chunkStore';
 import { useUiStore } from '@/stores/uiStore';
+import { usePlayerStore } from '@/stores/playerStore';
 import { speechService } from '@/services/speechService';
 import { storageService, type BackupShape } from '@/services/storageService';
 import type { Chunk } from '@/types/chunk';
@@ -23,6 +24,7 @@ const settings = useSettingsStore();
 const progress = useProgressStore();
 const chunks = useChunkStore();
 const ui = useUiStore();
+const player = usePlayerStore();
 
 const canInstallPwa = computed(() => Boolean(ui.installPromptEvent));
 const installStatus = ref<'idle' | 'installed' | 'dismissed'>('idle');
@@ -104,6 +106,16 @@ function pickVoice(name: string) {
 }
 async function previewVoice(name: string, e: Event) {
   e.stopPropagation();
+  // Web Speech API has a single global queue: pausing isn't enough — the
+  // preview would be appended after the currently speaking utterance (and any
+  // chunk the player's loop is about to enqueue). Stop the player to clear
+  // the queue, play the preview, then resume from the same chunk index.
+  const shouldResume = player.isPlaying;
+  if (player.isPlaying) {
+    player.stop();
+  } else {
+    speechService.cancel();
+  }
   try {
     await speechService.speak({
       text: 'Hello, this is a chunk listening lab voice preview.',
@@ -112,6 +124,9 @@ async function previewVoice(name: string, e: Event) {
     });
   } catch {
     /* ignore */
+  }
+  if (shouldResume) {
+    void player.play();
   }
 }
 function adjustSpeed(delta: number) {
