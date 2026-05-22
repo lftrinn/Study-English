@@ -27,6 +27,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Progress', tab: 'progress' },
   },
   {
+    path: '/practice',
+    name: 'practice',
+    component: () => import('@/views/HomeView.vue'),
+    meta: { title: 'Practice', tab: 'practice' },
+  },
+  {
     path: '/settings',
     name: 'settings',
     component: () => import('@/views/SettingsView.vue'),

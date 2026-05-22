@@ -79,6 +79,8 @@ type IconName =
   | 'gauge'
   | 'settings'
   | 'pip'
+  | 'bell'
+  | 'expand'
   | 'circle';
 
 const props = defineProps<{
@@ -525,6 +527,23 @@ const chevronStroke = () =>
       <path d="M3 14a9 9 0 0 1 18 0" />
       <path d="M12 14l4-4" />
       <circle cx="12" cy="14" r="1.5" fill="currentColor" stroke="none" />
+    </template>
+
+    <!-- Bell — notifications -->
+    <template v-else-if="name === 'bell'">
+      <path
+        d="M6 16V11a6 6 0 1 1 12 0v5l1.4 1.6c.4.5.05 1.2-.6 1.2H5.2c-.65 0-1-.7-.6-1.2L6 16z"
+        fill="currentColor"
+        fill-opacity="0.16"
+        stroke="none"
+      />
+      <path d="M6 16V11a6 6 0 1 1 12 0v5l1.4 1.6c.4.5.05 1.2-.6 1.2H5.2c-.65 0-1-.7-.6-1.2L6 16z" />
+      <path d="M10 20a2 2 0 0 0 4 0" />
+    </template>
+
+    <!-- Expand — arrow out -->
+    <template v-else-if="name === 'expand'">
+      <path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" />
     </template>
 
     <!-- Generic circle (fallback) -->
