@@ -40,14 +40,24 @@ export function usePictureInPicture() {
   );
 
   async function toggle() {
-    if (!supported.value) return;
+    if (!supported.value) {
+      console.warn('[pip] Trình duyệt không hỗ trợ Picture-in-Picture.');
+      return;
+    }
     if (active.value) {
-      await pipService.exit();
+      try {
+        await pipService.exit();
+      } catch (err) {
+        console.warn('[pip] exit thất bại:', err);
+      }
       active.value = false;
       return;
     }
     const data = buildData();
-    if (!data) return;
+    if (!data) {
+      console.warn('[pip] Chưa có chunk đang phát để hiển thị.');
+      return;
+    }
     try {
       await pipService.enter(data, {
         onLeave: () => {
@@ -55,7 +65,8 @@ export function usePictureInPicture() {
         },
       });
       active.value = true;
-    } catch {
+    } catch (err) {
+      console.warn('[pip] enter thất bại:', err);
       active.value = false;
     }
   }
