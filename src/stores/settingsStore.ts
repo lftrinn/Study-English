@@ -202,7 +202,32 @@ export const useSettingsStore = defineStore('settings', () => {
     notifyWeeklyRecap.value = DEFAULTS.notifyWeeklyRecap;
   }
 
-  // Persist on any change after hydration.
+  // Persist on any change after hydration. Debounce to avoid synchronous
+  // localStorage writes on hot paths (e.g. lastTopic mutates on every chunk
+  // played, defaultSpeed mutates during slider drag).
+  let saveTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingFlush: (() => void) | null = null;
+  function scheduleSave() {
+    if (!hydrated.value) return;
+    pendingFlush = () => saveToLocalStorage(snapshot());
+    if (saveTimer !== null) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      saveTimer = null;
+      pendingFlush?.();
+      pendingFlush = null;
+    }, 250);
+  }
+  if (typeof window !== 'undefined') {
+    // Flush pending save before tab is closed/backgrounded so nothing is lost.
+    window.addEventListener('pagehide', () => {
+      if (saveTimer !== null) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+      }
+      pendingFlush?.();
+      pendingFlush = null;
+    });
+  }
   watch(
     [
       theme,
@@ -227,10 +252,7 @@ export const useSettingsStore = defineStore('settings', () => {
       notifyStreakAlert,
       notifyWeeklyRecap,
     ],
-    () => {
-      if (!hydrated.value) return;
-      saveToLocalStorage(snapshot());
-    },
+    scheduleSave,
     { deep: true },
   );
 

@@ -66,9 +66,8 @@ export const useProgressStore = defineStore('progress', () => {
   }
 
   async function persist(p: ChunkProgress) {
+    // ref<Map> in Vue 3 tracks .set() via proxy — no need to recreate the Map.
     progressMap.value.set(p.chunkId, p);
-    // Trigger reactivity (Map mutation).
-    progressMap.value = new Map(progressMap.value);
     try {
       await storageService.putProgress(p);
     } catch {
@@ -177,34 +176,42 @@ export const useProgressStore = defineStore('progress', () => {
       .map((p) => p.chunkId);
   });
 
+  // Pre-aggregate recentLogs by day-key once; reused by all weekly/streak computeds
+  // so we don't filter recentLogs.value 7-90 times on every change.
+  const logCountByDay = computed<Map<string, number>>(() => {
+    const m = new Map<string, number>();
+    for (const l of recentLogs.value) {
+      const k = isoDayKey(l.playedAt);
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return m;
+  });
+
   const weeklyStats = computed<DailyStat[]>(() => {
     const today = new Date();
+    const counts = logCountByDay.value;
     const days: DailyStat[] = [];
     for (let i = 6; i >= 0; i -= 1) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
       const key = isoDayKey(d);
-      const listenCount = recentLogs.value.filter((l) => isoDayKey(l.playedAt) === key).length;
-      days.push({ date: key, listenCount, practiceCount: 0, speakCount: 0 });
+      days.push({ date: key, listenCount: counts.get(key) ?? 0, practiceCount: 0, speakCount: 0 });
     }
     return days;
   });
 
-  const todayListenCount = computed(() => {
-    const key = isoDayKey();
-    return recentLogs.value.filter((l) => isoDayKey(l.playedAt) === key).length;
-  });
+  const todayListenCount = computed(() => logCountByDay.value.get(isoDayKey()) ?? 0);
 
   const streakDays = computed(() => {
     if (recentLogs.value.length === 0) return 0;
+    const counts = logCountByDay.value;
     let streak = 0;
     const today = new Date();
     for (let i = 0; i < 60; i += 1) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
       const key = isoDayKey(d);
-      const has = recentLogs.value.some((l) => isoDayKey(l.playedAt) === key);
-      if (has) streak += 1;
+      if ((counts.get(key) ?? 0) > 0) streak += 1;
       else if (i === 0) continue;
       else break;
     }
@@ -213,14 +220,14 @@ export const useProgressStore = defineStore('progress', () => {
 
   const bestStreak = computed(() => {
     if (recentLogs.value.length === 0) return 0;
-    const dayKeys = new Set(recentLogs.value.map((l) => isoDayKey(l.playedAt)));
+    const counts = logCountByDay.value;
     const today = new Date();
     let best = 0;
     let run = 0;
     for (let i = 0; i < 90; i += 1) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
-      if (dayKeys.has(isoDayKey(d))) {
+      if ((counts.get(isoDayKey(d)) ?? 0) > 0) {
         run += 1;
         if (run > best) best = run;
       } else {
@@ -232,12 +239,12 @@ export const useProgressStore = defineStore('progress', () => {
 
   const previousWeekTotal = computed(() => {
     const today = new Date();
+    const counts = logCountByDay.value;
     let count = 0;
     for (let i = 7; i < 14; i += 1) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
-      const key = isoDayKey(d);
-      count += recentLogs.value.filter((l) => isoDayKey(l.playedAt) === key).length;
+      count += counts.get(isoDayKey(d)) ?? 0;
     }
     return count;
   });

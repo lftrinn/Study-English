@@ -65,24 +65,28 @@ const SOURCES: Array<{ key: ChunkSource; label: string }> = [
 
 const LEVELS: ChunkLevel[] = ['A1', 'A2', 'B1'];
 
-function getTabCount(key: LibraryTab): number {
-  switch (key) {
-    case 'starred':
-      return progress.starredCount;
-    case 'learning':
-      return Array.from(progress.progressMap.values()).filter(
-        (p) => p.status === 'learning' || p.status === 'familiar',
-      ).length;
-    case 'mastered':
-      return progress.masteredCount;
-    case 'unheard':
-      return chunks.chunks.filter(
-        (c) => !progress.byId(c.id) || progress.byId(c.id)!.listenCount === 0,
-      ).length;
-    case 'all':
-    default:
-      return chunks.chunks.length;
+// Single-pass counts shared across all tab badges — was a function called
+// per tab on every render, each pass doing Array.from(...).filter or
+// chunks.filter, multiplying work on hot lists.
+const tabCounts = computed(() => {
+  const all = chunks.chunks;
+  let learning = 0;
+  let unheard = 0;
+  for (const c of all) {
+    const p = progress.byId(c.id);
+    if (p?.status === 'learning' || p?.status === 'familiar') learning += 1;
+    if (!p || p.listenCount === 0) unheard += 1;
   }
+  return {
+    all: all.length,
+    starred: progress.starredCount,
+    learning,
+    mastered: progress.masteredCount,
+    unheard,
+  } as Record<LibraryTab, number>;
+});
+function getTabCount(key: LibraryTab): number {
+  return tabCounts.value[key] ?? 0;
 }
 
 const filteredChunks = computed(() => chunks.filtered);

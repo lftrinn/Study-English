@@ -46,15 +46,25 @@ const SOURCES: Array<{ key: ChunkSource; label: string }> = [
 
 const tabs = computed(() => {
   const all = chunks.chunks;
+  // Single pass — was 5 separate filter() calls over the full chunk list,
+  // re-running on every progress update.
+  let starred = 0;
+  let learning = 0;
+  let mastered = 0;
+  let unheard = 0;
+  for (const c of all) {
+    const p = progress.byId(c.id);
+    if (p?.starred) starred += 1;
+    if (p?.status === 'learning' || p?.status === 'familiar') learning += 1;
+    if (p?.status === 'mastered') mastered += 1;
+    if (!p || p.listenCount === 0) unheard += 1;
+  }
   return [
     { id: 'all' as LibraryTab, label: 'All', count: all.length },
-    { id: 'starred' as LibraryTab, label: 'Starred', count: all.filter((c) => progress.byId(c.id)?.starred).length },
-    { id: 'learning' as LibraryTab, label: 'Learning', count: all.filter((c) => {
-      const p = progress.byId(c.id);
-      return p?.status === 'learning' || p?.status === 'familiar';
-    }).length },
-    { id: 'mastered' as LibraryTab, label: 'Mastered', count: all.filter((c) => progress.byId(c.id)?.status === 'mastered').length },
-    { id: 'unheard' as LibraryTab, label: 'Unheard', count: all.filter((c) => !progress.byId(c.id) || progress.byId(c.id)!.listenCount === 0).length },
+    { id: 'starred' as LibraryTab, label: 'Starred', count: starred },
+    { id: 'learning' as LibraryTab, label: 'Learning', count: learning },
+    { id: 'mastered' as LibraryTab, label: 'Mastered', count: mastered },
+    { id: 'unheard' as LibraryTab, label: 'Unheard', count: unheard },
   ];
 });
 
