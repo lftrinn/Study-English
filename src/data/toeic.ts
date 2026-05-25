@@ -2,16 +2,14 @@
  * TOEIC Training Center — static data layer.
  *
  * Sample questions follow real TOEIC format conventions but are NOT lifted
- * from copyrighted past papers. Wire real items in via
- * `toeicStore.importQuestions(...)` when you have permission to use them.
+ * from copyrighted past papers. They're the fallback shown until the user
+ * imports their own content (TOEIC Hub → Quản lý nội dung).
  */
 
 import type {
   TOEICChunk,
   TOEICChunkTopic,
-  TOEICDailyHeat,
   TOEICGoal,
-  TOEICMistake,
   TOEICPart,
   TOEICPartStat,
   TOEICPhase,
@@ -143,28 +141,19 @@ export const TOEIC_PHASES: TOEICPhase[] = [
 ];
 
 /**
- * Seed accuracy & practiced counts per Part. The store overlays real user
- * activity on top of these for first-run UX.
+ * Per-Part × per-skill matrix for the Hub heatmap. Skill-level accuracy is
+ * approximated from the Part's aggregate (deterministic jitter) since we
+ * don't track accuracy per individual skill yet.
  */
-export const TOEIC_PART_STATS_SEED: Record<number, TOEICPartStat> = {
-  1: { practiced: 24, accuracy: 0.83 },
-  2: { practiced: 92, accuracy: 0.71 },
-  3: { practiced: 36, accuracy: 0.54 },
-  4: { practiced: 18, accuracy: 0.48 },
-  5: { practiced: 140, accuracy: 0.76 },
-  6: { practiced: 8, accuracy: 0.38 },
-  7: { practiced: 12, accuracy: 0.42 },
-};
-
 export function makeSkillMatrix(
-  stats: Record<number, TOEICPartStat> = TOEIC_PART_STATS_SEED,
+  stats: Record<number, TOEICPartStat> = {},
 ): Record<number, TOEICSkillCell[]> {
   const matrix: Record<number, TOEICSkillCell[]> = {};
   for (const part of TOEIC_PARTS) {
     const base = stats[part.id]?.accuracy ?? 0;
     matrix[part.id] = part.skills.map((skill, i) => {
       const jit = (((part.id * 31 + i * 17) % 23) - 11) / 100;
-      const accuracy = Math.max(0, Math.min(1, base + jit));
+      const accuracy = base === 0 ? 0 : Math.max(0, Math.min(1, base + jit));
       const count = Math.round(
         ((stats[part.id]?.practiced ?? 0) / 4) * (0.6 + ((i * 0.13) % 0.4)),
       );
@@ -172,45 +161,6 @@ export function makeSkillMatrix(
     });
   }
   return matrix;
-}
-
-/**
- * 28-day activity heatmap. Deterministic (no Math.random) so SSR / refresh
- * is stable — the user's real activity replaces this once they start
- * practicing.
- */
-export function makeDailyHeat(): TOEICDailyHeat[] {
-  const days: TOEICDailyHeat[] = [];
-  for (let d = 27; d >= 0; d--) {
-    const parts: Record<number, number> = {};
-    const dow = (new Date().getDay() - d + 70) % 7;
-    const weekend = dow === 0 || dow === 6;
-    const intensity = weekend ? 0.4 : 0.8;
-    [1, 2, 5].forEach((p) => {
-      if (Math.sin(d * 0.7 + p) > -0.3) {
-        parts[p] = round2(0.6 + pseudo(d, p) * 0.35 * intensity);
-      }
-    });
-    if (d < 14) {
-      [3, 4].forEach((p) => {
-        if (Math.sin(d * 0.5 + p * 2) > -0.1) {
-          parts[p] = round2(0.45 + pseudo(d, p + 5) * 0.3);
-        }
-      });
-    }
-    if (d < 7 && pseudo(d, 6) > 0.6) parts[6] = round2(0.3 + pseudo(d, 7) * 0.3);
-    if (d < 7 && pseudo(d, 8) > 0.5) parts[7] = round2(0.35 + pseudo(d, 9) * 0.3);
-    days.push({ day: d, parts });
-  }
-  return days;
-}
-
-function pseudo(a: number, b: number): number {
-  const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453;
-  return x - Math.floor(x);
-}
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 export const TOEIC_QUESTIONS: Record<number, TOEICQuestion[]> = {
@@ -430,97 +380,6 @@ export const TOEIC_QUESTIONS: Record<number, TOEICQuestion[]> = {
     },
   ],
 };
-
-export const TOEIC_MISTAKES_SEED: TOEICMistake[] = [
-  {
-    id: 'm1',
-    partId: 5,
-    q: 'The shipment _____ arrived by the time the office opened.',
-    yourAnswer: 'has',
-    correctAnswer: 'had',
-    when: '2 giờ trước',
-    explain:
-      'Past perfect "had arrived" diễn tả hành động xảy ra trước một mốc quá khứ ("by the time … opened").',
-    chunk: 'by the time',
-    xpLost: 5,
-    reviewCount: 0,
-  },
-  {
-    id: 'm2',
-    partId: 2,
-    q: 'Why did the meeting get postponed?',
-    yourAnswer: '(C) Yes, at three.',
-    correctAnswer: '(A) The CEO was sick.',
-    when: '5 giờ trước',
-    explain: 'Câu hỏi Wh- "Why" cần lý do, không phải Yes/No + time.',
-    chunk: 'get postponed',
-    xpLost: 5,
-    reviewCount: 0,
-  },
-  {
-    id: 'm3',
-    partId: 7,
-    q: 'What is implied about the new policy?',
-    yourAnswer: 'It will save costs.',
-    correctAnswer: 'It applies to remote workers only.',
-    when: 'Hôm qua',
-    explain:
-      'Inference question — đáp án phải dựa vào câu chốt "applicable to off-site personnel".',
-    chunk: 'apply to',
-    xpLost: 5,
-    reviewCount: 1,
-  },
-  {
-    id: 'm4',
-    partId: 5,
-    q: 'Sales _____ remarkably this year.',
-    yourAnswer: 'has grown',
-    correctAnswer: 'have grown',
-    when: 'Hôm qua',
-    explain: '"Sales" plural → "have grown".',
-    chunk: 'grow remarkably',
-    xpLost: 5,
-    reviewCount: 0,
-  },
-  {
-    id: 'm5',
-    partId: 3,
-    q: 'What will the man do next?',
-    yourAnswer: 'Send the file',
-    correctAnswer: 'Call the supplier',
-    when: '2 ngày trước',
-    explain:
-      'Anh "M" nói "Let me check with the vendor first" → bước tiếp = gọi supplier.',
-    chunk: 'check with',
-    xpLost: 5,
-    reviewCount: 0,
-  },
-  {
-    id: 'm6',
-    partId: 4,
-    q: 'Where is the announcement being made?',
-    yourAnswer: 'An office',
-    correctAnswer: 'A train station',
-    when: '3 ngày trước',
-    explain: 'Keywords "platform 4", "next service" → train station.',
-    chunk: 'announcement',
-    xpLost: 5,
-    reviewCount: 0,
-  },
-  {
-    id: 'm7',
-    partId: 6,
-    q: 'Choose the best sentence to complete the paragraph.',
-    yourAnswer: 'This change affects all employees.',
-    correctAnswer: 'Please refer to the attached document for details.',
-    when: '4 ngày trước',
-    explain:
-      'Câu trước nói "more information below" → sentence chỉ tới attachment.',
-    chunk: 'refer to',
-    xpLost: 5,
-    reviewCount: 1,
-  },
-];
 
 export const TOEIC_CHUNK_TOPICS: TOEICChunkTopic[] = [
   { id: 'office', name: 'Office routine', vi: 'Văn phòng', color: '#22D3EE', count: 84, parts: [2, 3, 5, 7] },

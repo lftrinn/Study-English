@@ -34,6 +34,23 @@ const progressPct = computed(() => {
 });
 const remaining = computed(() => toeic.goal.target - toeic.goal.current);
 
+const lastExamLabel = computed(() => {
+  const last = toeic.lastExam;
+  if (!last?.takenAt) return 'Chưa có bài thi';
+  const d = new Date(last.takenAt);
+  return `${d.getDate()}/${d.getMonth() + 1}`;
+});
+
+// Rough projection from the recent score trend: gain-per-exam × exams to go.
+const projection = computed(() => {
+  const s = toeic.examScores;
+  if (s.length < 2) return null;
+  const gain = s[s.length - 1].total - s[s.length - 2].total;
+  const remain = toeic.goal.target - toeic.goal.current;
+  if (gain <= 0 || remain <= 0) return null;
+  return Math.ceil(remain / gain);
+});
+
 const currentPhaseInfo = computed(() => {
   const id = toeic.currentPhase;
   return TOEIC_PHASES.find((p) => p.id === id) ?? TOEIC_PHASES[0];
@@ -106,7 +123,7 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
             <span class="mono thub__hero-current-num">{{ toeic.goal.current }}</span>
             <span class="thub__hero-current-peak">/ {{ toeic.goal.peak }}</span>
           </div>
-          <div class="thub__hero-sub">Bài thi gần nhất: 12/4</div>
+          <div class="thub__hero-sub">Bài thi gần nhất: {{ lastExamLabel }}</div>
         </div>
 
         <div class="thub__hero-progress">
@@ -119,7 +136,8 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
           </div>
           <div class="thub__hero-progress-foot">
             <span>Còn <b class="mono">{{ remaining }}</b> điểm</span>
-            <span>Dự kiến đạt 15 Tháng 9</span>
+            <span v-if="projection">Dự kiến ~<b class="mono">{{ projection }}</b> bài nữa</span>
+            <span v-else>Luyện đều để thấy tiến bộ</span>
           </div>
         </div>
 

@@ -3,7 +3,7 @@
  * Mini Test — pick count + parts, drill through, show per-question result.
  * Tracks answers in local state; commits accuracy + mistakes to toeicStore.
  */
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import Icon from '@/components/common/Icon.vue';
@@ -28,6 +28,27 @@ const answers = ref<Record<number, number | null>>({});
 const multiAnswers = ref<Record<number, Array<number | null>>>({});
 const current = ref<number | null>(null);
 const currentMulti = ref<Array<number | null>>([]);
+
+// Count-up clock while the test runs.
+const elapsed = ref(0);
+let clockId: ReturnType<typeof setInterval> | null = null;
+function startClock() {
+  stopClock();
+  elapsed.value = 0;
+  clockId = setInterval(() => (elapsed.value += 1), 1000);
+}
+function stopClock() {
+  if (clockId != null) {
+    clearInterval(clockId);
+    clockId = null;
+  }
+}
+const clockLabel = computed(() => {
+  const m = Math.floor(elapsed.value / 60);
+  const s = elapsed.value % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+});
+onBeforeUnmount(stopClock);
 
 const questions = computed<Array<TOEICQuestion & { partId: number }>>(() => {
   const list: Array<TOEICQuestion & { partId: number }> = [];
@@ -60,6 +81,7 @@ function start() {
   current.value = null;
   currentMulti.value = [];
   phase.value = 'run';
+  startClock();
 }
 
 function commit(skip = false) {
@@ -122,7 +144,10 @@ function commit(skip = false) {
   current.value = null;
   currentMulti.value = [];
   if (qi.value + 1 < questions.value.length) qi.value += 1;
-  else phase.value = 'result';
+  else {
+    phase.value = 'result';
+    stopClock();
+  }
 }
 
 const correctCount = computed(() =>
@@ -271,7 +296,7 @@ const ctaEnabled = computed(() => {
           <span class="tmini__progress-eye">
             Câu <span class="mono">{{ qi + 1 }}</span> / {{ questions.length }}
           </span>
-          <span class="mono tmini__progress-clock">02:43</span>
+          <span class="mono tmini__progress-clock">{{ clockLabel }}</span>
         </div>
         <ProgressBar :value="qi + 1" :max="questions.length" :height="4" />
       </div>

@@ -10,11 +10,8 @@ import { computed, ref, watch } from 'vue';
 
 import {
   TOEIC_GOAL_DEFAULT,
-  TOEIC_MISTAKES_SEED,
   TOEIC_PARTS,
-  TOEIC_PART_STATS_SEED,
   TOEIC_QUESTIONS,
-  makeDailyHeat,
   makeSkillMatrix,
 } from '@/data/toeic';
 import { storageService } from '@/services/storageService';
@@ -27,7 +24,14 @@ import type {
   TOEICSkillCell,
 } from '@/types/toeic';
 
-const LS_KEY = 'cll.toeic.v1';
+// v2: dropped the demo seed data — stats/scores/heatmap now reflect only the
+// user's real activity. (Bumped key so stale v1 seed data doesn't leak in.)
+const LS_KEY = 'cll.toeic.v2';
+
+export interface ExamPartResult {
+  correct: number;
+  total: number;
+}
 
 interface ExamScore {
   /** ISO timestamp. */
@@ -35,30 +39,33 @@ interface ExamScore {
   listening: number;
   reading: number;
   total: number;
+  /** Per-Part correct/total from this attempt, for the result breakdown. */
+  breakdown?: Record<number, ExamPartResult>;
 }
+
+interface DayPartStat {
+  correct: number;
+  total: number;
+}
+/** Per-day (YYYY-MM-DD) × per-Part practice tally for the activity heatmap. */
+type DailyActivity = Record<string, Record<number, DayPartStat>>;
 
 interface PersistedTOEIC {
   goal: TOEICGoal;
   partStats: Record<number, TOEICPartStat>;
   mistakes: TOEICMistake[];
-  /** Last 6 exam totals — used by the score trend sparkline. */
   examScores: ExamScore[];
   starredChunks: string[];
+  dailyActivity: DailyActivity;
 }
 
 const DEFAULTS: PersistedTOEIC = {
   goal: { ...TOEIC_GOAL_DEFAULT },
-  partStats: { ...TOEIC_PART_STATS_SEED },
-  mistakes: [...TOEIC_MISTAKES_SEED],
-  examScores: [
-    { takenAt: '', listening: 220, reading: 215, total: 435 },
-    { takenAt: '', listening: 225, reading: 217, total: 442 },
-    { takenAt: '', listening: 230, reading: 218, total: 448 },
-    { takenAt: '', listening: 238, reading: 222, total: 460 },
-    { takenAt: '', listening: 245, reading: 227, total: 472 },
-    { takenAt: '', listening: 248, reading: 232, total: 480 },
-  ],
+  partStats: {},
+  mistakes: [],
+  examScores: [],
   starredChunks: [],
+  dailyActivity: {},
 };
 
 function load(): PersistedTOEIC {
@@ -69,12 +76,11 @@ function load(): PersistedTOEIC {
     const parsed = JSON.parse(raw) as Partial<PersistedTOEIC>;
     return {
       goal: { ...DEFAULTS.goal, ...(parsed.goal ?? {}) },
-      partStats: { ...DEFAULTS.partStats, ...(parsed.partStats ?? {}) },
-      mistakes: Array.isArray(parsed.mistakes) ? parsed.mistakes : [...DEFAULTS.mistakes],
-      examScores: Array.isArray(parsed.examScores) && parsed.examScores.length > 0
-        ? parsed.examScores
-        : [...DEFAULTS.examScores],
+      partStats: parsed.partStats ?? {},
+      mistakes: Array.isArray(parsed.mistakes) ? parsed.mistakes : [],
+      examScores: Array.isArray(parsed.examScores) ? parsed.examScores : [],
       starredChunks: Array.isArray(parsed.starredChunks) ? parsed.starredChunks : [],
+      dailyActivity: parsed.dailyActivity ?? {},
     };
   } catch {
     return cloneDefaults();
@@ -84,11 +90,16 @@ function load(): PersistedTOEIC {
 function cloneDefaults(): PersistedTOEIC {
   return {
     goal: { ...DEFAULTS.goal },
-    partStats: { ...DEFAULTS.partStats },
-    mistakes: [...DEFAULTS.mistakes],
-    examScores: [...DEFAULTS.examScores],
-    starredChunks: [...DEFAULTS.starredChunks],
+    partStats: {},
+    mistakes: [],
+    examScores: [],
+    starredChunks: [],
+    dailyActivity: {},
   };
+}
+
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export const useToeicStore = defineStore('toeic', () => {
@@ -99,7 +110,25 @@ export const useToeicStore = defineStore('toeic', () => {
   const mistakes = ref<TOEICMistake[]>(initial.mistakes);
   const examScores = ref<ExamScore[]>(initial.examScores);
   const starredChunks = ref<string[]>(initial.starredChunks);
-  const dailyHeat = ref(makeDailyHeat());
+  const dailyActivity = ref<DailyActivity>(initial.dailyActivity);
+
+  // 28-day × Part heatmap derived from real daily activity. Cells stay empty
+  // until the user actually practices that Part on that day.
+  const dailyHeat = computed(() => {
+    const days: { day: number; parts: Record<number, number> }[] = [];
+    const now = new Date();
+    for (let d = 27; d >= 0; d--) {
+      const date = new Date(now);
+      date.setDate(now.getDate() - d);
+      const rec = dailyActivity.value[dayKey(date)] ?? {};
+      const parts: Record<number, number> = {};
+      for (const [p, st] of Object.entries(rec)) {
+        if (st.total > 0) parts[Number(p)] = st.correct / st.total;
+      }
+      days.push({ day: d, parts });
+    }
+    return days;
+  });
 
   // User-imported questions, keyed by Part. Empty until loadUserContent()
   // runs; views fall back to the bundled samples when a Part is empty.
@@ -177,6 +206,12 @@ export const useToeicStore = defineStore('toeic', () => {
       ...partStats.value,
       [partId]: { practiced: total, accuracy },
     };
+    // Log into today's bucket so the activity heatmap reflects real practice.
+    const key = dayKey(new Date());
+    const day = { ...(dailyActivity.value[key] ?? {}) };
+    const cur = day[partId] ?? { correct: 0, total: 0 };
+    day[partId] = { correct: cur.correct + (correct ? 1 : 0), total: cur.total + 1 };
+    dailyActivity.value = { ...dailyActivity.value, [key]: day };
   }
 
   function addMistake(m: Omit<TOEICMistake, 'id' | 'reviewCount' | 'xpLost'>) {
@@ -197,18 +232,27 @@ export const useToeicStore = defineStore('toeic', () => {
     mistakes.value = mistakes.value.filter((m) => m.id !== id);
   }
 
-  function recordExamScore(listening: number, reading: number) {
+  function recordExamScore(
+    listening: number,
+    reading: number,
+    breakdown?: Record<number, ExamPartResult>,
+  ) {
     const score: ExamScore = {
       takenAt: new Date().toISOString(),
       listening,
       reading,
       total: listening + reading,
+      breakdown,
     };
-    examScores.value = [...examScores.value.slice(-5), score];
+    examScores.value = [...examScores.value.slice(-11), score];
     if (score.total > goal.value.current) {
       goal.value = { ...goal.value, current: score.total };
     }
   }
+
+  const lastExam = computed<ExamScore | null>(() =>
+    examScores.value.length > 0 ? examScores.value[examScores.value.length - 1] : null,
+  );
 
   function setGoalTarget(target: number) {
     goal.value = { ...goal.value, target };
@@ -231,11 +275,12 @@ export const useToeicStore = defineStore('toeic', () => {
     mistakes.value = d.mistakes;
     examScores.value = d.examScores;
     starredChunks.value = d.starredChunks;
+    dailyActivity.value = d.dailyActivity;
   }
 
   // ── Persist ─────────────────────────────────────────────────────────
   watch(
-    [goal, partStats, mistakes, examScores, starredChunks],
+    [goal, partStats, mistakes, examScores, starredChunks, dailyActivity],
     () => {
       if (typeof localStorage === 'undefined') return;
       const payload: PersistedTOEIC = {
@@ -244,6 +289,7 @@ export const useToeicStore = defineStore('toeic', () => {
         mistakes: mistakes.value,
         examScores: examScores.value,
         starredChunks: starredChunks.value,
+        dailyActivity: dailyActivity.value,
       };
       try {
         localStorage.setItem(LS_KEY, JSON.stringify(payload));
@@ -260,7 +306,9 @@ export const useToeicStore = defineStore('toeic', () => {
     mistakes,
     examScores,
     starredChunks,
+    dailyActivity,
     dailyHeat,
+    lastExam,
     userQuestions,
     contentLoaded,
     hasUserContent,

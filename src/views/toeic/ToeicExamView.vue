@@ -159,13 +159,46 @@ function startReading() {
   startTimer(READING_SECONDS);
 }
 
+type PartTally = Record<number, { correct: number; total: number }>;
+
+function gradeSection(qs: Array<TOEICQuestion & { partId: number }>, prefix: 'L' | 'R'): PartTally {
+  const tally: PartTally = {};
+  qs.forEach((q, i) => {
+    const ans = answers.value[`${prefix}${i}`];
+    const correctIdx = 'correct' in q ? q.correct : 0;
+    const t = tally[q.partId] ?? { correct: 0, total: 0 };
+    t.total += 1;
+    if (ans != null && ans === correctIdx) t.correct += 1;
+    tally[q.partId] = t;
+  });
+  return tally;
+}
+
+/** Scale a section's raw ratio onto the TOEIC 5–495 band (rounded to 5). */
+function scaleSection(correct: number, total: number): number {
+  if (total === 0) return 5;
+  const ratio = correct / total;
+  return Math.min(495, Math.max(5, Math.round((ratio * 490 + 5) / 5) * 5));
+}
+
 function finishExam() {
   stopTimer();
-  // Project a TOEIC-scaled score from raw answers (mock weighting matching
-  // the design — real conversion tables would replace this).
-  const listening = 245;
-  const reading = 220;
-  toeic.recordExamScore(listening, reading);
+  const listeningTally = gradeSection(listeningQs.value, 'L');
+  const readingTally = gradeSection(readingQs.value, 'R');
+  const breakdownMap: PartTally = { ...listeningTally, ...readingTally };
+
+  const sum = (tally: PartTally) =>
+    Object.values(tally).reduce(
+      (acc, t) => ({ correct: acc.correct + t.correct, total: acc.total + t.total }),
+      { correct: 0, total: 0 },
+    );
+  const l = sum(listeningTally);
+  const r = sum(readingTally);
+  toeic.recordExamScore(
+    scaleSection(l.correct, l.total),
+    scaleSection(r.correct, r.total),
+    breakdownMap,
+  );
   phase.value = 'result';
 }
 
@@ -182,31 +215,43 @@ function onClose() {
   router.push('/toeic');
 }
 
-const breakdown = [
-  { p: 1, name: 'Photos', score: '6/6', pct: 100, color: '#22D3EE' },
-  { p: 2, name: 'Q&A', score: '20/25', pct: 80, color: '#A78BFA' },
-  { p: 3, name: 'Hội thoại', score: '22/39', pct: 56, color: '#60A5FA' },
-  { p: 4, name: 'Bài nói ngắn', score: '14/30', pct: 47, color: '#34D399' },
-  { p: 5, name: 'Câu chưa hoàn chỉnh', score: '23/30', pct: 77, color: '#F59E0B' },
-  { p: 6, name: 'Hoàn thành đoạn', score: '6/16', pct: 38, color: '#FB923C' },
-  { p: 7, name: 'Đọc hiểu', score: '24/54', pct: 44, color: '#FB7185' },
-];
-
 const schedule = [
   { name: 'Listening · Part 1–4', detail: '100 câu · 45 phút · audio play tự động', color: '#22D3EE', icon: 'headphones' },
   { name: 'Break · 10 phút', detail: 'Không tính giờ. Đứng dậy, uống nước.', color: '#A78BFA', icon: 'clock' },
   { name: 'Reading · Part 5–7', detail: '100 câu · 75 phút · tự phân bổ thời gian', color: '#FB7185', icon: 'library' },
 ];
 
-const lastTotal = computed(() => {
-  const arr = toeic.examScores;
-  return arr.length > 0 ? arr[arr.length - 1].total : toeic.goal.current;
-});
+// — Result derived from the last real attempt —
+const lastExam = computed(() => toeic.lastExam);
+const lastTotal = computed(() => lastExam.value?.total ?? 0);
 const prevTotal = computed(() => {
   const arr = toeic.examScores;
   return arr.length > 1 ? arr[arr.length - 2].total : lastTotal.value;
 });
 const delta = computed(() => lastTotal.value - prevTotal.value);
+
+/** Per-Part breakdown rows for the result screen, from the attempt's tally. */
+const breakdown = computed(() => {
+  const bd = lastExam.value?.breakdown ?? {};
+  return TOEIC_PARTS.map((p) => {
+    const t = bd[p.id];
+    const has = t && t.total > 0;
+    return {
+      p: p.id,
+      name: p.vi,
+      color: p.color,
+      score: has ? `${t.correct}/${t.total}` : '—',
+      pct: has ? Math.round((t.correct / t.total) * 100) : 0,
+      has,
+    };
+  });
+});
+
+/** Two weakest answered Parts → recommendation copy. */
+const weakRec = computed(() => {
+  const answered = breakdown.value.filter((b) => b.has).sort((a, b) => a.pct - b.pct);
+  return answered.slice(0, 2);
+});
 </script>
 
 <template>
@@ -340,19 +385,22 @@ const delta = computed(() => lastTotal.value - prevTotal.value);
         <div class="texam__result-split">
           <div>
             <div class="texam__result-split-eye" :style="{ color: 'var(--color-cyan)' }">Listening</div>
-            <div class="mono texam__result-split-num">{{ toeic.examScores[toeic.examScores.length - 1]?.listening ?? '—' }}</div>
+            <div class="mono texam__result-split-num">{{ lastExam?.listening ?? '—' }}</div>
           </div>
           <div class="texam__result-split-rule" />
           <div>
             <div class="texam__result-split-eye" :style="{ color: 'var(--color-rose)' }">Reading</div>
-            <div class="mono texam__result-split-num">{{ toeic.examScores[toeic.examScores.length - 1]?.reading ?? '—' }}</div>
+            <div class="mono texam__result-split-num">{{ lastExam?.reading ?? '—' }}</div>
           </div>
         </div>
         <div class="texam__result-msg">
-          So với mục tiêu <b class="mono" :style="{ color: 'var(--color-cyan)' }">{{ toeic.goal.target }}</b> —
-          <span :style="{ color: delta >= 0 ? 'var(--color-emerald)' : 'var(--color-rose)' }">
-            {{ delta >= 0 ? 'tiến' : 'lùi' }} <span class="mono">{{ Math.abs(delta) }}</span>
-          </span> từ lần thi gần nhất.
+          So với mục tiêu <b class="mono" :style="{ color: 'var(--color-cyan)' }">{{ toeic.goal.target }}</b>
+          <template v-if="toeic.examScores.length > 1">
+            — <span :style="{ color: delta >= 0 ? 'var(--color-emerald)' : 'var(--color-rose)' }">
+              {{ delta >= 0 ? 'tiến' : 'lùi' }} <span class="mono">{{ Math.abs(delta) }}</span>
+            </span> so với lần trước.
+          </template>
+          <template v-else> — đây là bài thi đầu tiên của bạn.</template>
         </div>
       </div>
 
@@ -393,9 +441,16 @@ const delta = computed(() => lastTotal.value - prevTotal.value);
           <span>Đề xuất luyện tập</span>
         </div>
         <div class="texam__rec-body">
-          Part <b class="mono" :style="{ color: 'var(--color-rose)' }">6 (38%)</b> và
-          <b class="mono" :style="{ color: 'var(--color-rose)' }">4 (47%)</b> đang là điểm yếu.
-          Tập trung 2 tuần tới vào Part 6 cohesion drills và Part 4 announcement listening.
+          <template v-if="weakRec.length > 0">
+            <template v-for="(w, i) in weakRec" :key="w.p">
+              <template v-if="i > 0"> và </template>Part
+              <b class="mono" :style="{ color: 'var(--color-rose)' }">{{ w.p }} ({{ w.pct }}%)</b>
+            </template>
+            đang là điểm yếu — ưu tiên luyện thêm các Part này.
+          </template>
+          <template v-else>
+            Chưa đủ dữ liệu để phân tích. Làm thêm câu ở các Part để có gợi ý chính xác.
+          </template>
         </div>
       </div>
 
