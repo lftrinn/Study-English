@@ -56,6 +56,64 @@ const currentPhaseInfo = computed(() => {
   return TOEIC_PHASES.find((p) => p.id === id) ?? TOEIC_PHASES[0];
 });
 
+// — "Start here" — a single primary next-step that adapts to the user's state:
+// no content → import; content but never tested → placement test; otherwise →
+// drill the weakest Part.
+const startCta = computed(() => {
+  if (!toeic.hasUserContent) {
+    return {
+      eye: 'Bắt đầu ở đây',
+      title: 'Thêm đề TOEIC của bạn',
+      sub: 'Đang dùng đề mẫu. Import đề + audio của bạn để luyện sát đề thật.',
+      icon: 'library',
+      color: '#22D3EE',
+      action: 'Thêm nội dung',
+      route: '/toeic/content',
+      secondary: { label: 'Làm thử đề mẫu', route: '/toeic/mini' },
+    };
+  }
+  if (toeic.examScores.length === 0) {
+    return {
+      eye: 'Bắt đầu ở đây',
+      title: 'Làm bài kiểm tra xếp loại',
+      sub: 'Mini Test 10 câu để biết Part nào mạnh / yếu trước khi vào lộ trình.',
+      icon: 'target',
+      color: '#34D399',
+      action: 'Làm Mini Test 10 câu',
+      route: '/toeic/mini',
+      secondary: { label: 'Xem lộ trình', route: '/toeic/progress' },
+    };
+  }
+  const weak = toeic.weakestPart;
+  const acc = Math.round((toeic.partStats[weak.id]?.accuracy ?? 0) * 100);
+  return {
+    eye: 'Tiếp tục luyện',
+    title: `Luyện ${weak.name} — đang yếu nhất`,
+    sub: `${acc}% chính xác · ưu tiên kéo Part này lên.`,
+    icon: 'brain',
+    color: weak.color,
+    action: `Luyện Part ${weak.id}`,
+    route: '/toeic/part',
+    secondary: { label: 'Thi thử Exam Mode', route: '/toeic/exam' },
+  };
+});
+
+// — Compact stats for the desktop side column —
+const stats = computed(() => {
+  const entries = Object.values(toeic.partStats);
+  const practiced = entries.reduce((s, p) => s + p.practiced, 0);
+  const answered = entries.filter((p) => p.practiced > 0);
+  const avgAcc = answered.length
+    ? answered.reduce((s, p) => s + p.accuracy * p.practiced, 0) / practiced
+    : 0;
+  return {
+    practiced,
+    avgAcc: Math.round(avgAcc * 100),
+    mistakes: toeic.mistakeCount,
+    lastExam: lastExamLabel.value,
+  };
+});
+
 function goBack() {
   // Switch back to the Chunk Lab module. Home is its canonical landing, so
   // it's a predictable target regardless of how the user entered TOEIC.
@@ -99,6 +157,7 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
 
 <template>
   <div class="thub scrollarea" :class="{ 'is-desktop': isDesktop }">
+   <div class="thub__inner">
     <!-- Top bar -->
     <div class="thub__topbar">
       <button class="btn tap thub__back" @click="goBack" aria-label="Về Chunk Lab" title="Về Chunk Lab">
@@ -154,6 +213,29 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
       </div>
     </div>
 
+    <!-- Start here — adaptive primary next step -->
+    <button
+      class="btn tap thub__start"
+      :style="{
+        background: `linear-gradient(135deg, color-mix(in oklch, ${startCta.color} 20%, var(--color-surface-2)), color-mix(in oklch, ${startCta.color} 6%, var(--color-surface-2)))`,
+        borderColor: `color-mix(in oklch, ${startCta.color} 45%, transparent)`,
+      }"
+      @click="go(startCta.route)"
+    >
+      <IconBlock :icon="startCta.icon" :color="startCta.color" :size="isDesktop ? 52 : 46" />
+      <div class="thub__start-body">
+        <div class="thub__start-eye" :style="{ color: startCta.color }">{{ startCta.eye }}</div>
+        <div class="thub__start-title">{{ startCta.title }}</div>
+        <div class="thub__start-sub">{{ startCta.sub }}</div>
+      </div>
+      <div class="thub__start-actions">
+        <span class="thub__start-cta" :style="{ background: startCta.color }">{{ startCta.action }} →</span>
+        <span class="thub__start-secondary" @click.stop="go(startCta.secondary.route)">{{ startCta.secondary.label }}</span>
+      </div>
+    </button>
+
+    <div class="thub__grid">
+     <div class="thub__col thub__col--main">
     <!-- Roadmap -->
     <section class="thub__section">
       <div class="thub__section-head">
@@ -206,6 +288,37 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
       </div>
     </section>
 
+    <!-- Modules -->
+    <section class="thub__section">
+      <div class="thub__section-head">
+        <div>
+          <h2 class="thub__section-title">Module</h2>
+          <div class="thub__section-sub">Chọn 1 để bắt đầu</div>
+        </div>
+      </div>
+
+      <div class="thub__modules">
+        <button
+          v-for="m in modules"
+          :key="m.id"
+          class="btn tap glass thub__module"
+          @click="go(m.route)"
+        >
+          <div class="thub__module-top">
+            <IconBlock :icon="m.icon" :color="m.color" :size="isDesktop ? 44 : 40" />
+            <span class="mono thub__module-badge">{{ moduleBadge(m.id) }}</span>
+          </div>
+          <div class="thub__module-foot">
+            <div class="thub__module-name">{{ m.name }}</div>
+            <div class="thub__module-sub">{{ m.sub }}</div>
+          </div>
+        </button>
+      </div>
+    </section>
+
+     </div><!-- /main col -->
+
+     <div class="thub__col thub__col--side">
     <!-- Heatmap -->
     <section class="thub__section">
       <div class="thub__section-head">
@@ -274,46 +387,36 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
       </div>
     </section>
 
-    <!-- Modules -->
-    <section class="thub__section">
-      <div class="thub__section-head">
-        <div>
-          <h2 class="thub__section-title">Module</h2>
-          <div class="thub__section-sub">Chọn 1 để bắt đầu</div>
-        </div>
-      </div>
-
-      <div class="thub__modules">
-        <button
-          v-for="m in modules"
-          :key="m.id"
-          class="btn tap glass thub__module"
-          @click="go(m.route)"
-        >
-          <div class="thub__module-top">
-            <IconBlock :icon="m.icon" :color="m.color" :size="isDesktop ? 44 : 40" />
-            <span class="mono thub__module-badge">{{ moduleBadge(m.id) }}</span>
+      <!-- Quick stats -->
+      <section class="thub__section">
+        <div class="thub__section-head">
+          <div>
+            <h2 class="thub__section-title">Tiến độ</h2>
+            <div class="thub__section-sub">Tổng quan luyện tập</div>
           </div>
-          <div class="thub__module-foot">
-            <div class="thub__module-name">{{ m.name }}</div>
-            <div class="thub__module-sub">{{ m.sub }}</div>
-          </div>
-        </button>
-      </div>
-    </section>
-
-    <!-- Recommended CTA -->
-    <section class="thub__section">
-      <button class="btn tap thub__rec" @click="go('/toeic/mini')">
-        <IconBlock icon="sparkle" color="#22D3EE" :size="48" />
-        <div class="thub__rec-body">
-          <div class="thub__rec-eye">Đề xuất hôm nay</div>
-          <div class="thub__rec-title">Mini Test 10 câu · Part 1 + 5</div>
-          <div class="thub__rec-sub">Phase Foundation · ~6 phút</div>
         </div>
-        <Icon name="chevron-right" :size="20" :style="{ color: 'var(--color-cyan)' }" />
-      </button>
-    </section>
+        <div class="glass thub__stats">
+          <div class="thub__stat">
+            <div class="mono thub__stat-num">{{ stats.practiced }}</div>
+            <div class="thub__stat-lbl">Câu đã luyện</div>
+          </div>
+          <div class="thub__stat">
+            <div class="mono thub__stat-num" :style="{ color: 'var(--color-emerald)' }">{{ stats.avgAcc }}%</div>
+            <div class="thub__stat-lbl">Chính xác TB</div>
+          </div>
+          <button class="thub__stat thub__stat--btn" @click="go('/toeic/mistakes')">
+            <div class="mono thub__stat-num" :style="{ color: stats.mistakes > 0 ? 'var(--color-rose)' : 'var(--color-text-3)' }">{{ stats.mistakes }}</div>
+            <div class="thub__stat-lbl">Lỗi cần ôn →</div>
+          </button>
+          <div class="thub__stat">
+            <div class="mono thub__stat-num" :style="{ fontSize: '16px' }">{{ stats.lastExam }}</div>
+            <div class="thub__stat-lbl">Bài thi gần nhất</div>
+          </div>
+        </div>
+      </section>
+     </div><!-- /side col -->
+    </div><!-- /grid -->
+   </div><!-- /inner -->
   </div>
 </template>
 
@@ -327,6 +430,75 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
 }
 .thub::-webkit-scrollbar { display: none; }
 .thub.is-desktop { padding: 28px 28px 60px; }
+
+/* Centered dashboard container */
+.thub__inner { width: 100%; max-width: 1120px; margin: 0 auto; }
+
+/* Body grid — single column on mobile, two columns on desktop */
+.thub__grid { display: block; }
+.thub.is-desktop .thub__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.32fr) minmax(0, 0.8fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 28px;
+}
+.thub__col { min-width: 0; }
+/* First section in each desktop column aligns flush with the column top */
+.thub.is-desktop .thub__col > .thub__section:first-child { margin-top: 0; }
+
+/* Start-here CTA */
+.thub__start {
+  width: 100%;
+  margin-top: 16px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--color-border-2);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+}
+.thub.is-desktop .thub__start { padding: 20px 22px; margin-top: 20px; }
+.thub__start-body { flex: 1; min-width: 0; }
+.thub__start-eye {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.thub__start-title { font-size: 17px; font-weight: 700; margin-top: 2px; letter-spacing: -0.01em; }
+.thub.is-desktop .thub__start-title { font-size: 19px; }
+.thub__start-sub { font-size: 12.5px; color: var(--color-text-2); margin-top: 3px; line-height: 1.45; }
+.thub__start-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.thub__start-cta {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 16px;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #06121a;
+  white-space: nowrap;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.18);
+}
+.thub__start-secondary {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-3);
+  white-space: nowrap;
+}
+.thub__start-secondary:hover { color: var(--color-text-1); text-decoration: underline; }
+@media (max-width: 560px) {
+  .thub__start { flex-wrap: wrap; }
+  .thub__start-actions { flex-direction: row; width: 100%; justify-content: space-between; align-items: center; }
+}
 
 .thub__topbar {
   display: flex;
@@ -600,7 +772,7 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
 }
-.thub.is-desktop .thub__modules { grid-template-columns: repeat(4, 1fr); }
+.thub.is-desktop .thub__modules { grid-template-columns: repeat(2, 1fr); }
 .thub__module {
   padding: 14px;
   border-radius: 18px;
@@ -641,26 +813,25 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
   line-height: 1.4;
 }
 
-/* Recommended CTA */
-.thub__rec {
-  width: 100%;
-  padding: 18px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(34, 211, 238, 0.18), rgba(167, 139, 250, 0.14));
-  border: 1px solid color-mix(in oklch, var(--color-cyan) 32%, transparent);
+/* Quick stats (side column) */
+.thub__stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  background: var(--color-border-1);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.thub__stat {
+  background: var(--color-surface-2);
+  padding: 16px 14px;
   display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-direction: column;
+  gap: 2px;
   text-align: left;
 }
-.thub__rec-body { flex: 1; }
-.thub__rec-eye {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-cyan);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-.thub__rec-title { font-size: 15px; font-weight: 700; margin-top: 2px; }
-.thub__rec-sub { font-size: 12px; color: var(--color-text-3); margin-top: 2px; }
+.thub__stat--btn { cursor: pointer; transition: background 0.15s ease; }
+.thub__stat--btn:hover { background: var(--color-surface-3); }
+.thub__stat-num { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.thub__stat-lbl { font-size: 11px; color: var(--color-text-3); font-weight: 600; }
 </style>
