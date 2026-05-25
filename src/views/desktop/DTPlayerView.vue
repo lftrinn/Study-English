@@ -15,13 +15,17 @@ import { usePlayerStore } from '@/stores/playerStore';
 import { useChunkStore } from '@/stores/chunkStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useUiStore } from '@/stores/uiStore';
+import { useProgressStore } from '@/stores/progressStore';
 import { speechService } from '@/services/speechService';
+
+import type { ListeningLog, ListeningMode } from '@/types/progress';
 
 const router = useRouter();
 const player = usePlayerStore();
 const chunks = useChunkStore();
 const settings = useSettingsStore();
 const ui = useUiStore();
+const progress = useProgressStore();
 
 const FALLBACK_VOICES = [
   { id: 'aria', name: 'Aria', region: 'US · Female' },
@@ -134,6 +138,35 @@ function saveNote() {
 }
 function openDetail() {
   if (chunk.value) ui.openChunkDetail(chunk.value.id);
+}
+
+const MODE_LABEL: Record<ListeningMode, string> = {
+  normal: 'Thường',
+  shuffle: 'Ngẫu nhiên',
+  topic: 'Chủ đề',
+  review: 'Ôn tập',
+  passive: 'Passive',
+};
+
+const historyLogs = computed(() => progress.recentLogs.slice(0, 20));
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return 'vừa xong';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} phút trước`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr} giờ trước`;
+  const day = Math.floor(hr / 24);
+  return `${day} ngày trước`;
+}
+
+function replayLog(log: ListeningLog) {
+  const c = chunks.byId(log.chunkId);
+  if (!c) return;
+  player.setQueue([c], { mode: 'normal' });
+  void player.play();
 }
 </script>
 
@@ -310,6 +343,34 @@ function openDetail() {
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Listening history -->
+    <div class="glass dt-pl__panel dt-pl__history">
+      <div class="dt-pl__panel-head">
+        <Icon name="clock" :size="12" :style="{ color: 'var(--color-text-3)' }" /> Lịch sử nghe
+        <span v-if="historyLogs.length" class="dt-pl__history-count">{{ historyLogs.length }}</span>
+      </div>
+      <div v-if="historyLogs.length === 0" class="dt-pl__history-empty">
+        Chưa có lịch sử nghe. Bấm play để bắt đầu.
+      </div>
+      <ul v-else class="dt-pl__history-list">
+        <li v-for="log in historyLogs" :key="log.id">
+          <button type="button" class="dt-pl__history-row" @click="replayLog(log)" :title="'Phát lại: ' + log.text">
+            <span class="dt-pl__history-ic"><TopicIcon :name="log.topic" :size="14" /></span>
+            <span class="dt-pl__history-body">
+              <span class="dt-pl__history-en">{{ log.text }}</span>
+              <span class="dt-pl__history-vi">{{ log.meaning }}</span>
+            </span>
+            <span class="dt-pl__history-meta">
+              <span class="dt-pl__history-mode">{{ MODE_LABEL[log.mode] }}</span>
+              <span v-if="log.voiceName" class="dt-pl__history-voice">{{ log.voiceName }} · {{ log.rate.toFixed(2) }}×</span>
+              <span class="dt-pl__history-time mono">{{ relativeTime(log.playedAt) }}</span>
+            </span>
+            <span class="dt-pl__history-play"><Icon name="play" :size="13" /></span>
+          </button>
+        </li>
+      </ul>
     </div>
 
     <AppSheet :open="noteOpen" :title="chunk?.note ? 'Sửa note' : 'Thêm note'" @close="closeNote">
@@ -510,6 +571,72 @@ function openDetail() {
   background: var(--color-surface-1); border: 1px solid var(--color-border-1);
   font-size: 12px; font-weight: 600; color: var(--color-text-2);
   display: inline-flex; align-items: center; gap: 6px;
+}
+
+/* Listening history */
+.dt-pl__history { margin-top: 24px; }
+.dt-pl__history-count {
+  margin-left: auto;
+  font-size: 11px; font-weight: 700; color: var(--color-text-3);
+  letter-spacing: 0; text-transform: none;
+}
+.dt-pl__history-empty {
+  font-size: 13px; color: var(--color-text-3); padding: 8px 0;
+}
+.dt-pl__history-list {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.dt-pl__history-row {
+  width: 100%;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 10px;
+  border-radius: 10px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+}
+.dt-pl__history-row:hover {
+  background: var(--color-surface-1);
+  border-color: var(--color-border-1);
+}
+.dt-pl__history-ic {
+  flex: 0 0 32px;
+  width: 32px; height: 32px; border-radius: 8px;
+  display: grid; place-items: center;
+  background: var(--color-surface-2);
+}
+.dt-pl__history-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.dt-pl__history-en {
+  font-size: 13.5px; font-weight: 600; line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dt-pl__history-vi {
+  font-size: 11.5px; color: var(--color-text-3); line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dt-pl__history-meta {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11px; color: var(--color-text-3);
+}
+.dt-pl__history-mode {
+  font-weight: 700; color: var(--color-text-2);
+  padding: 2px 8px; border-radius: 99px;
+  background: var(--color-surface-2);
+}
+.dt-pl__history-voice { white-space: nowrap; }
+.dt-pl__history-time { white-space: nowrap; }
+.dt-pl__history-play {
+  flex: 0 0 28px;
+  width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center;
+  color: var(--color-cyan);
+  opacity: 0; transition: opacity 0.12s ease;
+}
+.dt-pl__history-row:hover .dt-pl__history-play { opacity: 1; }
+@media (max-width: 920px) {
+  .dt-pl__history-voice { display: none; }
 }
 
 /* Note sheet */
