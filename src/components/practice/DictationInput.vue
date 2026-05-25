@@ -202,7 +202,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 12px 30px -12px rgba(34, 211, 238, 0.55);
+  box-shadow: 0 12px 30px -12px rgba(34, 211, 238, 0.28);
 }
 .dt__toggle {
   display: inline-flex;

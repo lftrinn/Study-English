@@ -484,7 +484,7 @@ const filterActiveCount = computed(
   padding: 0 14px; height: 34px; font-size: 12px; font-weight: 700; border-radius: 10px;
   background: var(--grad-primary); color: #fff;
   display: inline-flex; align-items: center; gap: 6px;
-  box-shadow: 0 8px 22px rgba(34,211,238,0.4), 0 1px 0 rgba(255,255,255,0.3) inset;
+  box-shadow: 0 8px 22px rgba(34,211,238,0.20), 0 1px 0 rgba(255,255,255,0.3) inset;
   text-shadow: 0 1px 1.5px rgba(0,0,0,0.18);
 }
 .dt-lib__add-shine {

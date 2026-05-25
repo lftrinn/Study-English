@@ -108,7 +108,7 @@ function later() {
   color: white;
   font-size: 12px;
   font-weight: 700;
-  box-shadow: 0 8px 18px -8px rgba(34, 211, 238, 0.55);
+  box-shadow: 0 8px 18px -8px rgba(34, 211, 238, 0.28);
 }
 
 .install-enter-active,

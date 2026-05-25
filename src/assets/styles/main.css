@@ -80,7 +80,7 @@
   --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* --- Shadows --- */
-  --shadow-glow-cyan: 0 0 0 1px rgba(34, 211, 238, 0.4), 0 16px 48px -16px rgba(34, 211, 238, 0.5);
+  --shadow-glow-cyan: 0 0 0 1px rgba(34, 211, 238, 0.20), 0 16px 48px -16px rgba(34, 211, 238, 0.25);
   --shadow-card: 0 12px 40px -12px rgba(7, 9, 26, 0.6);
 }
 

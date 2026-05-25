@@ -191,7 +191,7 @@ const presets = [
               display: 'grid',
               placeItems: 'center',
               color: '#0B0F22',
-              boxShadow: '0 20px 60px rgba(34,211,238,0.4)',
+              boxShadow: '0 20px 60px rgba(34,211,238,0.20)',
             }"
           >
             <Icon name="headphones" :size="56" />
@@ -596,7 +596,7 @@ const presets = [
           background: canAdvance ? 'var(--grad-primary)' : 'var(--color-surface-2)',
           color: canAdvance ? '#0B0F22' : 'var(--color-text-3)',
           opacity: canAdvance ? 1 : 0.6,
-          boxShadow: canAdvance ? '0 12px 30px rgba(34,211,238,0.25)' : 'none',
+          boxShadow: canAdvance ? '0 12px 30px rgba(34,211,238,0.12)' : 'none',
         }"
         @click="next"
       >{{ isFinal ? "I'm ready · bắt đầu" : 'Continue →' }}</button>

@@ -530,7 +530,7 @@ watch(
             opacity: feedback ? 1 : 0.6,
             cursor: feedback ? 'pointer' : 'not-allowed',
             textShadow: feedback ? '0 1px 1.5px rgba(0,0,0,0.18)' : 'none',
-            boxShadow: feedback ? '0 10px 28px rgba(34,211,238,0.42), 0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(0,0,0,0.18) inset' : 'none',
+            boxShadow: feedback ? '0 10px 28px rgba(34,211,238,0.21), 0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(0,0,0,0.18) inset' : 'none',
           }"
           @click="continueNext"
         >{{ feedback ? 'Continue →' : 'Pick an answer' }}</button>
@@ -572,7 +572,7 @@ watch(
           fontSize: '13px',
           fontWeight: 700,
           textShadow: '0 1px 1.5px rgba(0,0,0,0.18)',
-          boxShadow: '0 10px 28px rgba(34,211,238,0.42), 0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(0,0,0,0.18) inset',
+          boxShadow: '0 10px 28px rgba(34,211,238,0.21), 0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(0,0,0,0.18) inset',
         }"
         @click="start"
       >Bắt đầu</button>

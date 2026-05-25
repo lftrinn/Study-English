@@ -71,7 +71,7 @@ withDefaults(
   background: var(--grad-primary);
   color: white;
   border: 1px solid transparent;
-  box-shadow: 0 8px 24px -8px rgba(34, 211, 238, 0.5);
+  box-shadow: 0 8px 24px -8px rgba(34, 211, 238, 0.25);
 }
 
 .btn--ghost {

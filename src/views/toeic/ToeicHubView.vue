@@ -591,7 +591,7 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
   inset: 0;
   background: var(--grad-primary);
   border-radius: 999px;
-  box-shadow: 0 0 16px rgba(34, 211, 238, 0.45);
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.23);
   transition: width 0.4s ease;
 }
 .thub__hero-progress-foot {
