@@ -509,7 +509,7 @@ function clozePassageWithMarkers(passage: string, activeIdx: number): string {
   background: var(--grad-primary);
   display: grid;
   place-items: center;
-  box-shadow: 0 6px 14px rgba(79, 70, 229, 0.5);
+  box-shadow: 0 6px 14px rgba(34, 211, 238, 0.25);
 }
 
 .qcard__audio {
@@ -527,7 +527,7 @@ function clozePassageWithMarkers(passage: string, activeIdx: number): string {
   background: var(--grad-primary);
   display: grid;
   place-items: center;
-  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.4);
+  box-shadow: 0 6px 18px rgba(34, 211, 238, 0.20);
   flex-shrink: 0;
 }
 .qcard__audio-meta {

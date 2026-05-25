@@ -660,7 +660,7 @@ const weakRec = computed(() => {
   background: var(--grad-primary);
   color: #fff;
   text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.18);
-  box-shadow: 0 10px 28px rgba(79, 70, 229, 0.42);
+  box-shadow: 0 10px 28px rgba(34, 211, 238, 0.21);
 }
 .texam__primary[disabled] {
   background: var(--color-surface-2);
@@ -729,7 +729,7 @@ const weakRec = computed(() => {
   background: var(--grad-primary);
   color: #fff;
   text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.18);
-  box-shadow: 0 10px 28px rgba(79, 70, 229, 0.42);
+  box-shadow: 0 10px 28px rgba(34, 211, 238, 0.21);
 }
 
 /* Result */
