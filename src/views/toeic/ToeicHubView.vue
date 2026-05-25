@@ -34,14 +34,32 @@ const progressPct = computed(() => {
 });
 const remaining = computed(() => toeic.goal.target - toeic.goal.current);
 
+const lastExamLabel = computed(() => {
+  const last = toeic.lastExam;
+  if (!last?.takenAt) return 'Chưa có bài thi';
+  const d = new Date(last.takenAt);
+  return `${d.getDate()}/${d.getMonth() + 1}`;
+});
+
+// Rough projection from the recent score trend: gain-per-exam × exams to go.
+const projection = computed(() => {
+  const s = toeic.examScores;
+  if (s.length < 2) return null;
+  const gain = s[s.length - 1].total - s[s.length - 2].total;
+  const remain = toeic.goal.target - toeic.goal.current;
+  if (gain <= 0 || remain <= 0) return null;
+  return Math.ceil(remain / gain);
+});
+
 const currentPhaseInfo = computed(() => {
   const id = toeic.currentPhase;
   return TOEIC_PHASES.find((p) => p.id === id) ?? TOEIC_PHASES[0];
 });
 
 function goBack() {
-  if (window.history.length > 1) router.back();
-  else router.replace('/settings');
+  // Switch back to the Chunk Lab module. Home is its canonical landing, so
+  // it's a predictable target regardless of how the user entered TOEIC.
+  router.push('/');
 }
 
 function go(route: string) {
@@ -83,15 +101,15 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
   <div class="thub scrollarea" :class="{ 'is-desktop': isDesktop }">
     <!-- Top bar -->
     <div class="thub__topbar">
-      <button class="btn tap thub__back" @click="goBack" aria-label="Back">
+      <button class="btn tap thub__back" @click="goBack" aria-label="Về Chunk Lab" title="Về Chunk Lab">
         <Icon name="chevron-left" :size="18" />
       </button>
       <div class="thub__topbar-meta">
         <div class="thub__topbar-eye">TOEIC</div>
         <div class="thub__topbar-title">Training Center</div>
       </div>
-      <button class="btn tap thub__back" aria-label="Settings" @click="go('/toeic/progress')">
-        <Icon name="more" :size="18" />
+      <button class="btn tap thub__back thub__manage" aria-label="Quản lý nội dung" title="Quản lý nội dung" @click="go('/toeic/content')">
+        <Icon name="library" :size="18" />
       </button>
     </div>
 
@@ -105,7 +123,7 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
             <span class="mono thub__hero-current-num">{{ toeic.goal.current }}</span>
             <span class="thub__hero-current-peak">/ {{ toeic.goal.peak }}</span>
           </div>
-          <div class="thub__hero-sub">Bài thi gần nhất: 12/4</div>
+          <div class="thub__hero-sub">Bài thi gần nhất: {{ lastExamLabel }}</div>
         </div>
 
         <div class="thub__hero-progress">
@@ -118,13 +136,14 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
           </div>
           <div class="thub__hero-progress-foot">
             <span>Còn <b class="mono">{{ remaining }}</b> điểm</span>
-            <span>Dự kiến đạt 15 Tháng 9</span>
+            <span v-if="projection">Dự kiến ~<b class="mono">{{ projection }}</b> bài nữa</span>
+            <span v-else>Luyện đều để thấy tiến bộ</span>
           </div>
         </div>
 
         <div class="thub__hero-phase">
           <ProgressRing :value="progressPct / 100" :size="isDesktop ? 78 : 64" :stroke="6" color="#22D3EE" :show-label="false">
-            <template #default />
+            <span class="mono thub__hero-ring-num">{{ Math.round(progressPct) }}%</span>
           </ProgressRing>
           <div>
             <div class="thub__hero-label">Phase</div>
@@ -412,6 +431,7 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
 }
 .thub__hero-phase { display: flex; align-items: center; gap: 12px; }
 .thub__hero-phase-name { font-size: 14px; font-weight: 700; margin-top: 2px; }
+.thub__hero-ring-num { font-size: 13px; font-weight: 700; color: var(--color-cyan); }
 
 /* Section */
 .thub__section { margin-top: 22px; }

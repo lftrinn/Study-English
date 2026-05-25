@@ -9,6 +9,7 @@ import { useChunkStore } from '@/stores/chunkStore';
 import { useProgressStore } from '@/stores/progressStore';
 import { useUiStore } from '@/stores/uiStore';
 import { usePlayerStore } from '@/stores/playerStore';
+import { useToeicStore } from '@/stores/toeicStore';
 import type { BeforeInstallPromptEventLike } from '@/stores/uiStore';
 
 const settings = useSettingsStore();
@@ -16,6 +17,7 @@ const chunks = useChunkStore();
 const progress = useProgressStore();
 const ui = useUiStore();
 const player = usePlayerStore();
+const toeic = useToeicStore();
 const router = useRouter();
 const { isDesktop } = useViewport();
 
@@ -38,7 +40,7 @@ function onPageHide(e: PageTransitionEvent) {
 
 onMounted(async () => {
   settings.hydrate();
-  await Promise.all([chunks.loadAll(), progress.hydrate()]);
+  await Promise.all([chunks.loadAll(), progress.hydrate(), toeic.loadUserContent()]);
   if (!settings.onboardingDone && router.currentRoute.value.name !== 'onboarding') {
     router.replace('/onboarding');
   }

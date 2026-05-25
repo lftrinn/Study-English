@@ -140,6 +140,10 @@ function runAction(id: string) {
     router.push('/study/learn');
   } else if (id === 'test') {
     router.push('/study/test');
+  } else if (id === 'toeic-mini') {
+    router.push('/toeic/mini');
+  } else if (id === 'toeic-hub') {
+    router.push('/toeic');
   }
 }
 function gotoTopic(id: string) {
@@ -156,8 +160,8 @@ function playChunk(c: Chunk) {
 const quickActions = computed(() => [
   { id: 'passive', label: 'Passive Listening', sub: 'Nghe khi rảnh', icon: 'headphones', color: '#22D3EE' },
   { id: 'flashcard', label: 'Ôn chunk yếu', sub: `${progress.weakChunkIds.length} cần ôn`, icon: 'refresh', color: '#A78BFA' },
-  { id: 'learn', label: 'Luyện phỏng vấn', sub: 'Câu hỏi hỗn hợp', icon: 'brain', color: '#F59E0B' },
-  { id: 'test', label: 'TOEIC Mini Test', sub: '10 câu hỏi', icon: 'target', color: '#34D399' },
+  { id: 'toeic-mini', label: 'TOEIC Mini Test', sub: '5 · 10 · 20 câu', icon: 'target', color: '#34D399' },
+  { id: 'toeic-hub', label: 'TOEIC Center', sub: 'Lộ trình 450 → 550', icon: 'trophy', color: '#F59E0B' },
 ]);
 
 const playerIsPlayingActive = computed(() => player.isPlaying && !player.isPaused);

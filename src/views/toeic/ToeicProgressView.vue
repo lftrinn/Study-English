@@ -38,10 +38,19 @@ function cellBg(partId: number, acc: number | undefined) {
 }
 
 const scores = computed(() => toeic.examScores.map((s) => s.total));
-const minScore = 420;
-const maxScore = 500;
+const hasTrend = computed(() => scores.value.length >= 2);
+// Auto-fit the Y range to the data so the line uses the full height.
+const bounds = computed(() => {
+  const vals = scores.value;
+  if (vals.length === 0) return { min: 0, max: 990 };
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const pad = Math.max(10, (max - min) * 0.15);
+  return { min: min - pad, max: max + pad };
+});
 function normY(v: number) {
-  return (v - minScore) / (maxScore - minScore);
+  const { min, max } = bounds.value;
+  return max === min ? 0.5 : (v - min) / (max - min);
 }
 const sparkPoints = computed(() =>
   scores.value
@@ -152,18 +161,19 @@ function onClose() {
       <div class="glass tprog__spark">
         <div class="tprog__spark-head">
           <div>
-            <div class="tprog__group-lbl">Điểm dự đoán 6 tuần gần</div>
-            <div class="tprog__spark-num">
+            <div class="tprog__group-lbl">Điểm các bài thi gần đây</div>
+            <div v-if="hasTrend" class="tprog__spark-num">
               <span class="mono">{{ projectedFirst }}</span>
               <span class="tprog__spark-arrow">→</span>
               <span class="mono" :style="{ color: 'var(--color-emerald)' }">{{ projectedLast }}</span>
             </div>
+            <div v-else class="tprog__spark-empty">Chưa đủ dữ liệu — làm Exam Mode để vẽ biểu đồ.</div>
           </div>
-          <span class="mono tprog__spark-delta" :style="{ color: projectedDelta >= 0 ? 'var(--color-emerald)' : 'var(--color-rose)' }">
+          <span v-if="hasTrend" class="mono tprog__spark-delta" :style="{ color: projectedDelta >= 0 ? 'var(--color-emerald)' : 'var(--color-rose)' }">
             {{ projectedDelta >= 0 ? '+' : '' }}{{ projectedDelta }}
           </span>
         </div>
-        <svg viewBox="0 0 200 60" width="100%" height="60" preserveAspectRatio="none">
+        <svg v-if="hasTrend" viewBox="0 0 200 60" width="100%" height="60" preserveAspectRatio="none">
           <defs>
             <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color="var(--color-cyan)" stop-opacity="0.4" />
@@ -296,6 +306,7 @@ function onClose() {
   margin-bottom: 12px;
 }
 .tprog__spark-num { font-size: 18px; font-weight: 700; margin-top: 2px; display: inline-flex; align-items: baseline; gap: 6px; }
+.tprog__spark-empty { font-size: 12px; color: var(--color-text-3); margin-top: 4px; }
 .tprog__spark-arrow { font-size: 12px; color: var(--color-text-3); }
 .tprog__spark-delta { font-size: 11px; }
 </style>
