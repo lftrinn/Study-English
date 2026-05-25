@@ -449,7 +449,7 @@ const ctaEnabled = computed(() => {
   font-weight: 700;
   background: var(--grad-primary);
   color: #fff;
-  box-shadow: 0 10px 28px rgba(34, 211, 238, 0.42);
+  box-shadow: 0 10px 28px rgba(79, 70, 229, 0.42);
   text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.18);
 }
 .tmini__start[disabled] {
@@ -495,7 +495,7 @@ const ctaEnabled = computed(() => {
   font-weight: 700;
   background: var(--grad-primary);
   color: #fff;
-  box-shadow: 0 10px 28px rgba(34, 211, 238, 0.42);
+  box-shadow: 0 10px 28px rgba(79, 70, 229, 0.42);
   text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.18);
 }
 .tmini__cta-primary[disabled] {
