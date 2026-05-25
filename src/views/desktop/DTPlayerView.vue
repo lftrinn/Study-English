@@ -694,6 +694,6 @@ function replayLog(log: ListeningLog) {
   color: #0b0f22;
   font-size: 13px; font-weight: 700;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  box-shadow: 0 6px 18px rgba(34,211,238,0.32), 0 1px 0 rgba(255,255,255,0.3) inset;
+  box-shadow: 0 6px 18px rgba(79, 70, 229,0.32), 0 1px 0 rgba(255,255,255,0.3) inset;
 }
 </style>

@@ -460,7 +460,7 @@ function optionState(opt: ChoiceOption): 'idle' | 'correct' | 'wrong' | 'reveal'
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 12px 30px -12px rgba(34, 211, 238, 0.55);
+  box-shadow: 0 12px 30px -12px rgba(79, 70, 229, 0.55);
 }
 .qq__player-hint {
   font-size: 12px;

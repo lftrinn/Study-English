@@ -549,7 +549,7 @@ onBeforeUnmount(() => {
   font-size: 13px;
   text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.18);
   box-shadow:
-    0 10px 28px rgba(34, 211, 238, 0.42),
+    0 10px 28px rgba(79, 70, 229, 0.42),
     0 1px 0 rgba(255, 255, 255, 0.35) inset,
     0 -1px 0 rgba(0, 0, 0, 0.18) inset;
 }

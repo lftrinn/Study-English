@@ -47,7 +47,7 @@ const rootStyle = computed(() => {
       ...base,
       background: props.gradient ?? 'var(--grad-primary)',
       boxShadow:
-        '0 8px 22px rgba(34,211,238,0.3), 0 1px 0 rgba(255,255,255,0.35) inset',
+        '0 8px 22px rgba(79, 70, 229,0.3), 0 1px 0 rgba(255,255,255,0.35) inset',
     };
   }
   return {

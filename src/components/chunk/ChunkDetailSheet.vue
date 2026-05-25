@@ -304,7 +304,7 @@ watch(open, async (v) => {
               display: 'grid',
               placeItems: 'center',
               color: '#0B0F22',
-              boxShadow: '0 8px 30px rgba(34,211,238,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset',
+              boxShadow: '0 8px 30px rgba(79, 70, 229,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset',
             }"
             @click="playSelf"
           >

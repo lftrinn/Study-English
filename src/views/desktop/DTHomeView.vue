@@ -378,7 +378,7 @@ function gotoTopic(id: string) { chunks.setTopic(id); router.push('/library'); }
   background: var(--grad-primary);
   color: #fff; font-size: 13px; font-weight: 700;
   display: inline-flex; align-items: center; gap: 8px;
-  box-shadow: 0 10px 28px rgba(34,211,238,0.42), 0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(0,0,0,0.18) inset;
+  box-shadow: 0 10px 28px rgba(79, 70, 229,0.42), 0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(0,0,0,0.18) inset;
   text-shadow: 0 1px 1.5px rgba(0,0,0,0.18);
 }
 .dt-home__resume-shine {
@@ -414,7 +414,7 @@ function gotoTopic(id: string) { chunks.setTopic(id); router.push('/library'); }
 .dt-home__cont-play {
   width: 76px; height: 76px; border-radius: 22px; background: var(--grad-primary);
   display: grid; place-items: center; flex-shrink: 0; position: relative; overflow: hidden;
-  box-shadow: 0 14px 36px rgba(34,211,238,0.45), 0 1px 0 rgba(255,255,255,0.4) inset, 0 -1px 0 rgba(0,0,0,0.18) inset;
+  box-shadow: 0 14px 36px rgba(79, 70, 229,0.45), 0 1px 0 rgba(255,255,255,0.4) inset, 0 -1px 0 rgba(0,0,0,0.18) inset;
 }
 .dt-home__cont-play-shine {
   position: absolute; inset: 1px; border-radius: 21px; pointer-events: none;
