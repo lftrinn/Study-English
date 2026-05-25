@@ -9,7 +9,7 @@ import { useRoute, useRouter } from 'vue-router';
 import Icon from '@/components/common/Icon.vue';
 import ModeShell from '@/components/layout/ModeShell.vue';
 import QuestionCard from '@/components/toeic/QuestionCard.vue';
-import { TOEIC_PARTS, TOEIC_QUESTIONS } from '@/data/toeic';
+import { TOEIC_PARTS } from '@/data/toeic';
 import { useToeicStore } from '@/stores/toeicStore';
 import type { TOEICPart } from '@/types/toeic';
 
@@ -31,7 +31,7 @@ const qi = ref(0);
 const part = computed<TOEICPart | undefined>(() =>
   selectedPartId.value ? TOEIC_PARTS.find((p) => p.id === selectedPartId.value) : undefined,
 );
-const partQs = computed(() => (selectedPartId.value ? TOEIC_QUESTIONS[selectedPartId.value] ?? [] : []));
+const partQs = computed(() => (selectedPartId.value ? toeic.questionsForPart(selectedPartId.value) : []));
 const current = computed(() => partQs.value[qi.value] ?? partQs.value[0]);
 
 const isMulti = computed(() => {

@@ -11,7 +11,7 @@ import { useRouter } from 'vue-router';
 import Icon from '@/components/common/Icon.vue';
 import ModeShell from '@/components/layout/ModeShell.vue';
 import QuestionCard from '@/components/toeic/QuestionCard.vue';
-import { TOEIC_PARTS, TOEIC_QUESTIONS } from '@/data/toeic';
+import { TOEIC_PARTS } from '@/data/toeic';
 import { useToeicStore } from '@/stores/toeicStore';
 import type { TOEICQuestion } from '@/types/toeic';
 
@@ -66,7 +66,7 @@ watch(phase, (p) => {
 const examPool = computed<Array<TOEICQuestion & { partId: number }>>(() => {
   const list: Array<TOEICQuestion & { partId: number }> = [];
   for (const p of TOEIC_PARTS) {
-    for (const q of TOEIC_QUESTIONS[p.id] ?? []) {
+    for (const q of toeic.questionsForPart(p.id)) {
       list.push({ ...q, partId: p.id });
     }
   }

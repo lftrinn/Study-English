@@ -40,10 +40,9 @@ const currentPhaseInfo = computed(() => {
 });
 
 function goBack() {
-  // Always return to Settings — that's the only entry point to TOEIC, so
-  // router.back() can land somewhere unexpected (e.g. an in-app sub-view
-  // the user navigated through).
-  router.push('/settings');
+  // Switch back to the Chunk Lab module. Home is its canonical landing, so
+  // it's a predictable target regardless of how the user entered TOEIC.
+  router.push('/');
 }
 
 function go(route: string) {
@@ -85,15 +84,15 @@ function tone(name: 'rose' | 'amber' | 'cyan' | 'emerald', bgPct: number, border
   <div class="thub scrollarea" :class="{ 'is-desktop': isDesktop }">
     <!-- Top bar -->
     <div class="thub__topbar">
-      <button class="btn tap thub__back" @click="goBack" aria-label="Back">
+      <button class="btn tap thub__back" @click="goBack" aria-label="Về Chunk Lab" title="Về Chunk Lab">
         <Icon name="chevron-left" :size="18" />
       </button>
       <div class="thub__topbar-meta">
         <div class="thub__topbar-eye">TOEIC</div>
         <div class="thub__topbar-title">Training Center</div>
       </div>
-      <button class="btn tap thub__back" aria-label="Settings" @click="go('/toeic/progress')">
-        <Icon name="more" :size="18" />
+      <button class="btn tap thub__back thub__manage" aria-label="Quản lý nội dung" title="Quản lý nội dung" @click="go('/toeic/content')">
+        <Icon name="library" :size="18" />
       </button>
     </div>
 

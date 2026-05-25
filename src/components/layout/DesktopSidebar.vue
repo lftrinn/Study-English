@@ -56,6 +56,18 @@ function goTopic(id: string) {
       </div>
     </div>
 
+    <!-- Module switcher — jump between Chunk Lab and TOEIC Center -->
+    <div class="dt-sb__modules">
+      <button class="btn tap dt-sb__mod is-active" disabled>
+        <Icon name="headphones" :size="14" />
+        <span>Chunk Lab</span>
+      </button>
+      <button class="btn tap dt-sb__mod dt-sb__mod--toeic" @click="go('/toeic')">
+        <Icon name="trophy" :size="14" />
+        <span>TOEIC</span>
+      </button>
+    </div>
+
     <!-- Main nav -->
     <nav class="dt-sb__nav">
       <button
@@ -126,11 +138,42 @@ function goTopic(id: string) {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 8px 18px;
+  padding: 4px 8px 14px;
 }
-.dt-sb__brand-text { min-width: 0; }
+.dt-sb__brand-text { min-width: 0; flex: 1; }
 .dt-sb__brand-title { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; }
 .dt-sb__brand-sub { font-size: 11px; color: var(--color-text-3); }
+
+.dt-sb__modules {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border-1);
+}
+.dt-sb__mod {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 6px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-3);
+  background: transparent;
+}
+.dt-sb__mod.is-active {
+  background: var(--color-surface-3);
+  color: var(--color-cyan);
+}
+.dt-sb__mod--toeic:hover {
+  color: var(--color-amber);
+  background: color-mix(in oklch, var(--color-amber) 12%, transparent);
+}
 
 .dt-sb__nav { display: flex; flex-direction: column; gap: 2px; }
 .dt-sb__btn {

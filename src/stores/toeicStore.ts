@@ -13,14 +13,17 @@ import {
   TOEIC_MISTAKES_SEED,
   TOEIC_PARTS,
   TOEIC_PART_STATS_SEED,
+  TOEIC_QUESTIONS,
   makeDailyHeat,
   makeSkillMatrix,
 } from '@/data/toeic';
+import { storageService } from '@/services/storageService';
 import type {
   TOEICGoal,
   TOEICMistake,
   TOEICPartStat,
   TOEICPhaseId,
+  TOEICQuestion,
   TOEICSkillCell,
 } from '@/types/toeic';
 
@@ -97,6 +100,37 @@ export const useToeicStore = defineStore('toeic', () => {
   const examScores = ref<ExamScore[]>(initial.examScores);
   const starredChunks = ref<string[]>(initial.starredChunks);
   const dailyHeat = ref(makeDailyHeat());
+
+  // User-imported questions, keyed by Part. Empty until loadUserContent()
+  // runs; views fall back to the bundled samples when a Part is empty.
+  const userQuestions = ref<Record<number, TOEICQuestion[]>>({});
+  const contentLoaded = ref(false);
+
+  async function loadUserContent() {
+    try {
+      const rows = await storageService.getAllToeicQuestions();
+      const map: Record<number, TOEICQuestion[]> = {};
+      for (const r of rows) {
+        (map[r.part] ??= []).push(r.data);
+      }
+      userQuestions.value = map;
+    } catch {
+      userQuestions.value = {};
+    } finally {
+      contentLoaded.value = true;
+    }
+  }
+
+  /** Questions for a Part: user-imported if any, else bundled samples. */
+  function questionsForPart(part: number): TOEICQuestion[] {
+    const user = userQuestions.value[part];
+    if (user && user.length > 0) return user;
+    return TOEIC_QUESTIONS[part] ?? [];
+  }
+
+  const hasUserContent = computed(() =>
+    Object.values(userQuestions.value).some((arr) => arr.length > 0),
+  );
 
   // ── Derived ──────────────────────────────────────────────────────────
   const skillMatrix = computed<Record<number, TOEICSkillCell[]>>(() =>
@@ -227,11 +261,16 @@ export const useToeicStore = defineStore('toeic', () => {
     examScores,
     starredChunks,
     dailyHeat,
+    userQuestions,
+    contentLoaded,
+    hasUserContent,
     skillMatrix,
     weakestPart,
     strongestPart,
     currentPhase,
     mistakeCount,
+    loadUserContent,
+    questionsForPart,
     recordAnswer,
     addMistake,
     markMistakeReviewed,

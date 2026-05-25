@@ -54,13 +54,17 @@ export interface TOEICQuestionBase {
   tags?: string[];
   /** Explanation shown after the user answers. */
   explain?: string;
+  /**
+   * Media filenames (NOT data) — the user uploads files with these exact
+   * names and the app resolves them to Blobs in IndexedDB at render time.
+   */
+  image?: string;
+  audio?: string;
 }
 
 export interface TOEICPhotoQuestion extends TOEICQuestionBase {
   kind: 'photo';
   topic: string;
-  img?: string;
-  audio?: string;
   options: string[];
   correct: number;
 }

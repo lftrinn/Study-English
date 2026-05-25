@@ -140,6 +140,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/toeic/ToeicProgressView.vue'),
     meta: { title: 'TOEIC · Progress', tab: null, hideChrome: true },
   },
+  {
+    path: '/toeic/content',
+    name: 'toeic-content',
+    component: () => import('@/views/toeic/ToeicContentView.vue'),
+    meta: { title: 'TOEIC · Nội dung', tab: null, hideChrome: true },
+  },
   { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },
 ];
 

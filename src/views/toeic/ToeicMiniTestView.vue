@@ -11,7 +11,7 @@ import ModeShell from '@/components/layout/ModeShell.vue';
 import ProgressBar from '@/components/common/ProgressBar.vue';
 import ProgressRing from '@/components/common/ProgressRing.vue';
 import QuestionCard from '@/components/toeic/QuestionCard.vue';
-import { TOEIC_PARTS, TOEIC_QUESTIONS } from '@/data/toeic';
+import { TOEIC_PARTS } from '@/data/toeic';
 import { useToeicStore } from '@/stores/toeicStore';
 import type { TOEICQuestion } from '@/types/toeic';
 
@@ -32,7 +32,7 @@ const currentMulti = ref<Array<number | null>>([]);
 const questions = computed<Array<TOEICQuestion & { partId: number }>>(() => {
   const list: Array<TOEICQuestion & { partId: number }> = [];
   for (const p of parts.value) {
-    for (const q of TOEIC_QUESTIONS[p] ?? []) {
+    for (const q of toeic.questionsForPart(p)) {
       list.push({ ...q, partId: p });
     }
   }

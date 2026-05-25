@@ -10,12 +10,13 @@
  * speechService.speak() with the appropriate text (options narration for
  * Part 1, question for Part 2, context for Parts 3-4).
  */
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
 import Icon from '@/components/common/Icon.vue';
 import WaveBars from '@/components/common/WaveBars.vue';
 import { TOEIC_PARTS } from '@/data/toeic';
 import { speechService } from '@/services/speechService';
+import { getMediaUrl } from '@/services/toeicContentService';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type {
   TOEICClozeQuestion,
@@ -94,21 +95,65 @@ function isPassage(q: TOEICQuestion): q is TOEICPassageQuestion {
   return q.kind === 'passage';
 }
 
-// — Audio playback —
+// — Media resolution (real uploaded files → object URLs, else fallback) —
+const imageUrl = ref<string | null>(null);
+const audioUrl = ref<string | null>(null);
+let audioEl: HTMLAudioElement | null = null;
+// — Audio playback — prefer the uploaded file; fall back to TTS narration.
 const isPlaying = ref(false);
 
-async function playAudio() {
+watch(
+  () => [props.q.image, props.q.audio] as const,
+  async ([img, aud]) => {
+    // Tear down any audio element bound to the previous question.
+    if (audioEl) {
+      audioEl.pause();
+      audioEl = null;
+    }
+    isPlaying.value = false;
+    imageUrl.value = await getMediaUrl(img);
+    audioUrl.value = await getMediaUrl(aud);
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  if (audioEl) {
+    audioEl.pause();
+    audioEl = null;
+  }
+});
+
+function ttsText(): string {
   const q = props.q;
-  let text = '';
   if (q.kind === 'photo') {
-    text = q.options.map((o, i) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. ');
-  } else if (q.kind === 'qa') {
-    text = `${q.q}. ${q.options.map((o, i) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. ')}`;
-  } else if (q.kind === 'conv' || q.kind === 'talk') {
-    text = q.context;
-  } else {
+    return q.options.map((o, i) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. ');
+  }
+  if (q.kind === 'qa') {
+    return `${q.q}. ${q.options.map((o, i) => `Option ${String.fromCharCode(65 + i)}: ${o}`).join('. ')}`;
+  }
+  if (q.kind === 'conv' || q.kind === 'talk') return q.context;
+  return '';
+}
+
+async function playAudio() {
+  // Uploaded file wins.
+  if (audioUrl.value) {
+    try {
+      if (!audioEl) audioEl = new Audio(audioUrl.value);
+      audioEl.playbackRate = settings.defaultSpeed;
+      audioEl.currentTime = 0;
+      isPlaying.value = true;
+      audioEl.onended = () => (isPlaying.value = false);
+      await audioEl.play();
+    } catch {
+      isPlaying.value = false;
+    }
     return;
   }
+  // Fallback: TTS narration of the text.
+  const text = ttsText();
+  if (!text) return;
   try {
     isPlaying.value = true;
     await speechService.speak({
@@ -180,12 +225,13 @@ function clozePassageWithMarkers(passage: string, activeIdx: number): string {
     </div>
 
     <!-- Stimulus -->
-    <div v-if="q.kind === 'photo'" class="qcard__photo" :style="{
+    <div v-if="q.kind === 'photo'" class="qcard__photo" :style="!imageUrl ? {
       backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 8px, color-mix(in oklch, ${part.color} 10%, transparent) 8px, color-mix(in oklch, ${part.color} 10%, transparent) 16px)`,
-    }">
-      <div class="qcard__photo-inner">
+    } : {}">
+      <img v-if="imageUrl" :src="imageUrl" :alt="q.topic" class="qcard__photo-img" />
+      <div v-else class="qcard__photo-inner">
         <Icon name="headphones" :size="28" :style="{ color: 'var(--color-text-3)' }" />
-        <span class="mono qcard__photo-label">{{ q.topic }} · photo</span>
+        <span class="mono qcard__photo-label">{{ q.topic }} · chưa có ảnh</span>
       </div>
       <button class="btn tap qcard__photo-play" aria-label="Play audio" @click="playAudio">
         <Icon :name="isPlaying ? 'pause' : 'play'" :size="14" :style="{ color: '#fff', marginLeft: isPlaying ? 0 : '1px' }" />
@@ -430,6 +476,13 @@ function clozePassageWithMarkers(passage: string, activeIdx: number): string {
   position: relative;
   background: linear-gradient(135deg, var(--color-surface-2), var(--color-surface-3));
   border: 1px solid var(--color-border-1);
+}
+.qcard__photo-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .qcard__photo-inner {
   position: absolute;

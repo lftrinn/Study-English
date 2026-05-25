@@ -2,16 +2,35 @@ import { openDB, type IDBPDatabase } from 'idb';
 import type { Chunk } from '@/types/chunk';
 import type { ChunkProgress, ListeningLog } from '@/types/progress';
 import type { PracticeResult } from '@/types/practice';
+import type { TOEICQuestion } from '@/types/toeic';
 
 const DB_NAME = 'chunk-listening-lab';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const STORES = {
   progress: 'progress',
   listeningLogs: 'listeningLogs',
   practiceResults: 'practiceResults',
   customChunks: 'customChunks',
+  toeicQuestions: 'toeicQuestions',
+  toeicMedia: 'toeicMedia',
 } as const;
+
+/** A user-imported TOEIC question, tagged with its Part for indexed lookup. */
+export interface StoredToeicQuestion {
+  id: string;
+  part: number;
+  data: TOEICQuestion;
+}
+
+/** A media asset (image/audio) stored as a Blob, keyed by its filename. */
+export interface StoredToeicMedia {
+  key: string;
+  blob: Blob;
+  type: string;
+  size: number;
+  uploadedAt: string;
+}
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
@@ -21,6 +40,9 @@ function getDb(): Promise<IDBPDatabase> {
   }
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
+      // Guarded creates make the upgrade idempotent across versions: a fresh
+      // install (oldVersion 0) builds everything; a v1→v2 upgrade adds only
+      // the two TOEIC stores.
       upgrade(db) {
         if (!db.objectStoreNames.contains(STORES.progress)) {
           db.createObjectStore(STORES.progress, { keyPath: 'chunkId' });
@@ -37,6 +59,13 @@ function getDb(): Promise<IDBPDatabase> {
         }
         if (!db.objectStoreNames.contains(STORES.customChunks)) {
           db.createObjectStore(STORES.customChunks, { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains(STORES.toeicQuestions)) {
+          const s = db.createObjectStore(STORES.toeicQuestions, { keyPath: 'id' });
+          s.createIndex('byPart', 'part');
+        }
+        if (!db.objectStoreNames.contains(STORES.toeicMedia)) {
+          db.createObjectStore(STORES.toeicMedia, { keyPath: 'key' });
         }
       },
     });
@@ -109,6 +138,61 @@ export const storageService = {
     await db.delete(STORES.customChunks, id);
   },
 
+  // ----- TOEIC questions -----
+  async getToeicQuestionsByPart(part: number): Promise<StoredToeicQuestion[]> {
+    const db = await getDb();
+    return db.getAllFromIndex(STORES.toeicQuestions, 'byPart', part);
+  },
+  async getAllToeicQuestions(): Promise<StoredToeicQuestion[]> {
+    const db = await getDb();
+    return db.getAll(STORES.toeicQuestions);
+  },
+  async putToeicQuestions(rows: StoredToeicQuestion[]): Promise<void> {
+    const db = await getDb();
+    const tx = db.transaction(STORES.toeicQuestions, 'readwrite');
+    for (const r of rows) await tx.objectStore(STORES.toeicQuestions).put(r);
+    await tx.done;
+  },
+  async deleteToeicQuestion(id: string): Promise<void> {
+    const db = await getDb();
+    await db.delete(STORES.toeicQuestions, id);
+  },
+  async clearToeicQuestionsByPart(part: number): Promise<void> {
+    const db = await getDb();
+    const rows = await db.getAllFromIndex(STORES.toeicQuestions, 'byPart', part);
+    const tx = db.transaction(STORES.toeicQuestions, 'readwrite');
+    for (const r of rows) await tx.objectStore(STORES.toeicQuestions).delete(r.id);
+    await tx.done;
+  },
+
+  // ----- TOEIC media (image/audio blobs) -----
+  async getToeicMedia(key: string): Promise<StoredToeicMedia | undefined> {
+    const db = await getDb();
+    return db.get(STORES.toeicMedia, key);
+  },
+  async getAllToeicMediaKeys(): Promise<string[]> {
+    const db = await getDb();
+    return (await db.getAllKeys(STORES.toeicMedia)) as string[];
+  },
+  async getAllToeicMedia(): Promise<StoredToeicMedia[]> {
+    const db = await getDb();
+    return db.getAll(STORES.toeicMedia);
+  },
+  async putToeicMedia(rows: StoredToeicMedia[]): Promise<void> {
+    const db = await getDb();
+    const tx = db.transaction(STORES.toeicMedia, 'readwrite');
+    for (const r of rows) await tx.objectStore(STORES.toeicMedia).put(r);
+    await tx.done;
+  },
+  async deleteToeicMedia(key: string): Promise<void> {
+    const db = await getDb();
+    await db.delete(STORES.toeicMedia, key);
+  },
+  async clearToeicContent(): Promise<void> {
+    const db = await getDb();
+    await Promise.all([db.clear(STORES.toeicQuestions), db.clear(STORES.toeicMedia)]);
+  },
+
   // ----- Bulk -----
   async clearAll(): Promise<void> {
     const db = await getDb();
@@ -117,6 +201,8 @@ export const storageService = {
       db.clear(STORES.listeningLogs),
       db.clear(STORES.practiceResults),
       db.clear(STORES.customChunks),
+      db.clear(STORES.toeicQuestions),
+      db.clear(STORES.toeicMedia),
     ]);
   },
 

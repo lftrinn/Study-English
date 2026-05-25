@@ -11,7 +11,7 @@ import { useRouter } from 'vue-router';
 import Icon from '@/components/common/Icon.vue';
 import ModeShell from '@/components/layout/ModeShell.vue';
 import QuestionCard from '@/components/toeic/QuestionCard.vue';
-import { TOEIC_PARTS, TOEIC_QUESTIONS } from '@/data/toeic';
+import { TOEIC_PARTS } from '@/data/toeic';
 import { useToeicStore } from '@/stores/toeicStore';
 
 interface SkillEntry {
@@ -54,7 +54,7 @@ const drillIdx = ref(0);
 // further; for now it still cycles a varied set.
 const drillPool = computed(() => {
   if (!selectedSkill.value) return [];
-  const all = TOEIC_QUESTIONS[selectedSkill.value.partId] ?? [];
+  const all = toeic.questionsForPart(selectedSkill.value.partId);
   const skillName = selectedSkill.value.skill.toLowerCase();
   const tagged = all.filter((q) =>
     q.tags?.some((t) => t.toLowerCase() === skillName),
