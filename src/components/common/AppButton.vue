@@ -71,10 +71,7 @@ withDefaults(
   background: var(--grad-primary);
   color: white;
   border: 1px solid transparent;
-  box-shadow: 0 4px 14px -6px rgba(79, 70, 229, 0.45);
-}
-.btn--primary:hover {
-  background: var(--grad-primary-strong);
+  box-shadow: 0 8px 24px -8px rgba(34, 211, 238, 0.25);
 }
 
 .btn--ghost {

@@ -482,7 +482,7 @@ function onClose() {
   background: var(--grad-primary);
   color: #fff;
   border: none;
-  box-shadow: 0 10px 28px rgba(79, 70, 229, 0.35);
+  box-shadow: 0 10px 28px rgba(34, 211, 238, 0.17);
   text-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.18);
 }
 .tcm__action[disabled] { opacity: 0.5; cursor: not-allowed; }

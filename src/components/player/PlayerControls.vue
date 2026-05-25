@@ -114,7 +114,7 @@ function togglePlay() {
   display: grid;
   place-items: center;
   box-shadow:
-    0 8px 30px rgba(79, 70, 229, 0.4),
+    0 8px 30px rgba(34, 211, 238, 0.20),
     inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 .controls__primary :deep(svg) {
